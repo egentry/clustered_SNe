@@ -17,13 +17,15 @@ c.... Msun = Initial mass of the protostellar system.
 
 
 c.....Set J (number of zones) both here and in subroutine RadT
-      parameter (Au =1.496e+13,a=3.0,J=142,gamma=7./5.,Vo=2.0944e+15)
-      parameter (Rj=1.0e+16,eta=.20)
+      parameter (Au =1.496e+13,a=3.0,J=200,gamma=7./5.,Vo=2.0944e+15)
+      parameter (Rj=1.0e+16,eta=.20 * .1)
       parameter (Rcore=3.0e+11)
       parameter (Msun=2.0e+33,pi=3.14159,G=6.67e-8)
       parameter (proton=1.6598e-24,wm=2.,boltz=1.38046e-16)
       parameter (comp=boltz/(proton*wm))
       parameter (Arad=7.56e-15,Ch=(5./2.)*(8.317e+7))
+      parameter (nprint=5)
+      parameter (ESN=1e+10)
 
 
       dimension Unew(0:J),Rnew(0:J+1),Vnew(J+1),Pnew(J+1),Enew(J+1) 
@@ -44,6 +46,10 @@ c.....Set J (number of zones) both here and in subroutine RadT
       write(*,*) 'Restart from model file (1) or new simulation (0)?'
       read(*,*) iswitch
 
+c..      write(*,*) 'With gravity? Yes (1) or no (0)?'
+c..      read(*,*) gswitch
+      gswitch=0
+
       if (iswitch.eq.0) then
   
 c..     Set up parameters to make a new simulation..
@@ -55,6 +61,20 @@ c..     Current setup: Uniform density, temperature startup condition.
 
             Uold(i) = 0.0
             Rold(i) = 3.0e+11
+
+          else if (i.eq.2) then
+
+            Uold(i) = 0.0
+            Rold(i) = (real(i)/real(j))**2.0*Rj
+            Vold(i-1) = Vo
+            Told(i-1)= 1.0e+6
+            Pold(i-1) = comp*Told(i-1)*(1/Vold(i-1))
+     +                  +(.333333*Arad*Told(i-1)**4)
+            Cad(i-1)=sqrt(gamma*(Pold(i-1)/(1/Vold(i-1))))
+            Eold(i-1)=(cH/wm)*Told(i-1) 
+     +                  +arad*Vold(i-1)*Told(i-1)**4
+            Qold(i-1) = 0.9
+
 
           else
 
@@ -118,10 +138,22 @@ c..   Mint stands for the mass internal to the current radius.
         Mint = Mint + Mass(i-1)
         Egrav = Egrav-(G*(4./3.)*pi*Mint*(Rold(i+2)**3-Rold(i)**3))
      +           /(((Rold(i)+Rold(i+2))/2)*Vold(i+1))
+        if (gswitch.eq.0) then
+          Egrav = 0
+        end if
       end do
+
+c..     Incorrect energy injection:
+c..      Uold(2) = sqrt(2 * ESN / Mass(1))
+
+c..     Better energy injection (but still doesn't give good T values)
+c..      Eold(2) = ESN
 
 c..   Add self energy of the central zone
       Egrav = Egrav - (3./5.)*G*Mass(1)**2/Rold(2)
+      if (gswitch.eq.0) then
+        Egrav = 0
+      end if
 
 c..   Add the mass of the outermost zone to the total mass.
       Mass(j-1) = 1.333*pi*(Rold(j)**3-Rold(j-2)**3)/Vold(j-1)
@@ -136,6 +168,10 @@ c..   Add the mass of the outermost zone to the total mass.
 
       write(1,108) 0.0,Etot,Egrav,Ekin,Eint,Mint,0.0,totalT
 
+      do i=0,J-2,2
+        write(2,107) 0,i,Rold(i),Uold(i),log10(1/Vold(i+1)),
+     +            Told(i+1), Mass(i+1), cad(i+1), Eold(i+1)
+      end do
 
 c..   MAIN LOOP
       do k=1,Tsteps    
@@ -174,6 +210,9 @@ c..         then compute the gravitational force term.
 
             Mint = Mint + Mass(i-1)
             term2 = (-G*Mint)/(Rold(i)**2)
+            if (gswitch.eq.0) then
+              term2 = 0
+            end if
             Unew(i) = (term1 + term2)*deltat + Uold(i)
 
 c..         Decide here whether to fix the outer boundary condition.
@@ -276,18 +315,18 @@ c..     Get the new boundary conditions:
 
 c..       Print out quantities for the current timestep.
        
-          if ((mod(k,20).eq.0).and.(mod(k,1).eq.0)) then
+          if ((mod(k,nprint).eq.0).and.(mod(k,1).eq.0)) then
 
             do i=0,J-2,2
               write(2,107) k,i,Rnew(i),Unew(i),log10(1/Vnew(i+1)),
-     +                     Told(i+1)
+     +                     Told(i+1), Mass(i+1), cad(i+1), Eold(i+1)
             end do
 
           end if
 
         end if
 
-107     format (2(i6),4(1p1e12.4))
+107     format (2(i6),7(1p1e12.4))
  
 c..     Update the old quanties in preparation for new timestep.
        
@@ -319,11 +358,17 @@ c..     Look at the energy and mass conservation for current timestep
         do i=2,J-2,2
           Mint=Mint+Mass(i-1)
           Egrav=Egrav-(G*Mint*Mass(i+1))/((Rold(i)+Rold(i+2))/2)
+          if (gswitch.eq.0) then
+            Egrav = 0
+          end if
         end do
 
 c..     Add in the gravitational energy of the central zone.
 
         Egrav = Egrav - 3./5.*G*Mass(1)**2/Rold(2)
+        if (gswitch.eq.0) then
+            Egrav = 0
+        end if
         Mint=Mint+Mass(j-1)
         do i=2,J,2
           Eint=Eint+Eold(i-1)*Mass(i-1)
@@ -362,7 +407,7 @@ c..   Store model parameters for a restart:
        subroutine radt(Enew,Vnew,Rnew,deltaT,k)
        implicit real*8(a-h,o-z), integer*4(i-n)
    
-           parameter (J=142)
+           parameter (J=200)
 
            dimension Enew(J+1),Vnew(J+1),Rnew(0:J+1)
            dimension Tnew(0:J+1),Told(0:J+1)
@@ -497,13 +542,13 @@ c..            if doing serious work!
                end do
          
               Return
-           End 
+            end 
 
            subroutine opacity(t,rho,k)
            implicit real*8(a-h,o-z), integer*4(i-n)
            real*8 k
 
-           c..   a very simple opacity function.
+c..   a very simple opacity function.
 
 
               k=(rho/1.0e-13)+(t/100.)

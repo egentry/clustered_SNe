@@ -17,14 +17,15 @@ c.... Msun = Initial mass of the protostellar system.
 
 
 c.....Set J (number of zones) both here and in subroutine RadT
-      parameter (Au =1.496e+13,a=3.0,J=100,gamma=1.0,Vo=2.096e+18)
+      parameter (Au =1.496e+13,a=3.0,J=200,gamma=1.0,Vo=2.096e+18)
       parameter (Rj=1.0e+17,eta=0.4,Tinit=10.)
       parameter (Rcore=0.0)
       parameter (Msun=2.0e+33,pi=3.14159,G=6.67e-8)
       parameter (proton=1.6598e-24,wm=2.,boltz=1.38046e-16)
       parameter (comp=boltz/(proton*wm))
       parameter (Arad=7.56e-15,Ch=(5./2.)*(8.317e+7))
-      parameter (tsteps=50,nprint=5)
+      parameter (tsteps=50,nprint=1)
+      parameter (ESN=1e+30)
 
 
       dimension Unew(0:J),Rnew(0:J+1),Vnew(J+1),Pnew(J+1)
@@ -32,12 +33,13 @@ c.....Set J (number of zones) both here and in subroutine RadT
       dimension Qnew(J+1),Qold(J+1)
       dimension Told(0:J+1),Cad(0:J+1)
       dimension Mass(0:J+1) 
- 
+      
 
       open (unit=1,file='info',status='unknown')
       open (unit=2,file='velos',status='unknown')
 
-
+      write(*,*) 'With gravity? Yes (1) or no (0)?'
+      read(*,*) gswitch
   
 c..   Set up parameters to make a new simulation..
 
@@ -85,10 +87,21 @@ c..   Mint stands for the mass internal to the current radius.
         Mint = Mint + Mass(i-1)
         Egrav = Egrav-(G*(4./3.)*pi*Mint*(Rold(i+2)**3-Rold(i)**3))
      +           /(((Rold(i)+Rold(i+2))/2)*Vold(i+1))
+        if (gswitch.eq.0) then
+          Egrav = 0
+        end if
+
       end do
+
+c..   Inject SN Energy
+      Uold(2) = sqrt(2 * ESN / Mass(1))
 
 c..   Add self energy of the central zone
       Egrav = Egrav - (3./5.)*G*Mass(1)**2/Rold(2)
+      if (gswitch.eq.0) then
+        Egrav = 0
+      end if
+
 
 c..   Add the mass of the outermost zone to the total mass.
       Mass(j-1) = 1.333*pi*(Rold(j)**3-Rold(j-2)**3)/Vold(j-1)
@@ -144,6 +157,10 @@ c..         then compute the gravitational force term.
 
             Mint = Mint + Mass(i-1)
             term2 = (-G*Mint)/(Rold(i)**2)
+            if (gswitch.eq.0) then
+              term2 =0
+            end if
+
             
             Unew(i) = (term1 + term2)*deltat + Uold(i)
 
@@ -234,11 +251,17 @@ c..     Look at the energy and mass conservation for current timestep
         do i=2,J-2,2
           Mint=Mint+Mass(i-1)
           Egrav=Egrav-(G*Mint*Mass(i+1))/((Rold(i)+Rold(i+2))/2)
+          if (gswitch.eq.0) then
+            Egrav = 0
+          end if
         end do
 
 c..     Add in the gravitational energy of the central zone.
 
         Egrav = Egrav - 3./5.*G*Mass(1)**2/Rold(2)
+        if (gswitch.eq.0) then
+          Egrav = 0
+        end if
         Mint=Mint+Mass(j-1)
         do i=2,J,2
           Eint=Eint+(5./2.)*comp*Told(i-1)*Mass(i-1)
