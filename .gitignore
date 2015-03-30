@@ -1,0 +1,14 @@
+GregCode/
+papers/
+fluid
+fluid.iso
+fluid.adiabatic
+info
+velos
+todo
+modfile
+.ipynb_checkpoints/
+tmp*
+output
+*.o
+*.pyc

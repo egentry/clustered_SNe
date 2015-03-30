@@ -5,35 +5,47 @@ program fluid
     implicit none
     real(kind=8)               :: M_core
     real(kind=8)               :: E_int, E_kin, E_grav, E_tot
-    integer,      parameter    :: zones       = 500  
+    integer,      parameter    :: zones       = 238 + 500  
+    integer,      parameter    :: zones_inner = 300  
     real(kind=8), parameter    :: Au          = 1.496d+13
-    real(kind=8), parameter    :: a           = 3.0
-    real(kind=8), parameter    :: gamma       = 7./5
-    real(kind=8), parameter    :: V_0         = 2.0944d+15         ! constant initial density
-    real(kind=8), parameter    :: T_0         = 50                 ! constant initial temperature
-    real(kind=8), parameter    :: R_tot       = 1d6 * Au           ! total size
-    real(kind=8), parameter    :: eta         = .2 * .5                 ! CLF number
-    real(kind=8), parameter    :: R_core      = 3.0d+11
+    real(kind=8), parameter    :: pc          = 3.086d+18
+    real(kind=8), parameter    :: a           = 3.0                ! ? something with artificial viscosity
+    real(kind=8), parameter    :: gamma       = 7./5.              ! diatomic gas
+    real(kind=8), parameter    :: eta         = .2             ! CLF number
+    real(kind=8), parameter    :: R_core      = 3.0d+11            ! make sure this is smallest zone
     real(kind=8), parameter    :: M_sun       = 2.0d+33
     real(kind=8), parameter    :: pi          = 3.14159
     real(kind=8), parameter    :: G           = 6.67d-8
     real(kind=8), parameter    :: m_proton    = 1.6598d-24
-    real(kind=8), parameter    :: wm          = 2.                    ! ?
+    real(kind=8), parameter    :: mu          = .67                ! mean molecular weight
     real(kind=8), parameter    :: k_boltzmann = 1.38046d-16
-    real(kind=8), parameter    :: comp        = k_boltzmann / (m_proton * wm)
+    real(kind=8), parameter    :: comp        = k_boltzmann / (m_proton * mu)
     real(kind=8), parameter    :: A_rad       = 7.56d-15
-    real(kind=8), parameter    :: Ch          = (5./2.) * 8.317d+7    ! ?
-    integer,      parameter    :: nprint      = 1000
-    real(kind=8), parameter    :: E_SN        = 1.d+50                 ! set to 1e51 ergs later
+    real(kind=8), parameter    :: R_gas       = 8.317d+7           ! ideal gas constant
+    real(kind=8), parameter    :: c_V         = (1./(gamma-1)) * R_gas / mu ! specific heat capacity, constant volume, per unit mass
+
+    real(kind=8), parameter    :: M_SN        = 3*M_sun            ! set properly later
+    real(kind=8), parameter    :: E_SN        = 1.d+50 / M_SN             ! set properly later
+
+    real(kind=8), parameter    :: R_tot       = 1.d2 * pc           ! total size
+    real(kind=8), parameter    :: R_inner     = 1.5 * pc           ! total size
+    real(kind=8), parameter    :: V_0         = 1. / (m_proton)     ! constant initial density
+    real(kind=8), parameter    :: T_0         = 1.d4                ! constant initial temperature
+
+    integer,      parameter    :: timesteps   = 2*5000
+    integer,      parameter    :: nprint      = timesteps/1000
+!     integer,      parameter    :: timesteps   = 5000
+!     integer,      parameter    :: nprint      = 1
+
 
 !    bounds important to allow 0 indexing
     real(kind=8), dimension(0:zones)        :: U_old, U_new
     real(kind=8), dimension(0:zones+1)      :: R_old, R_new
     real(kind=8), dimension(zones+1)        :: V_old, V_new
-    real(kind=8), dimension(zones+1)        :: P_old, P_new
-    real(kind=8), dimension(zones+1)        :: E_old, E_new
-    real(kind=8), dimension(zones+1)        :: Q_old, Q_new
     real(kind=8), dimension(0:zones+1)      :: T_old, T_new
+    real(kind=8), dimension(zones+1)        :: P_old, P_new
+    real(kind=8), dimension(zones+1)        :: Q_old, Q_new
+    real(kind=8), dimension(zones+1)        :: E_old, E_new
     real(kind=8), dimension(0:zones+1)      :: C_ad                ! adiabatic sound speed
     real(kind=8), dimension(0:zones+1)      :: Mass
     real(kind=8), dimension(0:zones+1)      :: M_int
@@ -41,8 +53,8 @@ program fluid
     integer      :: i, k
 
     integer      :: info_unit, velos_unit, modfile_unit
-    character(len=*), parameter    ::    info_fmt  = '(i6,7(1pE15.5E3))'
-    character(len=*), parameter    ::    velos_fmt = '(2(i6), 8(1pE14.5E3))'
+    character(len=*), parameter    ::    info_fmt  = '(i9,7(1pE15.5E3))'
+    character(len=*), parameter    ::    velos_fmt = '(2(i9), 8(1pE14.5E3))'
 
 !   OLD formatting -- doesn't properly handle double precision
 !     character(len=*), parameter    ::    info_fmt  = '(i6,7(1p1e14.5))'
@@ -52,12 +64,14 @@ program fluid
 
 !    declare sundry temporary parameters
     real(kind=8) :: c, del_P, delta, delta_time, term_1, term_2
-    real(kind=8) :: T_a, T_b, E_b, V_b
+!     real(kind=8) :: T_a, T_b, E_b, V_b
 
-    integer      :: timesteps
-    logical      :: interactive   = .False.
-    logical      :: from_previous
-    logical      :: with_gravity
+!     integer      :: timesteps
+    logical, parameter      :: interactive   = .False.
+    logical                 :: from_previous
+    logical                 :: with_gravity
+
+    logical, parameter      :: with_rad_pressure = .False.
 
 
 
@@ -69,8 +83,8 @@ program fluid
 
     if (interactive) then
         !Currently not working with iPython binding
-        write(*,*) 'Enter the number of timesteps:'
-            read(*,*) timesteps 
+!         write(*,*) 'Enter the number of timesteps:'
+!             read(*,*) timesteps 
 
         write(*,*) 'Restart from model file (True) or new simulation (False)?'
             read(*,*) from_previous
@@ -78,12 +92,12 @@ program fluid
         write(*,*) 'Exclude gravity? Yes (True) or no (False)?'
             read(*,*) with_gravity
     else
-        timesteps         = 100000
-        from_previous     = .False.
+!         timesteps         = 10000
+        from_previous     = .True.
         with_gravity      = .False.
     endif
 
-
+    time_total  = 0.0
     if (.NOT.from_previous) then
 
 !         U_old(0:zones:2) = 0.0
@@ -93,7 +107,7 @@ program fluid
 !         P_old(1:zones-1:2) = [(comp*T_old(i)*(1/V_old(i)) &
 !                     +(.333333*A_rad*T_old(i)**4), i=1,zones-1,2)]
 !         c_ad(1:zones-1:2) = [(sqrt(gamma*(P_old(i)/(1/V_old(i)))), i=1, zones-1, 2)]
-!         E_old(1:zones-1:2) = [((cH/wm)*T_old(i) &
+!         E_old(1:zones-1:2) = [(c_V*T_old(i) &
 !                     +A_rad*V_old(i)*T_old(i)**4, i=1, zones-1, 2)]
 !         Q_old(i:zones-1:2) = 0.9
 
@@ -101,41 +115,70 @@ program fluid
 
         do i = 0, zones, 2
 
+
+
             if (i.eq.0) then
 
                 U_old(i) = 0.0
-                R_old(i) = 3.0d+11
+!                 R_old(i) = AU
+                R_old(i) = 0
+                Mass(i)  = 0
+                M_int(i) = Mass(i)
 
-            else if (i.eq.2) then
+! 
+            else 
 
 
+                if (i.lt.zones_inner) then
 
-                U_old(i)      = 0.0
-                R_old(i)      = (real(i) / real(zones))**2.0 * R_tot
-                V_old(i-1)    = V_0
-!                 T_old(i-1)    = 1e+6        ! inject SNe energy
-                call Tsolver(E_SN, V_old(i-1), T_0, T_old(i-1), &
-                    ch, a_rad, wm)
-                P_old(i-1)    = comp * T_old(i-1) * (1 / V_old(i-1)) &
-                    + (.333333 * A_rad * T_old(i-1)**4)
+    !                 R_old(i)      = (real(i) / real(zones))**2.0 * R_tot
+                    R_old(i)      = (real(i) / real(zones_inner)) * R_inner
+    !                 V_old(i-1)    = 1 / ( (1/ V_0) + &
+    !                 1/ ( (4./3.) * pi * (R_old(i)**3 - R_old(i-2)**3) / M_SN ))
+    !                 V_old(i-1)    = V_0
+                    V_old(i-1)    = (4./3.) * pi * (R_inner**3 - R_old(0)**3) / M_SN
+
+                    Mass(i-1)     = (4./3.) * pi * (R_old(i)**3 - R_old(i-2)**3) &
+                        / V_old(i-1)
+                    M_int(i)      = M_int(i-2) + Mass(i-1)
+
+                    if (with_rad_pressure) then
+                        call Tsolver(E_SN, V_old(i-1), T_0, T_old(i-1), &
+                            c_V, a_rad, i-1, 0)
+                    else
+                        T_old(i-1) = E_SN/ c_V
+                    endif
+
+
+                else
+
+    !                 R_old(i)      = (real(i) / real(zones))**2.0 * R_tot
+                    R_old(i)     = (real(i - zones_inner) / real(zones - zones_inner)) * (R_tot - R_inner) & 
+                        + R_inner
+                    Mass(i-1)    = (4./3.) * pi * (R_old(i)**3 - R_old(i-2)**3) &
+                        / V_old(i-1)
+                    M_int(i)     = M_int(i-2) + Mass(i-1)
+                    V_old(i-1)   = V_0
+                    T_old(i-1)   = T_0
+
+
+                endif
+
+!               set defaults (some to be overriden within inner region shortly)
+                U_old(i)        = 0.0
+                Q_old(i-1)      = 0.9
+                P_old(i-1)      = comp * T_old(i-1) * (1 / V_old(i-1))
+                if (with_rad_pressure) then
+                    P_old(i-1)  = P_old(i-1) + (.333333 * A_rad * T_old(i-1)**4)
+                endif
                 C_ad(i-1)     = sqrt(gamma * (P_old(i-1) * V_old(i-1)))
-                E_old(i-1)    = (cH / wm) * T_old(i-1) &
-                    + A_rad * V_old(i-1) * T_old(i-1)**4
-                Q_old(i-1)    = 0.9
-            else
+                E_old(i-1)    = c_V * T_old(i-1)
+                if (with_rad_pressure) then
+                    E_old(i-1) = E_old(i-1) + A_rad * V_old(i-1) * T_old(i-1)**4
+                endif
 
-                U_old(i)     = 0.0
-                R_old(i)     = (real(i) / real(zones))**2.0 * R_tot
-                V_old(i-1)   = V_0
-                T_old(i-1)   = T_0
-                P_old(i-1)   = comp * T_old(i-1) * (1 / V_old(i-1)) &
-                    + (.333333 * A_rad * T_old(i-1)**4)
-                C_ad(i-1)    = sqrt(gamma * (P_old(i-1) * V_old(i-1)))
-                E_old(i-1)   = (cH / wm) * T_old(i-1)  &
-                    + A_rad * V_old(i-1) * T_old(i-1)**4
-                Q_old(i-1)   = 0.9
+            endif
 
-            end if
         end do
 
 !         No pressure outside boundary.
@@ -144,8 +187,11 @@ program fluid
         P_old(zones+1) = 0.0
         T_old(zones+1) = T_0
         V_old(zones+1) = V_old(zones-1)
-        E_old(zones+1) = (cH / wm) * T_old(zones+1) &
-            + A_rad * V_old(zones+1) * T_old(zones+1)**4
+        E_old(zones+1) = c_V * T_old(zones+1)
+        if (with_rad_pressure) then
+            E_old(zones+1) = E_old(zones+1) + A_rad * V_old(zones+1) * T_old(zones+1)**4
+        endif
+
         Q_old(zones+1) = Q_old(zones-1)
 
 !        Mass of the core initially starts out at zero
@@ -153,17 +199,23 @@ program fluid
     else
 
 !        Read in already existing data:
-        do i = 0, zones
-            read(modfile_unit,*) U_old(i)
-            read(modfile_unit,*) R_old(i)
-            read(modfile_unit,*) P_old(i+1)
-            read(modfile_unit,*) V_old(i+1)
-            read(modfile_unit,*) E_old(i+1)
-            read(modfile_unit,*) T_old(i+1)
-            read(modfile_unit,*) C_ad(i+1)
-            read(modfile_unit,*) Q_old(i+1)
+        read(modfile_unit, *)
+        do i = 0, zones, 2
+!             print *, i
+!             read(modfile_unit,*) U_old(i)
+!             read(modfile_unit,*) R_old(i)
+!             read(modfile_unit,*) P_old(i+1)
+!             read(modfile_unit,*) V_old(i+1)
+!             read(modfile_unit,*) E_old(i+1)
+!             read(modfile_unit,*) T_old(i+1)
+!             read(modfile_unit,*) C_ad(i+1)
+!             read(modfile_unit,*) Q_old(i+1)
+            read(modfile_unit, *) U_old(i), R_old(i), P_old(i+1), V_old(i+1), &
+                E_old(i+1), T_old(i+1), C_ad(i+1), Q_old(i+1)
+!                 print *, R_old(i)
         end do
         read(modfile_unit,*) time_total
+        print *, time_total
 
     endif
 
@@ -176,7 +228,6 @@ program fluid
     E_kin       = 0.0
     Mass(0)     = 0.0
     M_int(0)    = Mass(0)
-    time_total  = 0.0
 
     do i = 2, zones-2, 2
         Mass(i-1)  = (4./3.) * pi * (R_old(i)**3 - R_old(i-2)**3) &
@@ -240,7 +291,7 @@ program fluid
 !                    of a cell might differ significantly
         do i = 0, zones-2, 2
             c       = C_ad(i+1)
-            delta = eta * (R_old(i+2) - R_old(i)) &
+            delta   = eta * (R_old(i+2) - R_old(i)) &
                 / (sqrt(c**2 + (U_old(i+2)**2 + U_old(i)**2) / 2))
 
             if (delta.lt.delta_time)  then
@@ -257,7 +308,7 @@ program fluid
             elseif (i.ne.zones) then
                 del_P = (P_old(i+1) - P_old(i-1) &
                     +    Q_old(i+1) - Q_old(i-1)) &
-                    /  ((R_old(i+2) - R_old(i-2)) / 2)
+                    /  (R_old(i+2) - R_old(i-2))
 
 !                Pressure + Viscous forces
                 term_1 = -.5 * (V_old(i+1) + V_old(i-1)) * del_P
@@ -294,18 +345,27 @@ program fluid
                 Q_new(i+1) = ((2*a**2) * (U_new(i+2) - U_new(i))**2) / &
                     (V_new(i+1) + V_old(i+1))
             endif
+            ! ! ! non-conservative:
             E_new(i+1) = -P_old(i+1) * (V_new(i+1) - V_old(i+1)) + E_old(i+1)
-            T_a = T_old(i+1)
-            T_b = T_new(i+1)
-            V_b = V_new(i+1)
-            E_b = E_new(i+1)
-!             call Tsolver(E_b, V_b, T_a, T_b, ch, a_rad, wm)
-!             T_new(i+1) = T_b
-!             T_a = T_a
-            call Tsolver(E_new(i+1), V_new(i+1), T_old(i+1), T_new(i+1), &
-                ch, a_rad, wm)
-            P_new(i+1) = comp * T_new(i+1) * (1/V_new(i+1)) &
-                + (.33333 * A_rad * T_new(i+1)**4)
+
+            ! ! !adiabatic conservative form:
+!             E_new(i+1) = E_old(i+1) - P_old(i+1) * V_old(i+1)**gamma &
+!                 * (V_new(i+1)**(1-gamma) - V_old(i+1)**(1-gamma)) &
+!                 / (1 - gamma)
+
+
+            if (with_rad_pressure) then
+                call Tsolver(E_new(i+1), V_new(i+1), T_old(i+1), T_new(i+1), &
+                    c_V, a_rad, i+1, k)
+            else
+                T_new(i+1) = E_new(i+1) / c_V
+            endif
+
+
+            P_new(i+1) = comp * T_new(i+1) * (1/V_new(i+1)) 
+            if (with_rad_pressure) then
+                P_new(i+1) = P_new(i+1) + (.33333 * A_rad * T_new(i+1)**4)
+            endif
             C_ad(i+1)  = sqrt(gamma * P_new(i+1) * V_new(i+1))
 
         end do
@@ -345,7 +405,7 @@ program fluid
  
 !     Update the old quanties in preparation for new timestep.
        
-        do i=0, zones, 2
+        do concurrent (i=0:zones:2)
             U_old(i) = U_new(i)
             R_old(i) = R_new(i)
             if(i.ne.0) then
@@ -382,7 +442,7 @@ program fluid
             E_grav = 0
         end if
 !         M_int=M_int+Mass(zones-1)
-        do i = 2, zones, 2
+        do concurrent (i=2:zones:2)
             E_int = E_int + E_old(i-1)*Mass(i-1)
             E_kin = E_kin + 0.5*((U_old(i)**2 + U_old(i-2)**2)/2) * Mass(i-1)
         end do
@@ -391,7 +451,7 @@ program fluid
 
         E_tot = E_grav+E_kin+E_int
 
-        if (mod(k,1).eq.0) then
+        if ((mod(k,nprint).eq.0).and.(mod(k,1).eq.0)) then
             write(info_unit,fmt=info_fmt) k,E_tot,E_grav,E_kin, &
                 E_int,M_int(zones),delta_time,time_total
         end if
@@ -400,35 +460,38 @@ program fluid
 !    END OF MAIN LOOP
 
 !    Store model parameters for a restart:
-    do i = 0, zones
-        write(modfile_unit,*) U_old(i)
-        write(modfile_unit,*) R_old(i)
-        write(modfile_unit,*) P_old(i+1)
-        write(modfile_unit,*) V_old(i+1)
-        write(modfile_unit,*) E_old(i+1)
-        write(modfile_unit,*) T_old(i+1)
-        write(modfile_unit,*) C_ad(i+1)
-        write(modfile_unit,*) Q_old(i+1)
-    end do
-    write(modfile_unit,*) time_total
+!     do i = 0, zones
+!         write(modfile_unit,*) U_old(i)
+!         write(modfile_unit,*) R_old(i)
+!         write(modfile_unit,*) P_old(i+1)
+!         write(modfile_unit,*) V_old(i+1)
+!         write(modfile_unit,*) E_old(i+1)
+!         write(modfile_unit,*) T_old(i+1)
+!         write(modfile_unit,*) C_ad(i+1)
+!         write(modfile_unit,*) Q_old(i+1)
+!     end do
+!     write(modfile_unit,*) time_total
 
 end
 
 
-subroutine Tsolver(E_new,V_new,T_old,T_new,ch,a_rad,wm)
+subroutine Tsolver(E_new,V_new,T_old,T_new,c_V,a_rad,i, k)
     ! Use the Newton-Raphson method to find the Temperature
-    real(kind=8), intent(in)    :: E_new, V_new, T_old, ch, a_rad, wm
+    real(kind=8), intent(in)    :: E_new, V_new, T_old, c_V, a_rad
+    integer,      intent(in)    :: i
     real(kind=8), intent(out)   :: T_new
     real(kind=8)                :: E, dEdT, err
     real(kind=8), parameter     :: tol = 1d-6
-    integer                     :: feval=0
-    integer, parameter          :: feval_max = 100
-!   save        ! save for performance?
+    integer                     :: feval
+    integer, parameter          :: feval_max = 10000
+!   remember, variabiles initialized above are saved between calls
+
+    feval = 0
 
     T_new = T_old
 
-    dEdT   = (ch/wm)         + 4 * a_rad * (T_new**3) * V_new
-    E      = (ch/wm) * T_new +     a_rad * (T_new**4) * V_new
+    dEdT   = c_V         + 4 * a_rad * (T_new**3) * V_new
+    E      = c_V * T_new +     a_rad * (T_new**4) * V_new
             
         
     err = abs((E - E_new) / (E_new))
@@ -436,13 +499,23 @@ subroutine Tsolver(E_new,V_new,T_old,T_new,ch,a_rad,wm)
     do while ((err.gt.tol).and.(feval.lt.feval_max))
         T_new  = T_new - ((E - E_new) / dEdT )
 
-        dEdT   = (ch/wm)         + 4 * a_rad * (T_new**3) * V_new
-        E      = (ch/wm) * T_new +     a_rad * (T_new**4) * V_new
+        dEdT   = c_V         + 4 * a_rad * (T_new**3) * V_new
+        E      = c_V * T_new +     a_rad * (T_new**4) * V_new
             
         err   = abs((E - E_new) / (E_new))
         feval = feval + 1
     end do
-!        write(*,*) i
+
+    if (feval.eq.feval_max) then
+        print *, ''
+        print *, 'time: ', k
+        print *, 'zone: ', i
+        print *, 'energy: ', E_new
+        print *, 'feval: ', feval
+        print *, 'frac err: ', err
+        print *, 'T_new: ', T_new
+    endif
+!        write(*,*) feval
 !        write(*,*) err
 !        write(*,*) T_new
     return
