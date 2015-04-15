@@ -4,47 +4,33 @@
 c..exercises the sedov solver
 
 c..declare
-      character*80     outfile,string
-      integer          i,nstep,iargc,nmax
-      parameter        (nmax = 1000)
-      real*16          time,zpos(nmax),
-     1                 eblast,rho0,omega,vel0,ener0,pres0,cs0,gamma,
-     2                 xgeom,
-     3                 den(nmax),ener(nmax),pres(nmax),vel(nmax),
-     4                 cs(nmax),
-     5                 zlo,zhi,zstep,value
+C       character*80     outfile,string,fmt1,fmt2,fmt3
+C       integer          i,nstep,iargc,nmax
+C       parameter        (nmax = 1000)
+C       real*16          time,zpos(nmax),
+C      1                 eblast,rho0,omega,vel0,ener0,pres0,cs0,gamma,
+C      2                 xgeom,
+C      3                 den(nmax),ener(nmax),pres(nmax),vel(nmax),
+C      4                 cs(nmax),
+C      5                 zlo,zhi,zstep,value
 
+      character*80 ::    outfile,string,fmt1,fmt2,fmt3
+      integer      ::    i,nstep,iargc
+      integer,parameter  ::      nmax = 1000
+      real*16 ::         time,zpos(nmax)
+      real*16 :: eblast,rho0,omega,vel0,ener0,pres0,cs0,gamma
+      real*16 ::  xgeom
+      real*16 ::  den(nmax),ener(nmax),pres(nmax),vel(nmax)
+      real*16 ::  cs(nmax)
+      real*16 ::  zlo,zhi,zstep,value
 
 c..popular formats
- 01   format(1x,t4,a,t8,a,t22,a,t36,a,t50,a,t64,a,t78,a,t92,a)
- 02   format(1x,i4,1p8e12.4)
- 03   format(1x,i4,1p8e14.6)
+       fmt1 = "(1x,t4,a,t8,a,t22,a,t36,a,t50,a,t64,a,t78,a,t92,a)"
+       fmt2 = "(1x,i4,1p8e12.4)"
+       fmt3 = "(1x,i4,1p8e14.6)"
 
 
-
-c..if your compiler/linker handles command line arguments
-c..get the number of spatial points, blast energy, geometry type,
-c..density exponent,  and output file name
-
-c      i = iargc()
-c      if (i. lt. 2) stop 'too few arguments'
-
-c      call getarg(1,string)
-c      nstep = int(value(string))
-
-c      call getarg(2,string)
-c      eblast = value(string)
-
-c      call getarg(3,string)
-c      xgeom = value(string)
-
-c      call getarg(4,string)
-c      omega = value(string)
-
-c      call getarg(5,outfile)
-
-
-c..otherwise explicitly set stuff
+c..explicitly set defaults (overridden by command line args)
 c..standard cases
 c..spherical constant density should reach r=1 at t=1
 
@@ -52,7 +38,46 @@ c..spherical constant density should reach r=1 at t=1
       eblast = 0.851072q0
       xgeom  = 3.0q0
       omega  = 0.0q0
-      outfile = 'spherical_standard_omega0p00.dat'
+      outfile = 'spherical_standard_omega0p00_nstep_'
+
+
+
+c..if your compiler/linker handles command line arguments
+c..get the number of spatial points, blast energy, geometry type,
+c..density exponent,  and output file name
+C        i=4
+       i = iargc()
+C        if (i. lt. 2) stop 'too few arguments'
+       if (i .gt. 0) then
+         call getarg(1,string)
+         nstep = int(value(string))
+         if (nstep>nmax) then
+          nstep=nmax
+        end if 
+         if (i .gt. 1) then
+           call getarg(2,string)
+           eblast = value(string)
+            if (i .gt. 2) then
+               call getarg(3,string)
+               xgeom = value(string)
+                if (i .gt. 3) then
+                   call getarg(4,string)
+                   omega = value(string)
+                   if (i .gt. 4) then
+                      call getarg(5,outfile)
+                   end if
+                end if 
+            end if
+         end if
+       end if
+
+       write(*,*) nstep
+       write(outfile, "(A35,I4.4, A4)") outfile, nstep, ".dat"
+       write(*,*) outfile
+
+
+
+
 
 
 c..input parameters in cgs
@@ -85,15 +110,26 @@ c..get the solution for all spatial points at once
 
 
 c..output file 
+C       open(unit=2,file=outfile,status='unknown')
+C       write(2,02) nstep,time
+C       write(2,01) 'i','x','den','ener','pres','vel','cs'
+C       do i=1,nstep
+C        write(2,03) i,zpos(i),den(i),ener(i),pres(i),vel(i),cs(i)
+C       enddo
+C       close(unit=2)
+
+C       write(6,*)
+
+c..output file 
       open(unit=2,file=outfile,status='unknown')
-      write(2,02) nstep,time
-      write(2,01) 'i','x','den','ener','pres','vel','cs'
+      write(2,fmt2) nstep,time
+      write(2,fmt1) 'i','x','den','ener','pres','vel','cs'
       do i=1,nstep
-       write(2,03) i,zpos(i),den(i),ener(i),pres(i),vel(i),cs(i)
+       write(2,fmt3) i,zpos(i),den(i),ener(i),pres(i),vel(i),cs(i)
       enddo
       close(unit=2)
 
-      write(6,*)
+C       write(6,*)      
 
 c..close up shop
       end
