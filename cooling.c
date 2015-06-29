@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <assert.h>
 
 // #include <unistd.h>
 #include <string.h>
@@ -11,7 +12,7 @@
 #include <cooling.h>
 
 
-void calc_cooling(double V[], double T[], double U[], double dE[], int zones, double metallicity, double dt, code_units my_units)
+void calc_cooling(double V[], double E[], double U[], double dE[], int zones, double metallicity, double dt, code_units my_units)
 {
     // to do: add variable describing guard cell information
 
@@ -75,8 +76,8 @@ void calc_cooling(double V[], double T[], double U[], double dE[], int zones, do
     for(i=0; i<field_size; ++i)
     {
         j = 2*i + 2; // j is for the zones index, i is for the gr_data indices
-        density[i]          = 1. / (V[j]);
-        energy[i]           = c_V * T[j];     // internal energy PER UNIT MASS
+        density[i]          = 1. / (V[j]) / my_units.density_units;
+        energy[i]           = E[j];     // internal energy PER UNIT MASS
         x_velocity[i]       = U[j];           // radial velocity
         y_velocity[i]       = 0;
         z_velocity[i]       = 0;
@@ -105,12 +106,9 @@ void calc_cooling(double V[], double T[], double U[], double dE[], int zones, do
 
     for(i=0; i<field_size; ++i)
     {
-        j = 2*i + 2; // j is for the zones index, i is for the gr_data indices
-        dE[j] = dE[j] + (energy[i] - c_V*T[j]);
-        // if(abs(energy[i] - c_V*T[j]) > 0)
-        // {
-        //     printf("Cooling at i=%d, with dE=%f \n", i, (energy[i] - c_V*T[j])/energy[i]);
-        // }
+        j = (2*i) + 2; // j is for the zones index, i is for the gr_data indices
+        dE[j] = dE[j] + (energy[i] - E[j]);
+        // assert(energy[i] < E[j]);
     }
 
     // printf("use_grackle: %d \n", grackle_data.use_grackle);
@@ -149,7 +147,7 @@ code_units setup_cooling()
     grackle_data.primordial_chemistry   = 0;  // no chemistry network
     grackle_data.h2_on_dust             = 0;  // Don't use Omukai (2000)
     grackle_data.metal_cooling          = 1;  // allow metal cooling
-    grackle_data.cmb_temperature_floor  = 1;  // don't allow cooling below CMB temp.
+    // grackle_data.cmb_temperature_floor  = 1;  // don't allow cooling below CMB temp.
     grackle_data.UVbackground           = 1;  // include UV background from grackle_data_file
     grackle_data.grackle_data_file      = grackle_data_file; // Haardt + Madau (2012)
     grackle_data.Gamma                  = gamma;
@@ -157,7 +155,7 @@ code_units setup_cooling()
 
     code_units my_units;
     my_units.comoving_coordinates = 0;
-    my_units.density_units        = 1.0;
+    my_units.density_units        = m_proton; // need to ensure density field ~ 1
     my_units.length_units         = 1.0;
     my_units.time_units           = 1.0;
     my_units.velocity_units       = my_units.length_units / my_units.time_units;

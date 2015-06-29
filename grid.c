@@ -27,6 +27,7 @@ void expand_grid(int *zones_ptr,
         double **E_old_ptr, double **E_new_ptr, double **dE_ptr,
         double **P_old_ptr, double **P_new_ptr, 
         double **Q_old_ptr, double **Q_new_ptr,
+        double **H_old_ptr, double **H_new_ptr,
         double **C_ad_ptr,
         double **Mass_ptr,  double **M_int_ptr)
 {
@@ -39,6 +40,7 @@ void expand_grid(int *zones_ptr,
     double *E_old_tmp, *E_new_tmp, *dE_tmp;
     double *P_old_tmp, *P_new_tmp;
     double *Q_old_tmp, *Q_new_tmp;
+    double *H_old_tmp, *H_new_tmp;
     double *C_ad_tmp;
     double *Mass_tmp, *M_int_tmp;
 
@@ -62,6 +64,8 @@ void expand_grid(int *zones_ptr,
     P_new_tmp = malloc(new_zones * sizeof(double));
     Q_old_tmp = malloc(new_zones * sizeof(double));
     Q_new_tmp = malloc(new_zones * sizeof(double));
+    H_old_tmp = malloc(new_zones * sizeof(double));
+    H_new_tmp = malloc(new_zones * sizeof(double));
     C_ad_tmp  = malloc(new_zones * sizeof(double));
     Mass_tmp  = malloc(new_zones * sizeof(double));
     M_int_tmp = malloc(new_zones * sizeof(double));
@@ -77,20 +81,22 @@ void expand_grid(int *zones_ptr,
         {
             // If within the old range, just copy the old value
             U_old_tmp[i]    = (*U_old_ptr)[i];
-            // U_new_tmp[i]    = (*U_new_ptr)[i];
+            U_new_tmp[i]    = (*U_new_ptr)[i];
             R_old_tmp[i]    = (*R_old_ptr)[i];
-            // R_new_tmp[i]    = (*R_new_ptr)[i];
+            R_new_tmp[i]    = (*R_new_ptr)[i];
             V_old_tmp[i]    = (*V_old_ptr)[i];
-            // V_new_tmp[i]    = (*V_new_ptr)[i];
+            V_new_tmp[i]    = (*V_new_ptr)[i];
             T_old_tmp[i]    = (*T_old_ptr)[i];
-            // T_new_tmp[i]    = (*T_new_ptr)[i];
+            T_new_tmp[i]    = (*T_new_ptr)[i];
             E_old_tmp[i]    = (*E_old_ptr)[i];
-            // E_new_tmp[i]    = (*E_new_ptr)[i];
-            // dE_tmp   [i]    = (*dE_ptr)   [i];
+            E_new_tmp[i]    = (*E_new_ptr)[i];
+            dE_tmp   [i]    = (*dE_ptr)   [i];
             P_old_tmp[i]    = (*P_old_ptr)[i];
-            // P_new_tmp[i]    = P_new[i];
+            P_new_tmp[i]    = (*P_new_ptr)[i];
             Q_old_tmp[i]    = (*Q_old_ptr)[i];
-            // Q_new_tmp[i]    = (*Q_new_ptr)[i];
+            Q_new_tmp[i]    = (*Q_new_ptr)[i];
+            H_old_tmp[i]    = (*H_old_ptr)[i];
+            H_new_tmp[i]    = (*H_new_ptr)[i];            
             C_ad_tmp [i]    = (*C_ad_ptr) [i];
         }
         else
@@ -99,18 +105,20 @@ void expand_grid(int *zones_ptr,
             U_old_tmp[i]    = 0;
             U_new_tmp[i]    = 0;
             R_old_tmp[i]    = (*R_old_ptr)[zones-4] + (i-(zones-4))*dR;
-            // R_new_tmp[i]    = R_new_ptr)[zones-4] + (i-(zones-4))*dR;
+            R_new_tmp[i]    = (*R_new_ptr)[zones-4] + (i-(zones-4))*dR;
             V_old_tmp[i]    = (*V_old_ptr)[zones-3];
-            // V_new_tmp[i]    = V_new_ptr)[zones-3];
+            V_new_tmp[i]    = (*V_new_ptr)[zones-3];
             T_old_tmp[i]    = (*T_old_ptr)[zones-3];
-            // T_new_tmp[i]    = T_new_ptr)[zones-3];
+            T_new_tmp[i]    = (*T_new_ptr)[zones-3];
             E_old_tmp[i]    = (*E_old_ptr)[zones-3];
-            // E_new_tmp[i]    = E_new_ptr)[zones-3];
-            // dE_tmp   [i]    = 0;
+            E_new_tmp[i]    = (*E_new_ptr)[zones-3];
+            dE_tmp   [i]    = 0;
             P_old_tmp[i]    = (*P_old_ptr)[zones-3];
-            // P_new_tmp[i]    = P_new_ptr)[zones-3];
-            Q_old_tmp[i]    = (*Q_old_ptr)[zones-3];
-            // Q_new_tmp[i]    = Q_new_ptr)[zones-3];
+            P_new_tmp[i]    = (*P_new_ptr)[zones-3];
+            Q_old_tmp[i]    = 0;
+            Q_new_tmp[i]    = 0;
+            H_old_tmp[i]    = 0;
+            H_new_tmp[i]    = 0;            
             C_ad_tmp [i]    = (*C_ad_ptr) [zones-3];
         }
     }   
@@ -137,6 +145,8 @@ void expand_grid(int *zones_ptr,
     swap(&P_new_tmp, P_new_ptr);
     swap(&Q_old_tmp, Q_old_ptr);
     swap(&Q_new_tmp, Q_new_ptr);
+    swap(&H_old_tmp, H_old_ptr);
+    swap(&H_new_tmp, H_new_ptr);
     swap(&C_ad_tmp,  C_ad_ptr);
     swap(&Mass_tmp,  Mass_ptr);
     swap(&M_int_tmp, M_int_ptr);
@@ -157,6 +167,8 @@ void expand_grid(int *zones_ptr,
     free(P_new_tmp);
     free(Q_old_tmp);
     free(Q_new_tmp);
+    free(H_old_tmp);
+    free(H_new_tmp);
     free(C_ad_tmp);
     free(Mass_tmp);
     free(M_int_tmp);
@@ -207,7 +219,6 @@ void create_M_int_array(double M_int[], double Mass[], int zones)
 }
 
 void enforce_boundary_conditions_Neumann(int zones, 
-    double U[], 
     double P[], 
     double Q[] )
 {
@@ -254,7 +265,8 @@ void enforce_boundary_conditions_Dirichlet(int zones,
     double R_old[], double R_new[], 
     double V_old[], double V_new[], 
     double T_old[], double T_new[], 
-    double E_old[], double E_new[] )
+    double E_old[], double E_new[],
+    double H_old[], double H_new[] )
 {
     //  IMPLICIT
     //      Dirichlet:
@@ -295,6 +307,12 @@ void enforce_boundary_conditions_Dirichlet(int zones,
     // R_new[zones-2] = R_old[zones-2];
 
 
+    H_old[1] = 0;
+    H_new[1] = 0;
+    H_old[zones-2] = 0;
+    H_new[zones-2] = 0;
+
+
     return;
 }
 
@@ -305,7 +323,8 @@ void enforce_boundary_conditions(int zones,
     double T_old[], double T_new[], 
     double E_old[], double E_new[], 
     double P_old[], double P_new[], 
-    double Q_old[], double Q_new[] )
+    double Q_old[], double Q_new[],
+    double H_old[], double H_new[] )
 {
     //  IMPLICIT
     //      Dirichlet:
@@ -324,7 +343,6 @@ void enforce_boundary_conditions(int zones,
     //      Temperature - inside and outside
 
     enforce_boundary_conditions_Neumann(zones, 
-        U_new, 
         P_new, 
         Q_new );
 
@@ -333,7 +351,63 @@ void enforce_boundary_conditions(int zones,
         R_old, R_new, 
         V_old, V_new, 
         T_old, T_new, 
-        E_old, E_new );
+        E_old, E_new,
+        H_old, H_new );
+}
+
+void enforce_boundary_conditions_initial(int zones, 
+    double U_old[], double U_new[], 
+    double R_old[], double R_new[], 
+    double V_old[], double V_new[], 
+    double T_old[], double T_new[], 
+    double E_old[], double E_new[], 
+    double P_old[], double P_new[], 
+    double Q_old[], double Q_new[],
+    double H_old[], double H_new[] )
+{
+    //  IMPLICIT
+    //      Dirichlet:
+    //          R - inside and outside
+    //          U - inside and outside
+    //          E - inside and outside
+    //          T - 
+
+    //  EXPLICIT
+    //      Neumann:
+    //          - Pressure      - inside and outside
+    //          - Viscosity     - inside and outside
+
+    //  NONE
+    //      Energy (internal) - inside and outside
+    //      Temperature - inside and outside
+
+    U_old[1]        = 0;
+    U_old[zones-2]  = 0;
+    U_new[1]        = 0;
+    U_new[zones-2]  = 0;
+
+    Q_old[0]        = 0; // shouldn't be necessary
+    Q_old[zones-1]  = 0; // shouldn't be necessary
+    Q_new[0]        = 0; // shouldn't be necessary
+    Q_new[zones-1]  = 0; // shouldn't be necessary
+
+    H_old[1]        = 0;
+    H_old[zones-2]  = 0;
+    H_new[1]        = 0;
+    H_new[zones-2]  = 0;
+
+    R_new[0]        = R_old[0];
+    R_new[1]        = R_old[1];
+    R_new[zones-2]  = R_old[zones-2];
+    R_new[zones-1]  = R_old[zones-1];
+
+    V_new[0]        = V_old[0];
+    V_new[1]        = V_old[1];
+    V_new[zones-2]  = V_old[zones-2];
+    V_new[zones-1]  = V_old[zones-1];
+
+
+
 }
 
 
@@ -351,5 +425,13 @@ double interp(double f_inner, double f_outer)
     f_middle = (f_inner + f_outer) / 2;
 
     return f_middle;
+}
 
+double harmonic_mean(double a, double b)
+{
+    double mean;
+ 
+    mean = 2 * (a*b)/(a+b);
+
+    return mean;
 }

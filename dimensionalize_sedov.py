@@ -13,10 +13,9 @@ if not os.path.isfile(raw_filename):
 
 i, x, den, energy, pressure, velocity, cs = np.loadtxt(raw_filename, skiprows=2, unpack=True)
 
+# h_bar does not need to be in agreement with constants.h
+# but it should agree with the value being used in prototyping.ipynb
 hbar = const.hbar.cgs.value
-k_b = const.k_B.cgs.value
-m_proton = const.m_p.cgs.value
-mu = .67 # mean molecular weight
 g=1 # degeneracy
 
 
@@ -30,18 +29,19 @@ def main(time):
 
 
 
-
+	# THESE UNITS MUST AGREE WITH THE CONSTANTS.H FILE
+	# Alternative they can be generated using get_constants.py
 	gamma   = 5./3 			# adiabatic index
 
-	k_b     = 1.38046e-16 	# boltzmann's constant
+	k_b     = 1.380649e-16 	# boltzmann's constant
 	mu      = .67			# mean molecular weight [dimensionless]
-	m_p     = 1.6598e-24 	# proton mass [g]
-	pc      = 3.086e18 		# 1 parsec [cm]
-	yr 		= 3.154e7    	# year in [s]
+	m_p     = 1.672622e-24 	# proton mass [g]
+	pc      = 3.085678e+18	# 1 parsec [cm]
+	yr 		= 3.155760e+07 	# year in [s]
 
 	rho_0   = m_p
 	  
-	E_0     = 1e50 # erg
+	E_0     = 1e51 # erg
 	xi_0    = 1.115
 	r_0     = xi_0 * (E_0 / rho_0)**.2 * (time)**.4
 	t_0     = time
@@ -70,12 +70,12 @@ def main(time):
 	P[(P==0)] = rho[(P==0)] / (mu * m_p) * k_b * T_0
 
 	# s = np.log(P * np.power(rho, -gamma))
-	s = 2.5 - np.log( (rho/(mu * m_proton* g)) * (2*np.pi*hbar**2 / (mu * m_proton * k_b * T))**1.5 )
+	s = 2.5 - np.log( (rho/(mu * m_p* g)) * (2*np.pi*hbar**2 / (mu * m_p * k_b * T))**1.5 )
 
 	# print(r_0)
 
 	return (r, u, rho, T, c_ad, ener, P, s, mass)
 
 
-yr = 3.154e7
+yr = 3.155760e+07
 # main(16.4614780406 * yr)

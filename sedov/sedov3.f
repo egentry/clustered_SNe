@@ -35,7 +35,7 @@ c..standard cases
 c..spherical constant density should reach r=1 at t=1
 
       nstep = 120
-      eblast = 0.851072q0
+      eblast = 1.0q0
       xgeom  = 3.0q0
       omega  = 0.0q0
       outfile = 'spherical_standard_omega0p00_nstep_'

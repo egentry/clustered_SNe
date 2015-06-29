@@ -14,7 +14,7 @@ OBJS 		= fluid.adiabatic.o \
 ############# Grackle cooling########################################
 # See grackle documentation/examples to figure out what's going on here
 #
-# This'll pollute a lot of the namespace (e.g. DEFINES, CFLAGS, INCLUDES, LIBS)
+# This'll pollute the namespace (e.g. DEFINES, CFLAGS, INCLUDES, LIBS)
 
 GRACKLE 			= $(HOME)/bin/grackle
 GRACKLE_DIR 		= $(GRACKLE)/src/clib
@@ -38,8 +38,6 @@ GRACKLE_LIB = -L$(MACH_INSTALL_PREFIX)/lib -lgrackle
 
 DYLD_LIBRARY_PATH 	= $(GRACKLE)/lib  			
 LD_LIBRARY_PATH 	= $(GRACKLE)/lib:$(HOME)/bin/yt/yt-x86_64/lib
-# GRACKLE_INCLUDE 	= -I$(GRACKLE)/include
-# GRACKLE_LIB 		= -L$(GRACKLE)/lib -lgrackle
 
 ############# SUFFIX RULES ########################################
 
@@ -50,7 +48,7 @@ $(EXE_FILE) : $(OBJS)
 .SUFFIXES :             # clear all defaults
 .SUFFIXES : .c .o       # and replace
 
-.c.o:
+%.o: %.c %.h constants.h
 	$(CC) -c $< $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS)
 
 ############# MAKE RULES ########################################

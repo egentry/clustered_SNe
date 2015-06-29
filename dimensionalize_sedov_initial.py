@@ -5,17 +5,19 @@ import sys
 
 gamma   = 5./3 			# adiabatic index
 
-k_b     = 1.38046e-16 	# boltzmann's constant
+k_b     = 1.380649e-16 	# boltzmann's constant
 mu      = .67			# mean molecular weight [dimensionless]
-m_p     = 1.6598e-24 	# proton mass [g]
-pc      = 3.086e18 		# 1 parsec [cm]
-yr 		= 3.154e7    	# year in [s]
+m_p     = 1.672622e-24 	# proton mass [g]
+pc      = 3.085678e+18 		# 1 parsec [cm]
+yr 		= 3.155760e+07    	# year in [s]
 
 rho_0   = m_p
   
 r_0     = 1. * pc
 r_outer = 100 * pc
-E_0     = 1e50 # erg
+E_0     = 1e51 # erg
+
+c_V     = ((1./(gamma - 1)) * k_b / (mu * m_p))
 
 
 sedov_zones = 160
@@ -31,9 +33,12 @@ if len(sys.argv) > 2:
 	if (sedov_zones + outer_zones)%2 is 0:
 		raise ValueError("sedov_zones + outer_zones must give odd number of total zones")
 
-outer_by_radius = False
 if len(sys.argv) > 3:
-	r_outer = float(sys.argv[3])
+	r_0 = float(sys.argv[3])
+
+outer_by_radius = False
+if len(sys.argv) > 4:
+	r_outer = float(sys.argv[4])
 	outer_by_radius = True
 
 
@@ -89,15 +94,17 @@ u   = ( (4) / (5 * (gamma+1)) ) * r_0 / t_0 * velocity / np.max(velocity)
 P   = ( (8) / (25 * (gamma+1))) * rho_0 * r_0**2 / t_0**2 * pressure / np.max(pressure)
 
 outside     = np.where(P == 0 )
-P[outside]  = rho[outside] / (mu * m_p) * k_b * T_0
+P[outside]  = (rho[outside] / (mu * m_p)) * k_b * T_0
 
 ener = (1 / (gamma-1)) * P * v
 c_ad = (gamma * P / rho)**.5
-T    = P / rho * (mu * m_p / k_b)
+T    = ener / c_V
+# T    = P / rho * (mu * m_p / k_b)
 q    = np.zeros(T.shape)
+h    = np.zeros(T.shape)
 
 
-np.savetxt("input", np.array([ u, r, v, T, ener, P, q, c_ad]).transpose(), comments='',
-    header="# t_0 [s] \n" + str(t_0) + "\n" + "# \t u [cm s^-1] \t\t\t\t r [cm] \t\t\t\t V [cm^3 g^-1] \t\t\t\t T [K] \t\t\t\t E [erg g^-1] \t\t\tP [dyne cm^-2] \t\t\t\t q [dyne cm^-2] \t\t c_ad [cm s^-1]")
+np.savetxt("input", np.array([ u, r, v, T, ener, P, q, h, c_ad]).transpose(), comments='',
+    header="# t_0 [s] \n" + str(t_0) + "\n" + "# \t u [cm s^-1] \t\t\t\t r [cm] \t\t\t\t V [cm^3 g^-1] \t\t\t\t T [K] \t\t\t\t E [erg g^-1] \t\t\tP [dyne cm^-2] \t\t\t\t q [dyne cm^-2] \t\t h [erg cm g^-1 s^-1] \t\t c_ad [cm s^-1]")
 
 
