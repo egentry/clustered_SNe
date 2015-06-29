@@ -1,16 +1,31 @@
-# RT1D
-A 1D Model for Rayleigh-Taylor Instability
+# SNe
+Riemann solver with cooling, for the Sedov and cooling phases of a supernova remnant
+-------
 
-Author: Paul Duffell
+Author: Eric Gentry   (gentry.e@gmail.com; egentry@ucsc.edu)   
 
-This code is parallel, and uses mpich2.  The code should compile so long as "mpicc" works.  Just type "make".
+Licensed under the GPLv3.
 
-If you don't have MPI, it is straightforward to get.  Look for "mpich2" using macports or homebrew.
+-------
 
-The license for this code is GPL.  The GPL license should be contained in this directory.
+##Main Objectives
+  - Evolve a spherical symmetric blast wave, incorporating hydrodynamics and radiative cooling
+    - Achieve accurate and stable results through Sedov and (thin shell) radiative phases
+  - Incorporate pre-supernova feedback, to create more realistic initial conditions for the background medium
+  - Incorporate multiple supernovae
+  - Measure the energy and momentum injected into the surrounding medium, to be used as feedback prescriptions in lower resolution galaxy simulations
 
-Please cite me if you use this work.  In particular, cite my paper, Duffell (2015).
 
-One more thing: I posted this code because I believe in transparency in science, not because I am advertising this code or attempting to promote its extensive use.  I am happy to answer the occasional question, but I hope that you will attempt to solve most issues on your own.
-
+##Requires
+  - gcc (makefile can be adapted to use other compilers)
+  - mpicc (makefile assumes OpenMPI)
+  - [grackle cooling](https://bitbucket.org/grackle/grackle)
+  - For visualization:
+    - Python (tested for v.3, probably backwards compatible)
+    - IPython 3
+    - Matplotlib
+    - Numpy
+    - Astropy
+    - Pandas
+    - Seaborn
 
