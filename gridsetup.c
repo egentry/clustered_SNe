@@ -2,7 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "paul.h"
+
+#include "structure.h"
 
 int getN0( int drank , int dsize , int dnum ){
    int N0 = (dnum*drank)/dsize;

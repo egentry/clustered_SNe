@@ -1,7 +1,9 @@
-enum{VAR_INT,VAR_DOUB,VAR_STR};
 
-#include "paul.h"
 #include <string.h>
+
+#include "structure.h"
+
+enum{VAR_INT,VAR_DOUB,VAR_STR};
 
 int readvar( char * filename , char * varname , int vartype , void * ptr ){
 

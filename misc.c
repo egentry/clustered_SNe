@@ -1,8 +1,10 @@
-#include "paul.h"
-#include <grackle.h>
+
 #include <string.h>
 #include <assert.h>
 #include <math.h>
+#include <grackle.h>
+
+#include "structure.h"
 
 double get_dA( double );
 double get_dV( double , double );
@@ -195,7 +197,7 @@ void fix_negative_energies( struct domain * theDomain )
    //    - if the adiabatic internal energy differs from the numeric internal energy by too much
    //       then we use the adiabatic energy rather than the numeric energy
 
-   double tolerance = .3; // relative tolerance allowed on energy error before switching to adiabatic
+   double tolerance = .5; // relative tolerance allowed on energy error before switching to adiabatic
 
    struct cell * theCells = theDomain->theCells;
    int Nr = theDomain->Nr;
@@ -222,6 +224,7 @@ void fix_negative_energies( struct domain * theDomain )
       {
          // overwrite the energy, so that it has a strictly positive internal energy
          printf("------ Applying energy fix for cell %d  ------- \n", i);
+         printf("time = %e \n", theDomain->t);
          printf("P_old = %e \n", c->P_old);
          printf("dV_old = %e \n", c->dV_old);
          printf("dV     = %e \n", dV);

@@ -1,11 +1,12 @@
 
-#include "../paul.h"
-#include <grackle.h>
 #include <math.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <grackle.h>
 
-double calc_cooling_rt1d( double * ,  double * , double , double , code_units );
+#include "../structure.h"
+
+double calc_cooling( double * ,  double * , double , double , code_units );
 
 
 static double GAMMA_LAW = 0.0;
@@ -148,9 +149,8 @@ void source( double * prim , double * cons , double rp , double rm , double dV ,
 
    if( With_Cooling == 1)
    {
-      cons[TAU] += calc_cooling_rt1d(prim, cons, metallicity, dt, cooling_units) * dV;  
+      cons[TAU] += calc_cooling(prim, cons, metallicity, dt, cooling_units) * dV;  
    }
-
 
 }
 

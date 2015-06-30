@@ -1,4 +1,5 @@
-#include "paul.h"
+
+#include "structure.h"
 
 void onestep( struct domain * , double , double , int , int );
 

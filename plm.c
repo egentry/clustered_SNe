@@ -1,5 +1,5 @@
 
-#include "paul.h"
+#include "structure.h"
 
 double minmod( double a , double b , double c ){
    double m = a;

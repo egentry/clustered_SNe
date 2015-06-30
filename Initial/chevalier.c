@@ -1,5 +1,5 @@
 
-#include "../paul.h"
+#include "../structure.h"
 
 static double t = 1.0;
 

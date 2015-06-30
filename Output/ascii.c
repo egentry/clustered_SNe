@@ -1,5 +1,7 @@
+
 #include <assert.h>
-#include "../paul.h"
+
+#include "../structure.h"
 
 double get_moment_arm( double , double );
 double get_dV( double , double );

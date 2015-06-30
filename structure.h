@@ -1,3 +1,6 @@
+#ifndef _STRUCTURE_H
+#define _STRUCTURE_H
+
 enum{RHO,PPP,VRR,XXX,AAA}; // respectively: density, density * Pressure, radial velocity, XXX (passive scalar), AAA (eddy strength)
 enum{DDD,TAU,SRR}; // respectively: mass, energy, momentum (radial)?
 
@@ -73,3 +76,5 @@ struct cell{
    double dV_old; 
 };
 
+
+#endif

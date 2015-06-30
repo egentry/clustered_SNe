@@ -1,8 +1,9 @@
 
-#include "paul.h"
 #include <grackle.h>
 
-code_units setup_cooling();
+#include "structure.h"
+
+code_units setup_cooling( struct domain * );
 
 double get_moment_arm( double , double );
 double get_dV( double , double );
@@ -17,7 +18,7 @@ void setupDomain( struct domain * theDomain ){
 
    if (theDomain->theParList.With_Cooling == 1)
    {
-      theDomain->cooling_units = setup_cooling();
+      theDomain->cooling_units = setup_cooling(theDomain);
    }
 
    theDomain->t       = theDomain->theParList.t_min;

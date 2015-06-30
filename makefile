@@ -3,11 +3,16 @@ INITIAL  = sedov
 HYDRO    = euler
 OUTPUT   = ascii
 
+EXE      = SNe
+
+
+## Set location of HDF5 dir, for use in reading Grackle cooling tables
 UNAME = $(shell uname)
 ifeq ($(UNAME),Linux)
-H55 = /home/egentry/bin/yt/yt-x86_64
+H55 = $(HOME)/bin/yt/yt-x86_64
 endif
 ifeq ($(UNAME),Darwin)
+# assumes MacPorts
 H55 = /opt/local
 endif
 
@@ -51,25 +56,25 @@ LIB = -L$(H55)/lib -lm -lhdf5
 
 OBJ = main.o mpisetup.o profiler.o readpar.o domain.o gridsetup.o geometry.o exchange.o misc.o timestep.o onestep.o riemann.o boundary.o plm.o cooling.o $(INITIAL).o $(OUTPUT).o $(HYDRO).o #report.o
 
-default: rt1d
+default: $(EXE)
 
-%.o: %.c paul.h
+%.o: %.c structure.h
 	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c $<
 
-$(TIMESTEP).o: Timestep/$(TIMESTEP).c paul.h
+$(TIMESTEP).o: Timestep/$(TIMESTEP).c structure.h
 	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Timestep/$(TIMESTEP).c
 
-$(INITIAL).o : Initial/$(INITIAL).c paul.h
+$(INITIAL).o : Initial/$(INITIAL).c structure.h
 	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Initial/$(INITIAL).c
 
-$(HYDRO).o : Hydro/$(HYDRO).c paul.h
+$(HYDRO).o : Hydro/$(HYDRO).c structure.h
 	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Hydro/$(HYDRO).c
 
-$(OUTPUT).o : Output/$(OUTPUT).c paul.h
+$(OUTPUT).o : Output/$(OUTPUT).c structure.h
 	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Output/$(OUTPUT).c
 
-rt1d: $(OBJ) paul.h
-	$(CC) $(LIBS) $(GRACKLE_LIB) $(FLAGS) $(LIB) -o rt1d $(OBJ)
+$(EXE): $(OBJ) structure.h
+	$(CC) $(LIBS) $(GRACKLE_LIB) $(FLAGS) $(LIB) -o $(EXE) $(OBJ)
 
 clean:
-	rm -f *.o rt1d
+	rm -f *.o $(EXE)

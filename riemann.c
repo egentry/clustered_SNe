@@ -1,10 +1,10 @@
-enum{_HLL_,_HLLC_};
 
 #include <math.h>
 #include <assert.h>
 
-#include "paul.h"
- 
+#include "structure.h"
+
+enum{_HLL_,_HLLC_};
 
 int riemann_solver = 0;
 int rt_flag = 0;

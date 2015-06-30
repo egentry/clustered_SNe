@@ -1,5 +1,5 @@
 
-#include "paul.h"
+#include "structure.h"
 
 int mpiSetup( struct domain * , int , char *[] );
 

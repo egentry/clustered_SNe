@@ -1,5 +1,5 @@
 
-#include "paul.h"
+#include "structure.h"
 
 double get_dA( double r ){
    return( 4.*M_PI*r*r );
