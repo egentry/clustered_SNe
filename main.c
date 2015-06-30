@@ -32,8 +32,6 @@ int main( int argc , char * argv[] ){
    int error = mpiSetup(&theDomain,argc,argv);
    if( error==1 ) return(0);
 
-   if(theDomain.rank==0) remove("abort");
-
    setupGrid( &theDomain );   
    setupDomain( &theDomain );
 

@@ -74,9 +74,10 @@ int read_par_file( struct domain * theDomain ){
          err += readvar( pfile , "Adiabatic_Index" , VAR_DOUB , &(theList->Adiabatic_Index) );
          err += readvar( pfile , "Density_Floor"   , VAR_DOUB , &(theList->Density_Floor)   );
          err += readvar( pfile , "Pressure_Floor"  , VAR_DOUB , &(theList->Pressure_Floor)  );
+         err += readvar( pfile , "With_Cooling"    , VAR_INT  , &(theList->With_Cooling)    );
          err += readvar( pfile , "Mesh_Motion"     , VAR_INT  , &(theList->Mesh_Motion)     );
          err += readvar( pfile , "Riemann_Solver"  , VAR_INT  , &(theList->Riemann_Solver)  );
-         err += readvar( pfile , "Use_RT"          , VAR_INT  , &(theList->rt_flag)    );
+         err += readvar( pfile , "Use_RT"          , VAR_INT  , &(theList->rt_flag)         );
          err += readvar( pfile , "Use_Logtime"     , VAR_INT  , &(theList->Out_LogTime)     );
          err += readvar( pfile , "Max_Aspect_Short", VAR_DOUB , &(theList->MaxShort)        );
          err += readvar( pfile , "Max_Aspect_Long" , VAR_DOUB , &(theList->MaxLong)         );

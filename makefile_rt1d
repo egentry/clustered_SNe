@@ -1,5 +1,5 @@
 
-INITIAL  = ejecta
+INITIAL  = sedov
 HYDRO    = euler
 OUTPUT   = ascii
 

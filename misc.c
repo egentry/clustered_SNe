@@ -1,5 +1,8 @@
 #include "paul.h"
+#include <grackle.h>
 #include <string.h>
+#include <assert.h>
+#include <math.h>
 
 double get_dA( double );
 double get_dV( double , double );
@@ -31,7 +34,6 @@ double getmindt( struct domain * theDomain ){
    return( dt );
 }
 
-void initial( double * , double * );
 void prim2cons( double * , double * , double );
 void cons2prim( double * , double * , double );
 double get_vr( double * );
@@ -68,7 +70,40 @@ void adjust_RK_cons( struct domain * theDomain , double RK ){
       for( q=0 ; q<NUM_Q ; ++q ){
          c->cons[q] = (1.-RK)*c->cons[q] + RK*c->RKcons[q];
       }
+
+      double prim_tmp[NUM_Q];
+      double rp = c->riph;
+      double rm = rp-c->dr;
+      double dV = get_dV( rp , rm );
+      cons2prim( c->cons , prim_tmp , dV );
+
+      if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor)
+      {
+         printf("------ ERROR in adjust_RK_cons()------- \n");
+         printf("pressure should be above pressure floor! \n");
+         printf("pressure       = %e in cell %i \n", prim_tmp[PPP], i);
+         printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
+         printf("rp = %e \n", rp);
+         printf("rm = %e \n", rm);
+         printf("dr = %e \n", c->dr);
+         assert(0);
+      }
+      // int q;
+      for( q=0 ; q<NUM_Q ; ++q)
+      {
+         if(!isfinite(prim_tmp[q]) && q!=AAA)
+         {
+            printf("------ ERROR in adjust_RK_cons()------- \n");
+            printf("prim[%d] = %e in cell %d \n", q, prim_tmp[q], i);
+            printf("rp = %e \n", rp);
+            printf("rm = %e \n", rm);
+            printf("dr = %e \n", c->dr);
+            assert(0);
+         }
+      }
+
    }
+
 }
 
 void move_cells( struct domain * theDomain , double RK , double dt){
@@ -78,7 +113,57 @@ void move_cells( struct domain * theDomain , double RK , double dt){
    int i;
    for( i=0 ; i<Nr ; ++i ){
       struct cell * c = theCells+i;
+
+      double prim_tmp[NUM_Q];
+      double rp = c->riph;
+      double rm = rp-c->dr;
+      double dV = get_dV( rp , rm );
+      cons2prim( c->cons , prim_tmp , dV );
+      if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor)
+      {
+         printf("------ ERROR in move_cells() before moving------- \n");
+         printf("pressure should be above pressure floor! \n");
+         printf("pressure       = %e in cell %i \n", prim_tmp[PPP], i);
+         printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
+         printf("rp = %e \n", c->riph);
+         printf("rm = %e \n", c->riph - c->dr);
+         printf("dr = %e \n", c->dr);
+         assert(0);
+      }
+
       c->riph += c->wiph*dt;
+
+      // verify postconditions
+      rp = c->riph;
+      rm = rp-c->dr;
+      dV = get_dV( rp , rm );
+      cons2prim( c->cons , prim_tmp , dV );
+      if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor)
+      {
+         printf("------ ERROR in move_cells() after moving------- \n");
+         printf("pressure should be above pressure floor! \n");
+         printf("pressure       = %e in cell %i \n", prim_tmp[PPP], i);
+         printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
+         printf("rp = %e \n", rp);
+         printf("rm = %e \n", rm);
+         printf("dr = %e \n", c->dr);
+         assert(0);
+      }
+      int q;
+      for( q=0 ; q<NUM_Q ; ++q)
+      {
+         if(!isfinite(prim_tmp[q]) && q!=AAA)
+         {
+            printf("------ ERROR in move_cells()------- \n");
+            printf("non-finite prim[q] \n");
+            printf("prim[%d] = %e in cell %d \n", q, prim_tmp[q], i);
+            printf("rp = %e \n", rp);
+            printf("rm = %e \n", rm);
+            printf("dr = %e \n", c->dr);
+            assert(0);
+         }
+      }
+
    }
 
 }
@@ -100,6 +185,69 @@ void calc_dr( struct domain * theDomain ){
 
 }
 
+void fix_negative_energies( struct domain * theDomain )
+{
+   // Only TOTAL energy is conserved
+   //    - this can lead to a problem if kinetic energy exceeds total energy
+   //    - in order to compensate, internal energy (and pressure) will become negative
+   // To fix this problem:
+   //    - we specifically evolve internal energy using adiabatic assumptions
+   //    - if the adiabatic internal energy differs from the numeric internal energy by too much
+   //       then we use the adiabatic energy rather than the numeric energy
+
+   double tolerance = .3; // relative tolerance allowed on energy error before switching to adiabatic
+
+   struct cell * theCells = theDomain->theCells;
+   int Nr = theDomain->Nr;
+   double gamma = theDomain->theParList.Adiabatic_Index;
+
+   int i;
+   for( i=0 ; i<Nr ; ++i ){
+      struct cell * c = theCells+i;
+
+      // double E_old = c->P_old * c->dV_old / (gamma - 1);
+
+      double rp = c->riph;
+      double rm = rp-c->dr;
+      double dV = get_dV( rp , rm );
+
+      double P_new = c->P_old * pow(dV / c->dV_old, -1*gamma);
+      double E_new =    P_new * dV / (gamma - 1);
+
+      double Mass = c->cons[DDD];
+      double vr   = c->cons[SRR] / Mass;
+      double E_numeric = c->cons[TAU] - .5*Mass*vr*vr;
+
+      if ( (((E_new - E_numeric) / E_new) > tolerance) || (E_numeric < 0) ) 
+      {
+         // overwrite the energy, so that it has a strictly positive internal energy
+         printf("------ Applying energy fix for cell %d  ------- \n", i);
+         printf("P_old = %e \n", c->P_old);
+         printf("dV_old = %e \n", c->dV_old);
+         printf("dV     = %e \n", dV);
+         printf("P_new = %e \n", P_new);
+         printf("E_new = %e \n", E_new);
+         printf("P_numeric = %e \n", E_numeric * (gamma-1) / dV);
+         printf("E_numeric = %e \n", E_numeric);
+         c->cons[TAU] = E_new + .5*Mass*vr*vr;
+
+         c->P_old  = P_new;
+         c->dV_old = dV;
+
+
+      } 
+      else
+      {
+         c->P_old  = E_numeric * (gamma - 1) / dV;
+         c->dV_old = dV;
+      }
+
+
+   }
+
+   return;
+}
+
 
 void calc_prim( struct domain * theDomain ){
 
@@ -113,12 +261,37 @@ void calc_prim( struct domain * theDomain ){
       double rm = rp-c->dr;
       double dV = get_dV( rp , rm );
       cons2prim( c->cons , c->prim , dV );
-   }
 
+      // verify postconditions
+      if(c->prim[PPP] < theDomain->theParList.Pressure_Floor)
+      {
+         printf("------ ERROR in calc_prim()------- \n");
+         printf("pressure should be above pressure floor! \n");
+         printf("pressure       = %e in cell %i \n", c->prim[PPP], i);
+         printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
+         printf("rp = %e \n", rp);
+         printf("rm = %e \n", rm);
+         printf("dr = %e \n", c->dr);
+         assert(0);
+      }
+      int q;
+      for( q=0 ; q<NUM_Q ; ++q)
+      {
+         if(!isfinite(c->prim[q]) && q!=AAA)
+         {
+            printf("------ ERROR in calc_prim()------- \n");
+            printf("prim[%d] = %e in cell %d \n", q, c->prim[q], i);
+            printf("rp = %e \n", rp);
+            printf("rm = %e \n", rm);
+            printf("dr = %e \n", c->dr);
+            assert(0);
+         }
+      }
+   }
 }
 
 void plm( struct domain *);
-void riemann( struct cell * , struct cell * , double , double );
+void riemann( struct cell * , struct cell * , double , double , double );
 
 void radial_flux( struct domain * theDomain , double dt ){
 
@@ -131,12 +304,12 @@ void radial_flux( struct domain * theDomain , double dt ){
       struct cell * cR = theCells+i+1;
       double r = cL->riph;
       double dA = get_dA(r); 
-      riemann( cL , cR , r , dA*dt );
+      riemann( cL , cR , r , dA , dt );
    }
 
 }
 
-void source( double * , double * , double , double , double );
+void source( double * , double * , double , double , double , double , double , code_units , int );
 void source_alpha( double * , double * , double * , double , double );
 
 void add_source( struct domain * theDomain , double dt ){
@@ -152,7 +325,8 @@ void add_source( struct domain * theDomain , double dt ){
       double rm = rp-c->dr;
       double r = get_moment_arm(rp,rm);
       double dV = get_dV(rp,rm);
-      source( c->prim , c->cons , rp , rm , dV*dt );
+      source( c->prim , c->cons , rp , rm , dV , dt , 
+         theDomain->metallicity ,  theDomain->cooling_units , theDomain->theParList.With_Cooling );
       int inside = i>0 && i<Nr-1;
       for( q=0 ; q<NUM_Q ; ++q ){
          if( inside ){
@@ -165,6 +339,32 @@ void add_source( struct domain * theDomain , double dt ){
          }
       }
       source_alpha( c->prim , c->cons , grad , r , dV*dt );
+
+
+      // verify postconditions
+      if(c->prim[PPP] < theDomain->theParList.Pressure_Floor)
+      {
+         printf("------ ERROR in add_source()------- \n");
+         printf("pressure should be above pressure floor! \n");
+         printf("pressure       = %e in cell %i \n", c->prim[PPP], i);
+         printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
+         printf("rp = %e \n", rp);
+         printf("rm = %e \n", rm);
+         printf("dr = %e \n", c->dr);
+         assert(0);
+      }
+      for( q=0 ; q<NUM_Q ; ++q)
+      {
+         if(!isfinite(c->prim[q]) && q!=AAA)
+         {
+            printf("------ ERROR in add_source()------- \n");
+            printf("prim[%d] = %e in cell %d \n", q, c->prim[q], i);
+            printf("rp = %e \n", rp);
+            printf("rm = %e \n", rm);
+            printf("dr = %e \n", c->dr);
+            assert(0);
+         }
+      }
    }   
 
 }
@@ -249,7 +449,7 @@ void AMR( struct domain * theDomain ){
    int Nr = theDomain->Nr;
 
    if( S>MaxShort && rank == rS ){
-      //printf("KILL! rank = %d\n",rank);
+      // printf("KILL!  iS = %d\n",iS);
 
       int iSp = iS+1;
       int iSm = iS-1;
@@ -278,6 +478,8 @@ void AMR( struct domain * theDomain ){
       double rm = rp - c->dr;
       double dV = get_dV( rp , rm );
       cons2prim( c->cons , c->prim , dV );
+      c->P_old  = c->prim[PPP];
+      c->dV_old = dV;
       //Shift Memory
       int blocksize = Nr-iSp-1;
       memmove( theCells+iSp , theCells+iSp+1 , blocksize*sizeof(struct cell) );
@@ -291,7 +493,7 @@ void AMR( struct domain * theDomain ){
 
    if( L>MaxLong && rank==rL ){
 
-      //printf("FORGE! rank = %d\n",rank);
+      // printf("FORGE! iL = %d\n",iL);
       theDomain->Nr += 1;
       Nr = theDomain->Nr;
       theDomain->theCells = (struct cell *) realloc( theCells , Nr*sizeof(struct cell) );
@@ -320,11 +522,16 @@ void AMR( struct domain * theDomain ){
 
       double dV = get_dV( r0 , rm );
       cons2prim( c->cons , c->prim , dV );
+      c->P_old = c->prim[PPP];
+      c->dV_old = dV;
       dV = get_dV( rp , r0 );
       cons2prim( cp->cons , cp->prim , dV );
+      cp->P_old = cp->prim[PPP];
+      cp->dV_old = dV;
 
    }
 
 }
+
 
 

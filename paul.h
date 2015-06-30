@@ -1,5 +1,5 @@
-enum{RHO,PPP,VRR,XXX,AAA};
-enum{DDD,TAU,SRR};
+enum{RHO,PPP,VRR,XXX,AAA}; // respectively: density, density * Pressure, radial velocity, XXX (passive scalar), AAA (eddy strength)
+enum{DDD,TAU,SRR}; // respectively: mass, energy, momentum (radial)?
 
 #include <mpi.h>
 #include <stdio.h>
@@ -7,6 +7,7 @@ enum{DDD,TAU,SRR};
 #include <math.h>
 #include <string.h>
 #include <time.h>
+#include <grackle.h>
 
 #define NUM_Q 5
 #define NUM_G 2
@@ -27,6 +28,7 @@ struct param_list{
 
    double CFL, PLM;
    double Density_Floor, Pressure_Floor;
+   int With_Cooling;
    double Adiabatic_Index;
 
 };
@@ -53,6 +55,9 @@ struct domain{
 
    int final_step;
 
+   code_units cooling_units;
+   double metallicity;
+
 };
 
 struct cell{
@@ -63,5 +68,8 @@ struct cell{
    double riph;
    double dr;
    double wiph;
+   // for use in checking dE_adiabatic
+   double P_old; 
+   double dV_old; 
 };
 

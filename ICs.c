@@ -84,6 +84,8 @@ double new_blast(int zones,
     {
         // set defaults
         U[i] = 0;
+
+        // R[i] = i * (R_total / zones);
         
         if (i < inner_zones)
         {
@@ -95,7 +97,7 @@ double new_blast(int zones,
                 + (i-inner_zones) * (R_total - R_inner) / (zones - inner_zones);
         }
 
-        // // POWERLAW SPACING
+        // POWERLAW SPACING
         // double power_law_index = 1.1;
         // double C = R_total / pow(zones-2, power_law_index);
         // R[i] = C * pow(i, power_law_index);
@@ -112,8 +114,8 @@ double new_blast(int zones,
     i = 2;
     // innermost real zone
     double M;
-    V[i] = (4.*M_PI/3.) * (pow(R[i+1],3) - pow(R[i-1],3)) / M_SN;
-    // V[i] = V_0;
+    // V[i] = (4.*M_PI/3.) * (pow(R[i+1],3) - pow(R[i-1],3)) / M_SN;
+    V[i] = V_0;
     M = (1./V[i]) * (4.*M_PI/3.) * (pow(R[i+1],3) - pow(R[i-1],3));
     E[i] = E_SN * M_SN / M; // PER UNIT MASS!
     T[i] = E[i] / c_V;
@@ -152,10 +154,10 @@ double new_blast_spread(int zones,
         if (i < inner_zones)
         {
             R[i] = i * R_blast / inner_zones;
-            V[i] = (4.*M_PI/3)*pow(R_blast,3.) / M;
-            E[i] = E_SN * M_SN / M;
-            // V[i] = V_0 + ( ((4.*M_PI/3)*pow(R_blast,3.) / M) - V_0 ) * (inner_zones - i) / inner_zones;
-            // E[i] = (c_V * T_0) + ( E_SN - (c_V * T_0)) * (inner_zones - i) / inner_zones;
+            // V[i] = (4.*M_PI/3)*pow(R_blast,3.) / M;
+            V[i] = V_0 + ( ((4.*M_PI/3)*pow(R_blast,3.) / M) - V_0 ) * (inner_zones - i) / inner_zones;
+            // E[i] = E_SN * M_SN / M;
+            E[i] = (c_V * T_0) + ( E_SN - (c_V * T_0)) * (inner_zones - i) / inner_zones;
             T[i] = E[i] / c_V;
             P[i] = (gamma - 1) * E[i] / V[i];
             Q[i] = 0;
@@ -175,55 +177,6 @@ double new_blast_spread(int zones,
             C_ad[i] = sqrt(gamma * P[i] * V[i]);
         }
     }
-
-    time_current = 0;
-    return time_current;
-}
-
-double rt1d_comparison(int zones,
-    double U[], double R[], double V[], double T[],
-    double E[], double P[], double Q[], double H[], double C_ad[])
-{
-
-    double time_current;
-    int i;
-
-    double r1 = 1e-5;
-    double r2 = .5;
-
-    double log_r1 = log(r1);
-    double log_r2 = log(r2);
-
-    double rSN = 1e-2;
-
-    printf("Setting up initial conditions identical to RT1D sedov run \n");
-
-    // INITIALIZE DATA FOR A NEW RUN
-    for (i=0; i<zones; i++)
-    {
-        // set defaults
-        U[i] = 0;
-
-        R[i] = r1 * exp( (i * (log_r2 - log_r1) / zones) );
-        
-        if (R[i] < rSN)
-        {
-            V[i] = 1e-2;
-            T[i] = 1e5;
-        }
-        else
-        {
-            V[i] = 1.0;
-            T[i] = 1.0;
-        }
-        
-        E[i] = c_V * T[i];
-        P[i] = (gamma - 1) * E[i] / V[i];
-        Q[i] = 0;
-        H[i] = 0;
-        C_ad[i] = sqrt(gamma * P[i] * V[i]);
-    }
-
 
     time_current = 0;
     return time_current;

@@ -1,6 +1,8 @@
 #ifndef _CONSTANTS_H
 #define _CONSTANTS_H
 
+#include <math.h>
+
 
 #define gamma  (5./3)      // adiabatic index
 #define mu  .67      // mean molecular weight -- should probably be calculated properly using metallicity

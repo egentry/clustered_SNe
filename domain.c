@@ -1,5 +1,8 @@
 
 #include "paul.h"
+#include <grackle.h>
+
+code_units setup_cooling();
 
 double get_moment_arm( double , double );
 double get_dV( double , double );
@@ -11,6 +14,11 @@ void setHydroParams( struct domain * );
 void setRiemannParams( struct domain * );
 
 void setupDomain( struct domain * theDomain ){
+
+   if (theDomain->theParList.With_Cooling == 1)
+   {
+      theDomain->cooling_units = setup_cooling();
+   }
 
    theDomain->t       = theDomain->theParList.t_min;
    theDomain->t_init  = theDomain->theParList.t_min;
@@ -30,21 +38,32 @@ void setupDomain( struct domain * theDomain ){
    setICparams( theDomain );
    setHydroParams( theDomain );
    setRiemannParams( theDomain );
+
+   theDomain->metallicity = grackle_data.SolarMetalFractionByMass;
  
 }
 
-void initial( double * , double ); 
+void initial( double * , double , int , int , double ); 
 void prim2cons( double * , double * , double );
 void cons2prim( double * , double * , double );
 void restart( struct domain * ); 
 void calc_dp( struct domain * );
 void set_wcell( struct domain * );
-
 void setupCells( struct domain * theDomain ){
 
    int i;
    struct cell * theCells = theDomain->theCells;
    int Nr = theDomain->Nr;
+
+   int n_blast = 2;
+   double V_blast = 0;
+   for( i=0 ; i<n_blast ; ++i )
+   {
+      struct cell * c = &(theCells[i]);
+      double rp = c->riph;
+      double rm = rp - c->dr; 
+      V_blast += get_dV( rp , rm );
+   }
 
    for( i=0 ; i<Nr ; ++i ){
       struct cell * c = &(theCells[i]);
@@ -53,9 +72,11 @@ void setupCells( struct domain * theDomain ){
       c->wiph = 0.0; 
       double r = get_moment_arm( rp , rm );
       double dV = get_dV( rp , rm );
-      initial( c->prim , r ); 
+      initial( c->prim , r, i, Nr, V_blast ); 
       prim2cons( c->prim , c->cons , dV );
       cons2prim( c->cons , c->prim , dV );
+      c->P_old  = c->prim[PPP];
+      c->dV_old = dV;
    }
 
 }
@@ -87,7 +108,7 @@ void check_dt( struct domain * theDomain , double * dt ){
 
 void report( struct domain * );
 void snapshot( struct domain * , char * );
-void output( struct domain * , char * );
+void output( struct domain * , char *, double );
 
 void possiblyOutput( struct domain * theDomain , int override ){
 
@@ -116,10 +137,10 @@ void possiblyOutput( struct domain * theDomain , int override ){
       if( !override ){
          if(theDomain->rank==0) printf("Creating Checkpoint #%04d...\n",n0);
          sprintf(filename,"checkpoint_%04d",n0);
-         output( theDomain , filename );
+         output( theDomain , filename, t );
       }else{
          if(theDomain->rank==0) printf("Creating Final Checkpoint...\n");
-         output( theDomain , "output" );
+         output( theDomain , "output", t );
       }
    }
 /*
@@ -130,7 +151,7 @@ void possiblyOutput( struct domain * theDomain , int override ){
       char filename[256];
       if(!override) sprintf( filename , "snapshot_%04d" , n0 );
       else sprintf( filename , "snapshot" );
-      //snapshot( theDomain , filename );
+      // snapshot( theDomain , filename );
    }
 */
 }

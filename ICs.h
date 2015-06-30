@@ -13,10 +13,6 @@
 	    double U[], double R[], double V[], double T[],
 	    double E[], double P[], double Q[], double H[], double C_ad[]);	
 
-	double rt1d_comparison(int zones,
-	    double U[], double R[], double V[], double T[],
-	    double E[], double P[], double Q[], double H[], double C_ad[]);	
-
 	double restart(int *zones_ptr, int *k_ptr,
 		double U[], double R[], double V[], double T[],
 	    double E[], double P[], double Q[], double H[], double C_ad[],

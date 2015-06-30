@@ -1,5 +1,12 @@
 
 #include "../paul.h"
+#include <grackle.h>
+#include <math.h>
+#include <assert.h>
+#include <stdlib.h>
+
+double calc_cooling_rt1d( double * ,  double * , double , double , code_units );
+
 
 static double GAMMA_LAW = 0.0;
 static double RHO_FLOOR = 0.0;
@@ -37,6 +44,10 @@ void prim2cons( double * prim , double * cons , double dV ){
 
 void cons2prim( double * cons , double * prim , double dV ){
 
+   // E    =    total energy / unit volume
+   // e    = internal energy / unit mass
+   // rhoe = internal energy / unit volume
+   // Pp   = pressure (why the second 'p'?)
    double rho = cons[DDD]/dV;
    double Sr  = cons[SRR]/dV;
    double E   = cons[TAU]/dV;
@@ -48,7 +59,22 @@ void cons2prim( double * cons , double * prim , double dV ){
    double Pp = (gam-1.)*rhoe;
 
    if( rho<RHO_FLOOR ) rho=RHO_FLOOR;
-   if( Pp < PRE_FLOOR*rho ) Pp = PRE_FLOOR*rho;
+   if( Pp < PRE_FLOOR )
+   {
+      printf("------ ERROR in cons2prim()------- \n");
+      printf("pressure should be above pressure floor! \n");
+      printf("pressure       = %e \n", Pp);
+      printf("pressure floor = %e \n", PRE_FLOOR);
+      printf("dV  = %e \n", dV);
+      printf("rho = %e \n", rho);
+      printf("vr  = %e \n", vr);
+      // if (Pp < 0)
+      // {
+         // assert(0);
+      // }
+      
+      Pp = PRE_FLOOR;
+   } 
 
    prim[RHO] = rho;
    prim[PPP] = Pp;
@@ -83,6 +109,14 @@ void getUstar( double * prim , double * Ustar , double Sk , double Ss ){
    int q;
    for( q=XXX ; q<NUM_Q ; ++q ){
       Ustar[q] = prim[q]*Ustar[DDD];
+      if(!isfinite(Ustar[q]) && q!=AAA)
+      {
+         printf("Ustar[%d] = %e in 'getUstar()' \n", q, Ustar[q]);
+         printf("prim[%d]  = %e in 'getUstar()' \n", q, prim[q]);
+         printf("Sk        = %20.10le in 'getUstar()' \n", Sk);
+         printf("Ss        = %20.10le in 'getUstar()' \n", Ss);
+         assert(0);
+      }
    }
 
 }
@@ -106,11 +140,18 @@ void flux( double * prim , double * flux ){
    }
 }
 
-void source( double * prim , double * cons , double rp , double rm , double dVdt ){
+void source( double * prim , double * cons , double rp , double rm , double dV , double dt , double metallicity , code_units cooling_units, int With_Cooling){
    double Pp  = prim[PPP];
    double r  = .5*(rp+rm);
    double r2 = (rp*rp+rm*rm+rp*rm)/3.;
-   cons[SRR] += 2.*Pp*(r/r2)*dVdt;
+   cons[SRR] += 2.*Pp*(r/r2)*dV*dt;
+
+   if( With_Cooling == 1)
+   {
+      cons[TAU] += calc_cooling_rt1d(prim, cons, metallicity, dt, cooling_units) * dV;  
+   }
+
+
 }
 
 void source_alpha( double * prim , double * cons , double * grad_prim , double r , double dVdt ){
@@ -178,6 +219,22 @@ void vel( double * prim1 , double * prim2 , double * Sl , double * Sr , double *
 
    if( *Sr <  cs2 + vn2 ) *Sr =  cs2 + vn2;
    if( *Sl > -cs2 + vn2 ) *Sl = -cs2 + vn2;
+
+   // verify postcondition: wave family characteristics should have different speeds
+   if( *Sr == *Sl)
+   {
+      printf("Sr = Sl \n");
+      printf("Sr = Sl = %e \n", *Sr);
+      printf("cs1 = %e \n", cs1);
+      printf("cs2 = %e \n", cs2);
+      printf("vn1 = %e \n", vn1);
+      printf("vn1 = %e \n", vn2);
+      printf("P1 = %e \n", P1);
+      printf("rho1 = %e \n", rho1);
+      printf("P2 = %e \n", P2);
+      printf("rho2 = %e \n", rho2);
+      assert(0);
+   }
    
 }
 
@@ -199,4 +256,5 @@ double mindt( double * prim , double w , double r , double dr ){
    return( dt );
 
 }
+
 

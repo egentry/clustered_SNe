@@ -1,10 +1,10 @@
-
+#include <assert.h>
 #include "../paul.h"
 
 double get_moment_arm( double , double );
 double get_dV( double , double );
 
-void output( struct domain * theDomain , char * filestart ){
+void output( struct domain * theDomain , char * filestart , double t){
 
    struct cell * theCells = theDomain->theCells;
    int Nr = theDomain->Nr;
@@ -17,7 +17,8 @@ void output( struct domain * theDomain , char * filestart ){
 
    if( rank==0 ){
       FILE * pFile = fopen( filename , "w" );
-      fprintf(pFile,"#r           dr           Density      Pressure     Velocity     X            Alpha\n");
+      fprintf(pFile,"# time = %le [s] \n", t);
+      fprintf(pFile,"# r           dr           dV           Density      Pressure     Velocity     X            Alpha\n");
       fclose(pFile);
    }
    MPI_Barrier( MPI_COMM_WORLD );
@@ -39,9 +40,18 @@ void output( struct domain * theDomain , char * filestart ){
             double dr = c->dr; 
             double rm = rp-dr;
             double r  = get_moment_arm( rp , rm );
-            fprintf(pFile,"%e %e ",r,dr);
+            double dV = get_dV( rp , rm );
+            fprintf(pFile,"%e %e %e ",r,dr,dV);
             for( q=0 ; q<NUM_Q ; ++q ){
                fprintf(pFile,"%e ",c->prim[q]);
+            }
+            if(c->prim[PPP] < theDomain->theParList.Pressure_Floor)
+            {
+               printf("-------ERROR--------- \n");
+               printf("In output() \n");
+               printf("c->prim[PPP] = %e at i=%d \n", c->prim[PPP], i);
+               printf("Pressure floor should be = %e \n", theDomain->theParList.Pressure_Floor);
+               assert(0);
             }
             fprintf(pFile,"\n");
          }

@@ -7,6 +7,7 @@ void set_wcell( struct domain * );
 
 void adjust_RK_cons( struct domain * , double );
 void move_cells( struct domain * , double , double );
+void fix_negative_energies( struct domain * );
 void calc_dr( struct domain * );
 void calc_prim( struct domain * );
 
@@ -25,6 +26,8 @@ void onestep( struct domain * theDomain , double RK , double dt , int first_step
 
    if( first_step ) move_cells( theDomain , RK , dt );
    calc_dr( theDomain );
+
+   fix_negative_energies( theDomain );
 
    calc_prim( theDomain );
 

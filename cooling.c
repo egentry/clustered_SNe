@@ -10,6 +10,7 @@
 #include <constants.h> // defines physical constants
 
 #include <cooling.h>
+#include "paul.h"
 
 
 void calc_cooling(double V[], double E[], double U[], double dE[], int zones, double metallicity, double dt, code_units my_units)
@@ -119,6 +120,90 @@ void calc_cooling(double V[], double E[], double U[], double dE[], int zones, do
     free(z_velocity);
     free(metal_density);
     return;
+
+};    
+
+double calc_cooling_rt1d( double * prim ,  double * cons , double metallicity , double dt , code_units my_units )
+{
+
+    int i,j;
+
+    grackle_verbose=1;
+
+    double z_redshift = 0.;
+    double a_value = 1. / (1. + z_redshift);
+
+
+    int field_size = 1; // we'll be removing guard cells + zone boundaries
+    int grid_rank  = 1;
+    int grid_dimension[3], grid_start[3], grid_end[3];
+    for (i=0; i<3; ++i)
+    {
+        // set defaults -- for 1d only change element [0] later
+        grid_dimension[i]   = 1;
+        grid_start[i]       = 0;
+        grid_end[i]         = 0;
+    }
+    // for the dimension we're using, set guard cell information + size
+    grid_dimension[0]   = field_size;
+    grid_start[0]       = 0;
+    grid_end[0]         = (field_size - 1);
+
+
+    // declare fluid variable arrays (will need more for other chemistries)
+    gr_float *density, *energy, *x_velocity, *y_velocity, *z_velocity;
+    gr_float *metal_density;
+
+    density         = malloc(field_size * sizeof(gr_float));
+    energy          = malloc(field_size * sizeof(gr_float));
+    x_velocity      = malloc(field_size * sizeof(gr_float));
+    y_velocity      = malloc(field_size * sizeof(gr_float));
+    z_velocity      = malloc(field_size * sizeof(gr_float));
+    metal_density   = malloc(field_size * sizeof(gr_float));
+
+    double density_initial = prim[RHO];
+    double energy_initial  = (1. / (gamma-1.)) * prim[PPP] / prim[RHO];
+
+    //copy old information into gr_float arrays
+    for(i=0; i<field_size; ++i)
+    {
+        density[i]          = density_initial / my_units.density_units;
+        energy[i]           = energy_initial;     // internal energy PER UNIT MASS
+        x_velocity[i]       = prim[VRR];          // radial velocity
+        y_velocity[i]       = 0;
+        z_velocity[i]       = 0;
+        metal_density[i]    = metallicity * density[i];
+    }
+
+
+    // setup_cooling();
+
+    // printf("done setting IC's \n");
+
+
+    if (solve_chemistry_table(&my_units,
+                                a_value, dt,
+                                grid_rank, grid_dimension,
+                                grid_start, grid_end,
+                                density, energy,
+                                x_velocity, y_velocity, z_velocity,
+                                metal_density) == 0)
+    {
+        fprintf(stderr, "Error in solve_chemistry.\n");
+    }
+
+    // printf("done setting solving chemistry \n");
+
+    double dE = (energy[0] - energy_initial) * density_initial; // energy per unit volume
+
+    // printf("use_grackle: %d \n", grackle_data.use_grackle);
+    free(density);
+    free(energy);
+    free(x_velocity);
+    free(y_velocity);
+    free(z_velocity);
+    free(metal_density);
+    return dE;
 
 };    
 

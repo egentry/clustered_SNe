@@ -2,7 +2,7 @@
 #include "paul.h"
 
 double get_moment_arm( double , double );
-void initial( double * , double ); 
+void initial( double * , double , int, int , double ); 
 
 void boundary( struct domain * theDomain ){
 
@@ -17,7 +17,7 @@ void boundary( struct domain * theDomain ){
       double rp = cB->riph;
       double rm = rp-cB->dr;
       double r = get_moment_arm(rp,rm);
-      initial( cB->prim , r ); 
+      initial( cB->prim , r, Nr-1 , Nr , 0.); 
    }
 /*
    if( rank == 0 ){

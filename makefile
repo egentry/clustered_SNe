@@ -1,20 +1,20 @@
-CC=gcc
 
-FLAGS 		= -lm 
-FLAGS_DEBUG = -ggdb -Wall -lm -Og -p
+INITIAL  = sedov
+HYDRO    = euler
+OUTPUT   = ascii
 
-EXE_FILE 	= fluid.adiabatic
-
-OBJS 		= fluid.adiabatic.o \
-				cooling.o \
-				ICs.o \
-				grid.o
-
+UNAME = $(shell uname)
+ifeq ($(UNAME),Linux)
+H55 = /home/egentry/bin/yt/yt-x86_64
+endif
+ifeq ($(UNAME),Darwin)
+H55 = /opt/local
+endif
 
 ############# Grackle cooling########################################
 # See grackle documentation/examples to figure out what's going on here
 #
-# This'll pollute the namespace (e.g. DEFINES, CFLAGS, INCLUDES, LIBS)
+# This'll pollute a lot of the namespace (e.g. DEFINES, CFLAGS, INCLUDES, LIBS)
 
 GRACKLE 			= $(HOME)/bin/grackle
 GRACKLE_DIR 		= $(GRACKLE)/src/clib
@@ -25,7 +25,7 @@ include $(GRACKLE_DIR)/Make.config.machine
 
 MAKE_CONFIG_OVERRIDE = $(GRACKLE_DIR)/Make.config.override
 include $(MAKE_CONFIG_OVERRIDE)
-CONFIG_USE_MPI = no
+CONFIG_USE_MPI = yes
 
 include $(GRACKLE_DIR)/Make.config.assemble
 
@@ -39,39 +39,37 @@ GRACKLE_LIB = -L$(MACH_INSTALL_PREFIX)/lib -lgrackle
 DYLD_LIBRARY_PATH 	= $(GRACKLE)/lib  			
 LD_LIBRARY_PATH 	= $(GRACKLE)/lib:$(HOME)/bin/yt/yt-x86_64/lib
 
+
 ############# SUFFIX RULES ########################################
 
-$(EXE_FILE) : $(OBJS)
-	@echo "linking..."
-	$(CC)  $(OBJS) -o $(EXE_FILE) $(LIBS) $(GRACKLE_LIB) $(FLAGS)
 
-.SUFFIXES :             # clear all defaults
-.SUFFIXES : .c .o       # and replace
+CC = mpicc
+FLAGS = -Og -Wall -g 
 
-%.o: %.c %.h constants.h
-	$(CC) -c $< $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS)
+INC = -I$(H55)/include
+LIB = -L$(H55)/lib -lm -lhdf5
 
-############# MAKE RULES ########################################
+OBJ = main.o mpisetup.o profiler.o readpar.o domain.o gridsetup.o geometry.o exchange.o misc.o timestep.o onestep.o riemann.o boundary.o plm.o cooling.o $(INITIAL).o $(OUTPUT).o $(HYDRO).o #report.o
+
+default: rt1d
+
+%.o: %.c paul.h
+	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c $<
+
+$(TIMESTEP).o: Timestep/$(TIMESTEP).c paul.h
+	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Timestep/$(TIMESTEP).c
+
+$(INITIAL).o : Initial/$(INITIAL).c paul.h
+	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Initial/$(INITIAL).c
+
+$(HYDRO).o : Hydro/$(HYDRO).c paul.h
+	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Hydro/$(HYDRO).c
+
+$(OUTPUT).o : Output/$(OUTPUT).c paul.h
+	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Output/$(OUTPUT).c
+
+rt1d: $(OBJ) paul.h
+	$(CC) $(LIBS) $(GRACKLE_LIB) $(FLAGS) $(LIB) -o rt1d $(OBJ)
 
 clean:
-	@rm -f *.o
-	@rm -f $(EXE_FILE)
-
-
-debug: FLAGS=$(FLAGS_DEBUG)
-debug: clean     				# is there a better way to force .o files to be gdb friendly?
-debug: $(EXE_FILE)
-
-test:
-	@echo DEFINE = $(DEFINE)
-	@echo CFLAGS = $(CFLAGS)
-	@echo INCLUDES = $(INCLUDES)
-	@echo LIBS = $(LIBS)
-
-
-
-############# DEPENDENCIES ########################################
-
-fluid.adiabatic.o : cooling.o ICs.o grid.o
-
-
+	rm -f *.o rt1d

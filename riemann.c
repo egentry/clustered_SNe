@@ -1,23 +1,35 @@
 enum{_HLL_,_HLLC_};
 
+#include <math.h>
+#include <assert.h>
+
 #include "paul.h"
+ 
 
 int riemann_solver = 0;
 int rt_flag = 0;
 
+static double PRE_FLOOR = 0.0;
+
+
 void setRiemannParams( struct domain * theDomain ){
    riemann_solver = theDomain->theParList.Riemann_Solver;
    rt_flag = theDomain->theParList.rt_flag;
+   PRE_FLOOR = theDomain->theParList.Pressure_Floor;
 }
 
 void prim2cons( double * , double * , double );
+void cons2prim( double * , double * , double );
 void flux( double * , double * );
 void getUstar( double * , double * , double , double );
 void vel( double * , double * , double * , double * , double * , double );
 double get_eta( double * , double * , double );
+double get_dV( double , double );
 
-void riemann( struct cell * cL , struct cell * cR, double r , double dAdt ){
 
+void riemann( struct cell * cL , struct cell * cR, double r , double dA , double dt ){
+
+   double dAdt = dA * dt;
    double primL[NUM_Q];
    double primR[NUM_Q];
 
@@ -29,6 +41,33 @@ void riemann( struct cell * cL , struct cell * cR, double r , double dAdt ){
       primL[q] = cL->prim[q] + cL->grad[q]*drL;
       primR[q] = cR->prim[q] - cR->grad[q]*drR;
    }
+
+   if (primL[PPP] < PRE_FLOOR)
+   {
+      printf("------ERROR in riemann()------- \n");
+      printf("primL[%d] = %e \n", PPP, primL[PPP]);
+      printf("Floor should be: %e \n", PRE_FLOOR);
+      printf("cL->prim[%d] = %e \n", PPP, cL->prim[PPP]);
+      printf("Occured at r = %e \n", r);
+      printf("drL = %e \n", drL);
+      printf("drR = %e \n", drR);
+      printf("cL->grad[PPP] = %e \n", cL->grad[PPP]);
+   }
+
+   if (primR[PPP] < PRE_FLOOR)
+   {
+      printf("------ERROR in riemann() ------- \n");
+      printf("primR[%d] = %e \n", PPP, primR[PPP]);
+      printf("Floor should be: %e \n", PRE_FLOOR);
+      printf("cR->prim[%d] = %e \n", PPP, cR->prim[PPP]);
+      printf("Occured at r = %e \n", r);
+      printf("drL = %e \n", drL);
+      printf("drR = %e \n", drR);
+      printf("cR->grad[PPP] = %e \n", cR->grad[PPP]);
+
+      assert(0);
+   }
+
 
    double Sl,Sr,Ss;
 
@@ -45,10 +84,15 @@ void riemann( struct cell * cL , struct cell * cR, double r , double dAdt ){
 
    if( w < Sl ){
       flux( primL , Fl );
-      prim2cons( primL , Ul , 1.0 );
+      prim2cons( primL , Ul , 1.0 );  // using dV = 1 gives the cons per unit volume
 
       for( q=0 ; q<NUM_Q ; ++q ){
          Flux[q] = Fl[q] - w*Ul[q];
+      if(!isfinite(Flux[q]) && q!=AAA)
+            {
+               printf("------ERROR in riemann()------- \n");
+               printf("Bad flux in part 0 of riemann() \n");
+            }
       }
    }else if( w > Sr ){
       flux( primR , Fr );
@@ -56,6 +100,11 @@ void riemann( struct cell * cL , struct cell * cR, double r , double dAdt ){
 
       for( q=0 ; q<NUM_Q ; ++q ){
          Flux[q] = Fr[q] - w*Ur[q];
+         if(!isfinite(Flux[q]) && q!=AAA)
+         {
+            printf("------ERROR in riemann()------- \n");
+            printf("Bad flux in part 1 of riemann() \n");
+         }
       }
    }else{
       if( riemann_solver == _HLL_ ){
@@ -74,6 +123,11 @@ void riemann( struct cell * cL , struct cell * cR, double r , double dAdt ){
             Ustar = ( aR*Ul[q] + aL*Ur[q] + Fl[q] - Fr[q] )/( aL + aR );
 
             Flux[q] = Fstar - w*Ustar;
+            if(!isfinite(Flux[q]) && q!=AAA)
+            {
+               printf("------ERROR in riemann()------- \n");
+               printf("Bad flux in part 2 of riemann() \n");
+            }
          }
       }else{
          double Ustar[NUM_Q];
@@ -86,6 +140,11 @@ void riemann( struct cell * cL , struct cell * cR, double r , double dAdt ){
 
             for( q=0 ; q<NUM_Q ; ++q ){
                Flux[q] = Fk[q] + Sl*( Ustar[q] - Uk[q] ) - w*Ustar[q];
+               if(!isfinite(Flux[q]) && q!=AAA)
+               {
+                  printf("------ERROR in riemann()------- \n");
+                  printf("Bad flux in part 3 of riemann() \n");
+               }
             }    
          }else{
             prim2cons( primR , Uk , 1.0 );
@@ -94,8 +153,29 @@ void riemann( struct cell * cL , struct cell * cR, double r , double dAdt ){
 
             for( q=0 ; q<NUM_Q ; ++q ){
                Flux[q] = Fk[q] + Sr*( Ustar[q] - Uk[q] ) - w*Ustar[q];
+               if(!isfinite(Flux[q]) && q!=AAA)
+               {
+                  printf("------ERROR in riemann()------- \n");
+                  printf("Bad flux in part 4, Flux[%d]=%e \n", q, Flux[q]);
+                  printf("Fk[%d] = %e \n", q, Fk[q]);
+                  printf("Sr    = %e \n", Sr);
+                  printf("Ustar[%d] = %e \n", q, Ustar[q]);
+                  printf("w = %e \n", w);
+               }
             } 
          } 
+      }
+   }
+
+   for ( q=0 ; q<NUM_Q ; ++q)
+   {
+      if(!isfinite(Flux[q]) && q!=AAA)
+      {
+         printf("------ERROR in riemann()------- \n");
+         printf("Non-finite Flux[%d]= %e at r = %e \n", q, Flux[q], r);
+         printf("cL->dr = %e \n", cL->dr);
+         printf("cR->dr = %e \n", cR->dr);
+         assert(0);
       }
    }
 
@@ -118,11 +198,107 @@ void riemann( struct cell * cL , struct cell * cR, double r , double dAdt ){
       }
    }
 
+
+
    for( q=0 ; q<NUM_Q ; ++q ){
       cL->cons[q] -= Flux[q]*dAdt;
       cR->cons[q] += Flux[q]*dAdt;
    }
 
+
+   // Diagnostics verifying post-conditions
+   double primL_tmp[NUM_Q];
+   double primR_tmp[NUM_Q];
+
+   double rp_L = cL->riph;
+   double rm_L = rp_L - cL->dr;
+   double dV_L = get_dV( rp_L , rm_L );
+   cons2prim( cL->cons , primL_tmp , dV_L );  // using dV = 1 gives the cons per unit volume -- counteracts dV = 1 above
+   double rp_R = cR->riph;
+   double rm_R = rp_R - cR->dr;
+   double dV_R = get_dV( rp_R , rm_R );
+   cons2prim( cR->cons , primR_tmp , dV_R);
+   for( q=0 ; q<NUM_Q ; ++q)
+   {
+      if(!isfinite(primL_tmp[q]) && q!=AAA)
+      {
+         printf("------ERROR in riemann()------- \n");
+         printf("primL[%d] not finite by end of riemann() \n", q);
+         printf("primL[%d] = %e \n", q, primL_tmp[q]);
+         assert(0);
+      }
+      if(!isfinite(primR_tmp[q]) && q!=AAA)
+      {
+         printf("------ERROR in riemann()------- \n");
+         printf("primR[%d] not finite by end of riemann() \n", q);
+         printf("primR[%d] = %e \n", q, primR_tmp[q]);
+         assert(0);
+      }
+   }
+   if(primL_tmp[PPP] < PRE_FLOOR)
+   {
+      printf("------ERROR in riemann()------- \n");
+      printf("while preparing to exit \n");
+      printf("left prim[%d] = %e \n", PPP, primL_tmp[PPP]);
+      printf("expected P > PRE_FLOOR \n");
+      assert(0);
+   }
+   if(primR_tmp[PPP] < PRE_FLOOR)
+   {
+      printf("------ERROR in riemann()------- \n");
+      printf("while preparing to exit \n");
+      printf("right prim[%d] = %e \n", PPP, primR_tmp[PPP]);
+      printf("expected P > PRE_FLOOR \n");
+      assert(0);
+   }
+
 }
+
+// double calc_adiabatic_internal_energy(double * cons , double * Flux , double dA, double dt)
+// {
+//    // This should be done BEFORE the flux is added to cons
+//    //    - Used for checking internal energy after flux is added
+//    //    - if flux adds too much momentum, such that kinetic energy > total energy, 
+//    //       you can use 
+
+//    // Inputs:
+//    //    - cons   - array of conservative variables
+//    //             - should NOT have the flux already added
+//    //    - Flux   - conservative fluxes across boundaries
+   
+
+//    // get initial states
+//    // E    =    total energy / unit volume
+//    // e    = internal energy / unit mass
+//    // rhoe = internal energy / unit volume
+//    // Pp   = pressure (why the second 'p'?)
+
+//    double rp = c->riph;
+//    double rm = rp-c->dr;
+//    double dV = get_dV( rp , rm )
+   
+//    double rho = cons[DDD]/dV;
+//    double Sr  = cons[SRR]/dV;
+//    double E   = cons[TAU]/dV;
+
+//    // get initial internal energy / unit mass
+
+
+
+
+//    // change cell locations
+//    // most of this is taken from misc.c:move_cells
+
+//    double riph = c->riph + c->wiph*dt;
+
+//    // change cell sizes
+//    // most of this is taken from calc_dr
+
+
+
+
+//    return 1;
+
+// }
 
 
