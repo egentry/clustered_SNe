@@ -8,6 +8,7 @@ void setupGrid( struct domain * );
 void timestep( struct domain * , double );
 void setupCells( struct domain * );
 void exchangeData( struct domain * );
+void overview( struct domain * );
 void set_wcell( struct domain * );
 double getmindt( struct domain * );
 
@@ -39,10 +40,7 @@ int main( int argc , char * argv[] ){
 
    exchangeData( &theDomain );
 
-   if( theDomain.rank==0 ){
-      FILE * rFile = fopen("report.dat","w");
-      fclose(rFile);
-   }
+   overview( &theDomain );
 
    while( !(theDomain.final_step) ){
 

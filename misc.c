@@ -38,7 +38,6 @@ double getmindt( struct domain * theDomain ){
 
 void prim2cons( double * , double * , double );
 void cons2prim( double * , double * , double );
-double get_vr( double * );
 
 void set_wcell( struct domain * theDomain ){
 
@@ -51,11 +50,14 @@ void set_wcell( struct domain * theDomain ){
       struct cell * cL = theCells+i;  
       double w = 0.0;
       if( mesh_motion ){
+         // if Lagrangian, average the cell-centered velocities to find the edge velocity in between
          struct cell * cR = theCells+i+1;
-         double wL = get_vr( cL->prim );
-         double wR = get_vr( cR->prim );
+         double wL = cL->prim[VRR];
+         double wR = cR->prim[VRR];
          w = .5*(wL + wR); 
-         if( i==0 && theDomain->rank==0 ) w = wR*(cR->riph - .5*cR->dr)/(cL->riph);//0.0;//2./3.*wR;
+         // why this special case for the outside edge of the innermost cell?
+         // if( i==0 && theDomain->rank==0 ) w = wR*(cR->riph - .5*cR->dr)/(cL->riph);//0.0;//2./3.*wR;
+         // if(i==0) w=0;
       }
       cL->wiph = w;
    }
@@ -73,6 +75,7 @@ void adjust_RK_cons( struct domain * theDomain , double RK ){
          c->cons[q] = (1.-RK)*c->cons[q] + RK*c->RKcons[q];
       }
 
+      // verify post-conditions
       double prim_tmp[NUM_Q];
       double rp = c->riph;
       double rm = rp-c->dr;
@@ -116,6 +119,7 @@ void move_cells( struct domain * theDomain , double RK , double dt){
    for( i=0 ; i<Nr ; ++i ){
       struct cell * c = theCells+i;
 
+      // verify preconditions
       double prim_tmp[NUM_Q];
       double rp = c->riph;
       double rm = rp-c->dr;
@@ -132,6 +136,8 @@ void move_cells( struct domain * theDomain , double RK , double dt){
          printf("dr = %e \n", c->dr);
          assert(0);
       }
+
+      // do the actual moving of cells
 
       c->riph += c->wiph*dt;
 
@@ -204,7 +210,8 @@ void fix_negative_energies( struct domain * theDomain )
    double gamma = theDomain->theParList.Adiabatic_Index;
 
    int i;
-   for( i=0 ; i<Nr ; ++i ){
+   for( i=0 ; i<Nr-1 ; ++i ) // don't extend to outermost zone; that already doesn't conserve energy adiabatically
+   {  
       struct cell * c = theCells+i;
 
       // double E_old = c->P_old * c->dV_old / (gamma - 1);
@@ -222,9 +229,11 @@ void fix_negative_energies( struct domain * theDomain )
 
       if ( (((E_new - E_numeric) / E_new) > tolerance) || (E_numeric < 0) ) 
       {
+
          // overwrite the energy, so that it has a strictly positive internal energy
          printf("------ Applying energy fix for cell %d  ------- \n", i);
          printf("time = %e \n", theDomain->t);
+         printf("velocity = %e \n", vr);
          printf("P_old = %e \n", c->P_old);
          printf("dV_old = %e \n", c->dV_old);
          printf("dV     = %e \n", dV);
@@ -232,6 +241,7 @@ void fix_negative_energies( struct domain * theDomain )
          printf("E_new = %e \n", E_new);
          printf("P_numeric = %e \n", E_numeric * (gamma-1) / dV);
          printf("E_numeric = %e \n", E_numeric);
+
          c->cons[TAU] = E_new + .5*Mass*vr*vr;
 
          c->P_old  = P_new;
@@ -312,7 +322,7 @@ void radial_flux( struct domain * theDomain , double dt ){
 
 }
 
-void source( double * , double * , double , double , double , double , double , code_units , int );
+void source( double * , double * , double * , double , double , double , double , double , code_units , int );
 void source_alpha( double * , double * , double * , double , double );
 
 void add_source( struct domain * theDomain , double dt ){
@@ -328,7 +338,7 @@ void add_source( struct domain * theDomain , double dt ){
       double rm = rp-c->dr;
       double r = get_moment_arm(rp,rm);
       double dV = get_dV(rp,rm);
-      source( c->prim , c->cons , rp , rm , dV , dt , 
+      source( c->prim , c->cons , c-> grad , rp , rm , dV , dt , 
          theDomain->metallicity ,  theDomain->cooling_units , theDomain->theParList.With_Cooling );
       int inside = i>0 && i<Nr-1;
       for( q=0 ; q<NUM_Q ; ++q ){
@@ -410,6 +420,30 @@ void longandshort( struct domain * theDomain , double * L , double * S , int * i
       double s = dx/dy;
       if( Long  < l ){ Long  = l; iLong  = i; } 
       if( Short < s ){ Short = s; iShort = i; } 
+   }
+
+   if ( rank==0 )
+   {
+      double tolerance = 1; // fudge factor -- explore this later
+      i = 0;
+      double rmin_0 = theDomain->theParList.rmin;
+      double l = rmin   / rmin_0;
+      double s = rmin_0 / rmin;
+      if ( logscale )
+      {
+         l = log10(l);
+         s = log10(s);
+      }
+      // if ( l > tolerance )
+      // {
+      //    Long  = theDomain->theParList.MaxLong*2;
+      //    iLong = i;
+      // }
+      // else if ( s > tolerance )
+      // {
+      //    Short = s;
+      //    iShort = i;
+      // }
    }
 
    struct { double value ; int index ; } maxminbuf;
@@ -495,7 +529,10 @@ void AMR( struct domain * theDomain ){
    }
 
    if( L>MaxLong && rank==rL ){
-
+      if (iL == 0)
+      {
+         printf("FORGE! iL = %d\n",iL);         
+      }
       // printf("FORGE! iL = %d\n",iL);
       theDomain->Nr += 1;
       Nr = theDomain->Nr;
@@ -513,7 +550,12 @@ void AMR( struct domain * theDomain ){
 
       c->riph  = r0;
       c->dr    = r0-rm;
-      cp->dr   = rp-r0;
+      cp->dr   = rp-r0; // cp->riph already set at rp
+
+      double dV_orig = get_dV(c->riph, c->riph - c->dr);
+      double prim_tmp[NUM_Q];
+      cons2prim ( c->cons , prim_tmp , dV_orig);
+
 
       int q;
       for( q=0 ; q<NUM_Q ; ++q ){
@@ -531,6 +573,47 @@ void AMR( struct domain * theDomain ){
       cons2prim( cp->cons , cp->prim , dV );
       cp->P_old = cp->prim[PPP];
       cp->dV_old = dV;
+
+      // post-conditions: equal primitives + conservatives between two split cells
+      for ( q=0 ; q<NUM_Q ; ++q)
+      {
+         if ( abs((c->prim[q] - prim_tmp[q]) / prim_tmp[q]) > 1e-6)
+         {
+            printf("-----ERROR in AMR (forge) ------- \n");
+            printf("expected cp->prim[%d] == prim_tmp[%d] \n", q, q);
+            printf("instead found: \n");
+            printf("c->prim[%d]  = %e \n", q, c->prim[q]);
+            printf("prim_tmp[%d] = %e \n", q, prim_tmp[q]);
+            printf("fractional error : %e \n", (cp->prim[q] - prim_tmp[q]) / prim_tmp[q]);
+         }
+         if ( abs((cp->prim[q] - prim_tmp[q]) / prim_tmp[q]) > 1e-6)
+         {
+            printf("-----ERROR in AMR (forge) ------- \n");
+            printf("expected cp->prim[%d] == prim_tmp[%d] \n", q, q);
+            printf("instead found: \n");
+            printf("cp->prim[%d] = %e \n", q, cp->prim[q]);
+            printf("prim_tmp[%d] = %e \n", q, prim_tmp[q]);
+            printf("fractional error : %e \n", (cp->prim[q] - prim_tmp[q]) / prim_tmp[q]);
+         }
+         if ( abs((cp->prim[q] - c->prim[q]) / c->prim[q]) > 1e-6)
+         {
+            printf("-----ERROR in AMR (forge) ------- \n");
+            printf("expected cp->prim[%d] == c->prim[%d] \n", q, q);
+            printf("instead found: \n");
+            printf("cp->prim[%d] = %e \n", q, cp->prim[q]);
+            printf("c ->prim[%d] = %e \n", q, c ->prim[q]);
+            printf("fractional error : %e \n", (cp->prim[q] - c->prim[q]) / c->prim[q]);
+         }
+         if ( abs((cp->cons[q] - c->cons[q]) / c->cons[q]) > 1e-6)
+         {
+            printf("-----ERROR in AMR (forge) ------- \n");
+            printf("expected cp->cons[%d] == c->cons[%d] \n", q, q);
+            printf("instead found: \n");
+            printf("cp->cons[%d] = %e \n", q, cp->cons[q]);
+            printf("c ->cons[%d] = %e \n", q, c ->cons[q]);
+            printf("fractional error : %e \n", (cp->cons[q] - c->cons[q]) / c->cons[q]);
+         }
+      }
 
    }
 

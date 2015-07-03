@@ -42,6 +42,7 @@ void riemann( struct cell * cL , struct cell * cR, double r , double dA , double
       primR[q] = cR->prim[q] - cR->grad[q]*drR;
    }
 
+   // check pre-conditions 
    if (primL[PPP] < PRE_FLOOR)
    {
       printf("------ERROR in riemann()------- \n");
@@ -68,6 +69,7 @@ void riemann( struct cell * cL , struct cell * cR, double r , double dA , double
       assert(0);
    }
 
+   // continue with Riemann solver
 
    double Sl,Sr,Ss;
 

@@ -1,6 +1,5 @@
 
 
-
 //Time Range//
 T_Start			1e0
 T_End			3e12  //3888000
@@ -22,13 +21,13 @@ Max_Aspect_Short        10.0
 Max_Aspect_Long         2.0     //Aspect Ratio AMR Refinement Criteria
 
 //Numerical Parameters
-CFL			0.05
-PLM			0.0
+CFL			0.2
+PLM			1.0
 Riemann_Solver		1	//0=HLL, 1=HLLC
 Mesh_Motion		1	//0=Fixed, 1=By Cell, 2=Riemann Solver
 Density_Floor		1e-40
 Pressure_Floor		1e-40 //1e6  //1e-8
-With_Cooling 	1
+With_Cooling 	0
 
 //Hydro Parameters
 Adiabatic_Index		1.666666667

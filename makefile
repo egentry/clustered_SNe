@@ -56,24 +56,26 @@ LIB = -L$(H55)/lib -lm -lhdf5
 
 OBJ = main.o mpisetup.o profiler.o readpar.o domain.o gridsetup.o geometry.o exchange.o misc.o timestep.o onestep.o riemann.o boundary.o plm.o cooling.o $(INITIAL).o $(OUTPUT).o $(HYDRO).o #report.o
 
+HEADERS = structure.h constants.h
+
 default: $(EXE)
 
-%.o: %.c structure.h
+%.o: %.c $(HEADERS)
 	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c $<
 
-$(TIMESTEP).o: Timestep/$(TIMESTEP).c structure.h
+$(TIMESTEP).o: Timestep/$(TIMESTEP).c $(HEADERS)
 	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Timestep/$(TIMESTEP).c
 
-$(INITIAL).o : Initial/$(INITIAL).c structure.h
+$(INITIAL).o : Initial/$(INITIAL).c $(HEADERS)
 	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Initial/$(INITIAL).c
 
-$(HYDRO).o : Hydro/$(HYDRO).c structure.h
+$(HYDRO).o : Hydro/$(HYDRO).c $(HEADERS)
 	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Hydro/$(HYDRO).c
 
-$(OUTPUT).o : Output/$(OUTPUT).c structure.h
+$(OUTPUT).o : Output/$(OUTPUT).c $(HEADERS)
 	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Output/$(OUTPUT).c
 
-$(EXE): $(OBJ) structure.h
+$(EXE): $(OBJ) $(HEADERS)
 	$(CC) $(LIBS) $(GRACKLE_LIB) $(FLAGS) $(LIB) -o $(EXE) $(OBJ)
 
 clean:

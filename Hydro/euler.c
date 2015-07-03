@@ -21,10 +21,6 @@ void setHydroParams( struct domain * theDomain ){
    USE_RT = theDomain->theParList.rt_flag;
 }
 
-double get_vr( double * prim ){
-   return( prim[VRR] );
-}
-
 void prim2cons( double * prim , double * cons , double dV ){
    double rho = prim[RHO];
    double Pp  = prim[PPP];
@@ -59,7 +55,17 @@ void cons2prim( double * cons , double * prim , double dV ){
    double gam = GAMMA_LAW;
    double Pp = (gam-1.)*rhoe;
 
-   if( rho<RHO_FLOOR ) rho=RHO_FLOOR;
+   if( rho<RHO_FLOOR ) 
+   {
+      printf("------ ERROR in cons2prim() -- RHO_FLOOR ------- \n");
+      printf("rho = %e \n", rho );
+      printf("Expected rho > %e \n", RHO_FLOOR);
+      printf("dV = %e \n", dV);
+      rho=RHO_FLOOR; 
+
+
+      assert(0);
+   }
    if( Pp < PRE_FLOOR )
    {
       printf("------ ERROR in cons2prim()------- \n");
@@ -69,10 +75,10 @@ void cons2prim( double * cons , double * prim , double dV ){
       printf("dV  = %e \n", dV);
       printf("rho = %e \n", rho);
       printf("vr  = %e \n", vr);
-      // if (Pp < 0)
-      // {
+      if (Pp < 0)
+      {
          // assert(0);
-      // }
+      }
       
       Pp = PRE_FLOOR;
    } 
@@ -90,23 +96,24 @@ void cons2prim( double * cons , double * prim , double dV ){
 
 void getUstar( double * prim , double * Ustar , double Sk , double Ss ){
 
-   double rho = prim[RHO];
-   double vr  = prim[VRR];
-   double Pp  = prim[PPP];
-   double v2  = vr*vr;
+   double rho  = prim[RHO];
+   double vr   = prim[VRR];
+   double Pp   = prim[PPP];
+   double v2   = vr*vr;
 
-   double gam = GAMMA_LAW;
+   double gam  = GAMMA_LAW;
 
    double rhoe = Pp/(gam-1.);
 
-   double rhostar = rho*(Sk - vr)/(Sk - Ss);
-   double Pstar = Pp*(Ss - vr)/(Sk - Ss);
-   double Us = rhoe*(Sk - vr)/(Sk - Ss);
+   double rhostar =  rho*(Sk - vr)/(Sk - Ss);
+   double Pstar   =   Pp*(Ss - vr)/(Sk - Ss);
+   double Us      = rhoe*(Sk - vr)/(Sk - Ss);
 
    Ustar[DDD] = rhostar;
-   Ustar[SRR] = rhostar*( Ss );
+   Ustar[SRR] = rhostar*Ss;
    Ustar[TAU] = .5*rhostar*v2 + Us + rhostar*Ss*(Ss - vr) + Pstar;
 
+   // check post-condition: finite fluxes
    int q;
    for( q=XXX ; q<NUM_Q ; ++q ){
       Ustar[q] = prim[q]*Ustar[DDD];
@@ -141,11 +148,15 @@ void flux( double * prim , double * flux ){
    }
 }
 
-void source( double * prim , double * cons , double rp , double rm , double dV , double dt , double metallicity , code_units cooling_units, int With_Cooling){
+void source( double * prim , double * cons , double * grad , double rp , double rm , double dV , double dt , double metallicity , code_units cooling_units, int With_Cooling){
    double Pp  = prim[PPP];
    double r  = .5*(rp+rm);
    double r2 = (rp*rp+rm*rm+rp*rm)/3.;
-   cons[SRR] += 2.*Pp*(r/r2)*dV*dt;
+   cons[SRR] += 2.*Pp*(r/r2)*dV*dt; // shouldn't this have a PLM option? this is just 1st order
+   // r / r2 is effectively (rp^2 - rm^2) / (rp^3 - rm^3) = d(surface area) / dV
+   // so we're doing cons[SRR] += Pp * (4*pi*(rp^2 - rm^2)) * dt
+
+   cons[SRR] += 8*M_PI*grad[PPP]*( (pow(rp,3.) - pow(rm,3.))/3. + r*(pow(rp,2.) - pow(rm,2.))/2. ); // includes 2nd order contribution
 
    if( With_Cooling == 1)
    {

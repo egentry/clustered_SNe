@@ -1,9 +1,9 @@
-papers/
 .ipynb_checkpoints/
 tmp*
 *.o
 *.pyc
 sedov/sedov3
+*.log
 *.dat
 *.DS_Store
 SNe

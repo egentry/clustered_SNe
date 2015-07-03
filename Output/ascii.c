@@ -1,6 +1,8 @@
 
 #include <assert.h>
 
+#include <grackle.h>
+
 #include "../structure.h"
 
 double get_moment_arm( double , double );
@@ -20,7 +22,8 @@ void output( struct domain * theDomain , char * filestart , double t){
    if( rank==0 ){
       FILE * pFile = fopen( filename , "w" );
       fprintf(pFile,"# time = %le [s] \n", t);
-      fprintf(pFile,"# r           dr           dV           Density      Pressure     Velocity     X            Alpha\n");
+      // fprintf(pFile,"# r           dr           dV           Density      Pressure     Velocity     X            Alpha\n");
+      fprintf(pFile,"# r                  dr                 dV                 Density            Pressure           Velocity           X                  Alpha\n");
       fclose(pFile);
    }
    MPI_Barrier( MPI_COMM_WORLD );
@@ -43,9 +46,9 @@ void output( struct domain * theDomain , char * filestart , double t){
             double rm = rp-dr;
             double r  = get_moment_arm( rp , rm );
             double dV = get_dV( rp , rm );
-            fprintf(pFile,"%e %e %e ",r,dr,dV);
+            fprintf(pFile,"%18.10e %18.10e %18.10e ",r,dr,dV);
             for( q=0 ; q<NUM_Q ; ++q ){
-               fprintf(pFile,"%e ",c->prim[q]);
+               fprintf(pFile,"%18.10e ",c->prim[q]);
             }
             if(c->prim[PPP] < theDomain->theParList.Pressure_Floor)
             {
@@ -62,4 +65,17 @@ void output( struct domain * theDomain , char * filestart , double t){
       MPI_Barrier( MPI_COMM_WORLD );
    }
 
+}
+
+void overview(struct domain * theDomain)
+{
+   // prints an overview of key parameters into a datafile
+   
+   FILE * rFile = fopen("overview.dat","w");
+
+   fprintf(rFile, "Metallicity:            %e \n", theDomain->metallicity);
+   fprintf(rFile, "Background Density:     %e \n", theDomain->background_density);
+   fprintf(rFile, "Background Temperature: %e \n", theDomain->background_temperature);
+
+   fclose(rFile);
 }

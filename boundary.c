@@ -2,7 +2,7 @@
 #include "structure.h"
 
 double get_moment_arm( double , double );
-void initial( double * , double , int, int , double ); 
+void initial( double * , double ); 
 
 void boundary( struct domain * theDomain ){
 
@@ -11,14 +11,33 @@ void boundary( struct domain * theDomain ){
    int rank = theDomain->rank;
    int size = theDomain->size;
 
-   
-   if( rank == size-1 ){
+   // if( rank == 0 )
+   // {
+   //    struct cell * cB = theCells+0;
+   //    struct cell * cP = theCells+1;
+   //    cB->prim[RHO] = cP->prim[RHO];
+   //    cB->prim[PPP] = cP->prim[PPP];
+   //    cB->prim[VRR] = 0;
+   //    cB->wiph = 0;
+   // }
+
+   if ( rank == size-1 )
+   {
       struct cell * cB = theCells+Nr-1;
-      double rp = cB->riph;
-      double rm = rp-cB->dr;
-      double r = get_moment_arm(rp,rm);
-      initial( cB->prim , r, Nr-1 , Nr , 0.); 
+      struct cell * cP = theCells+Nr-2;
+      cB->prim[RHO] = cP->prim[RHO];
+      cB->prim[PPP] = cP->prim[PPP];
+      cB->prim[VRR] = 0;
+      cB->wiph = 0;
    }
+   
+   // if( rank == size-1 ){
+   //    struct cell * cB = theCells+Nr-1;
+   //    double rp = cB->riph;
+   //    double rm = rp-cB->dr;
+   //    double r = get_moment_arm(rp,rm);
+   //    initial( cB->prim , r); 
+   // }
 /*
    if( rank == 0 ){
       struct cell * cB = theCells+0;

@@ -35,7 +35,6 @@ void onestep( struct domain * theDomain , double RK , double dt , int first_step
       AMR( theDomain );
    }
    boundary( theDomain );
-   exchangeData( theDomain );
 
 }
 

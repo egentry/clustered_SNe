@@ -10,6 +10,7 @@ int getN0( int drank , int dsize , int dnum ){
    return(N0);
 }
 
+void calc_dr(struct domain * );
 void setupGrid( struct domain * theDomain ){
 
    int Ng = NUM_G;
@@ -39,22 +40,24 @@ void setupGrid( struct domain * theDomain ){
    double x0 = (double)N0r/(double)Num_R;
    double R0 = theDomain->theParList.LogRadius;
    for( i=0 ; i<Nr ; ++i ){
-      double xm = x0 + ((double)i   )*dx;
+      // double xm = x0 + ((double)i   )*dx; // only useful if you want to set dr here -- it's better to do it in calc_dr
       double xp = x0 + ((double)i+1.)*dx;
-      double rp,rm;
+      double rp;
+      // double rm; 
       if( LogZoning == 0 ){
          rp = Rmin + xp*(Rmax-Rmin);
-         rm = Rmin + xm*(Rmax-Rmin);
+         // rm = Rmin + xm*(Rmax-Rmin);
       }else if( LogZoning == 1 ){
          rp = Rmin*pow(Rmax/Rmin,xp);
-         rm = Rmin*pow(Rmax/Rmin,xm);
+         // rm = Rmin*pow(Rmax/Rmin,xm);
       }else{
          rp = R0*pow(Rmax/R0,xp) + Rmin-R0 + (R0-Rmin)*xp;
-         rm = R0*pow(Rmax/R0,xm) + Rmin-R0 + (R0-Rmin)*xm;
+         // rm = R0*pow(Rmax/R0,xm) + Rmin-R0 + (R0-Rmin)*xm;
       }
       theDomain->theCells[i].riph = rp;
-      theDomain->theCells[i].dr   = rp - rm;
+      // theDomain->theCells[i].dr   = rp - rm;
    }
+   calc_dr( theDomain );
 
 }
 

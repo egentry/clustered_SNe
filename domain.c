@@ -2,13 +2,12 @@
 #include <grackle.h>
 
 #include "structure.h"
+#include "constants.h"
 
 code_units setup_cooling( struct domain * );
 
 double get_moment_arm( double , double );
 double get_dV( double , double );
-
-int num_diagnostics( void );
 
 void setICparams( struct domain * );
 void setHydroParams( struct domain * );
@@ -30,41 +29,32 @@ void setupDomain( struct domain * theDomain ){
    theDomain->N_chk = theDomain->theParList.NumChecks;
 
    theDomain->count_steps = 0;
-   theDomain->final_step = 0;
+   theDomain->final_step  = 0;
 
    theDomain->nrpt=-1;
    theDomain->nsnp=-1;
    theDomain->nchk=-1;
 
+   // later changes these to be set by a rank-wise operation
+   theDomain->metallicity            = .02;
+   theDomain->background_density     = 1. * m_proton;
+   theDomain->background_temperature = 1e4;
+
    setICparams( theDomain );
    setHydroParams( theDomain );
    setRiemannParams( theDomain );
 
-   theDomain->metallicity = grackle_data.SolarMetalFractionByMass;
- 
 }
 
-void initial( double * , double , int , int , double ); 
+void initial( double * , double ); 
 void prim2cons( double * , double * , double );
 void cons2prim( double * , double * , double );
-void restart( struct domain * ); 
-void calc_dp( struct domain * );
-void set_wcell( struct domain * );
+void boundary( struct domain * );
 void setupCells( struct domain * theDomain ){
 
    int i;
    struct cell * theCells = theDomain->theCells;
    int Nr = theDomain->Nr;
-
-   int n_blast = 2;
-   double V_blast = 0;
-   for( i=0 ; i<n_blast ; ++i )
-   {
-      struct cell * c = &(theCells[i]);
-      double rp = c->riph;
-      double rm = rp - c->dr; 
-      V_blast += get_dV( rp , rm );
-   }
 
    for( i=0 ; i<Nr ; ++i ){
       struct cell * c = &(theCells[i]);
@@ -73,12 +63,14 @@ void setupCells( struct domain * theDomain ){
       c->wiph = 0.0; 
       double r = get_moment_arm( rp , rm );
       double dV = get_dV( rp , rm );
-      initial( c->prim , r, i, Nr, V_blast ); 
+      initial( c->prim , r ); 
       prim2cons( c->prim , c->cons , dV );
       cons2prim( c->cons , c->prim , dV );
       c->P_old  = c->prim[PPP];
       c->dV_old = dV;
    }
+
+   boundary( theDomain );
 
 }
 
@@ -107,8 +99,7 @@ void check_dt( struct domain * theDomain , double * dt ){
 
 }
 
-void report( struct domain * );
-void snapshot( struct domain * , char * );
+// void snapshot( struct domain * , char * );
 void output( struct domain * , char *, double );
 
 void possiblyOutput( struct domain * theDomain , int override ){
@@ -117,7 +108,7 @@ void possiblyOutput( struct domain * theDomain , int override ){
    double t_min = theDomain->t_init;
    double t_fin = theDomain->t_fin;
    double Nrpt = theDomain->N_rpt;
-   double Nsnp = theDomain->N_snp;
+   // double Nsnp = theDomain->N_snp;
    double Nchk = theDomain->N_chk;
    int LogOut = theDomain->theParList.Out_LogTime;
    int n0;
@@ -126,7 +117,6 @@ void possiblyOutput( struct domain * theDomain , int override ){
    if( LogOut ) n0 = (int)( Nrpt*log(t/t_min)/log(t_fin/t_min) );
    if( theDomain->nrpt < n0 || override ){
       theDomain->nrpt = n0;
-//      report( theDomain );
       if( theDomain->rank==0 ) printf("t = %.3e\n",t);
    }
 
