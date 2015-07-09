@@ -1,7 +1,8 @@
 
 #include "../structure.h"
 
-void setICparams( struct domain * theDomain ){
+int setICparams( struct domain * theDomain ){
+	return(0);
 }
 
 void initial( double * prim , double r ){
@@ -10,4 +11,9 @@ void initial( double * prim , double r ){
    prim[VRR] = 0.0;
    prim[XXX] = 0.0;
    prim[AAA] = 0.0;
+}
+
+int parse_command_line_args ( struct domain * theDomain , int argc , char * argv [] )
+{
+      return(0);
 }

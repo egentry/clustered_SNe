@@ -5,10 +5,6 @@
 
 #include "structure.h"
 
-int getN0( int drank , int dsize , int dnum ){
-   int N0 = (dnum*drank)/dsize;
-   return(N0);
-}
 
 void calc_dr(struct domain * );
 void setupGrid( struct domain * theDomain ){
@@ -18,26 +14,18 @@ void setupGrid( struct domain * theDomain ){
    int Num_R = theDomain->theParList.Num_R;
    int LogZoning = theDomain->theParList.LogZoning;
 
-   int rank = theDomain->rank;
-   int size = theDomain->size;
-
    double Rmin = theDomain->theParList.rmin;
    double Rmax = theDomain->theParList.rmax;
 
-   int N0r = getN0( rank   , size , Num_R );
-   int N1r = getN0( rank+1 , size , Num_R );
-   if( rank != 0 ) N0r -= Ng;
-   if( rank != size-1 ) N1r += Ng;
-   int Nr = N1r-N0r;
+   int Nr = Num_R;
 
    theDomain->Nr = Nr;
    theDomain->theCells = (struct cell *) malloc( Nr*sizeof(struct cell));
-   printf("Rank = %d, Nr = %d\n",theDomain->rank,Nr);
 
    int i;
 
    double dx = 1./(double)Num_R;
-   double x0 = (double)N0r/(double)Num_R;
+   double x0 = 0;
    double R0 = theDomain->theParList.LogRadius;
    for( i=0 ; i<Nr ; ++i ){
       // double xm = x0 + ((double)i   )*dx; // only useful if you want to set dr here -- it's better to do it in calc_dr

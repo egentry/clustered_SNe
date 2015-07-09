@@ -6,7 +6,7 @@ from astropy import constants as const
 nstep = 1000
 raw_filename = 'sedov/spherical_standard_omega0p00_nstep_' + str(nstep).zfill(4) + '.dat'
 
-if not os.path.isfile(raw_filename):
+if not os.path.exists(raw_filename):
     os.chdir("sedov")
     os.system("./sedov3 " + str(nstep))
     os.chdir("..")

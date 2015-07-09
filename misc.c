@@ -31,7 +31,6 @@ double getmindt( struct domain * theDomain ){
       if( dt > dt_temp ) dt = dt_temp;
    }
    dt *= theDomain->theParList.CFL; 
-   MPI_Allreduce( MPI_IN_PLACE , &dt , 1 , MPI_DOUBLE , MPI_MIN , MPI_COMM_WORLD );
 
    return( dt );
 }
@@ -56,7 +55,7 @@ void set_wcell( struct domain * theDomain ){
          double wR = cR->prim[VRR];
          w = .5*(wL + wR); 
          // why this special case for the outside edge of the innermost cell?
-         // if( i==0 && theDomain->rank==0 ) w = wR*(cR->riph - .5*cR->dr)/(cL->riph);//0.0;//2./3.*wR;
+         // if( i==0 ) w = wR*(cR->riph - .5*cR->dr)/(cL->riph);//0.0;//2./3.*wR;
          // if(i==0) w=0;
       }
       cL->wiph = w;
@@ -189,7 +188,7 @@ void calc_dr( struct domain * theDomain ){
       double dr = rp-rm;
       theCells[i].dr = dr;
    }
-   if( theDomain->rank==0 ) theCells[0].dr = theCells[0].riph;
+   theCells[0].dr = theCells[0].riph;
 
 }
 
@@ -383,14 +382,12 @@ void add_source( struct domain * theDomain , double dt ){
 }
 
 
-void longandshort( struct domain * theDomain , double * L , double * S , int * iL , int * iS , int * rL , int * rS ){ 
+void longandshort( struct domain * theDomain , double * L , double * S , int * iL , int * iS ){ 
 
    struct cell * theCells = theDomain->theCells;
    int Nr = theDomain->Nr;
    double rmax = theCells[Nr-1].riph;
    double rmin = theCells[0].riph;
-   MPI_Allreduce( MPI_IN_PLACE , &rmax , 1 , MPI_DOUBLE , MPI_MAX , MPI_COMM_WORLD );
-   MPI_Allreduce( MPI_IN_PLACE , &rmin , 1 , MPI_DOUBLE , MPI_MIN , MPI_COMM_WORLD );
    int Nr0 = theDomain->theParList.Num_R;
    double dr0 = rmax/(double)Nr0;
    double dx0 = log(rmax/rmin)/Nr0;
@@ -401,14 +398,10 @@ void longandshort( struct domain * theDomain , double * L , double * S , int * i
    int iLong  = -1;
    int iShort = -1;
 
-   int rank = theDomain->rank;
-   int size = theDomain->size;
    int Ng   = theDomain->Ng;
 
    int imin = 1;
    int imax = Nr-1;
-   if( rank!=0 )      imin = Ng;
-   if( rank!=size-1 ) imax = Nr-Ng;
 
    int i;
    for( i=imin ; i<imax ; ++i ){
@@ -422,40 +415,28 @@ void longandshort( struct domain * theDomain , double * L , double * S , int * i
       if( Short < s ){ Short = s; iShort = i; } 
    }
 
-   if ( rank==0 )
+
+   double tolerance = 1; // fudge factor -- explore this later
+   i = 0;
+   double rmin_0 = theDomain->theParList.rmin;
+   double l = rmin   / rmin_0;
+   double s = rmin_0 / rmin;
+   if ( logscale )
    {
-      double tolerance = 1; // fudge factor -- explore this later
-      i = 0;
-      double rmin_0 = theDomain->theParList.rmin;
-      double l = rmin   / rmin_0;
-      double s = rmin_0 / rmin;
-      if ( logscale )
-      {
-         l = log10(l);
-         s = log10(s);
-      }
-      // if ( l > tolerance )
-      // {
-      //    Long  = theDomain->theParList.MaxLong*2;
-      //    iLong = i;
-      // }
-      // else if ( s > tolerance )
-      // {
-      //    Short = s;
-      //    iShort = i;
-      // }
+      l = log10(l);
+      s = log10(s);
    }
+   // if ( l > tolerance )
+   // {
+   //    Long  = theDomain->theParList.MaxLong*2;
+   //    iLong = i;
+   // }
+   // else if ( s > tolerance )
+   // {
+   //    Short = s;
+   //    iShort = i;
+   // }
 
-   struct { double value ; int index ; } maxminbuf;
-   maxminbuf.value = Short;
-   maxminbuf.index = rank;
-   MPI_Allreduce( MPI_IN_PLACE , &maxminbuf , 1 , MPI_DOUBLE_INT , MPI_MAXLOC , MPI_COMM_WORLD );
-   *rS = maxminbuf.index;
-
-   maxminbuf.value = Long;
-   maxminbuf.index = rank;
-   MPI_Allreduce( MPI_IN_PLACE , &maxminbuf , 1 , MPI_DOUBLE_INT , MPI_MAXLOC , MPI_COMM_WORLD );
-   *rL = maxminbuf.index;
 
    *iS = iShort;
    *iL = iLong;
@@ -472,11 +453,10 @@ void AMR( struct domain * theDomain ){
    int iS=0;
    int rL=0;
    int rS=0;
-   longandshort( theDomain , &L , &S , &iL , &iS , &rL , &rS );
-   int rank = theDomain->rank;
+   longandshort( theDomain , &L , &S , &iL , &iS );
 
-   //if( rank == rL ) printf("Rank %d; Long  = %e #%d\n",rank,L,iL);
-   //if( rank == rS ) printf("Rank %d; Short = %e #%d\n",rank,S,iS);
+   // printf("Long  = %e #%d\n",L,iL);
+   // printf("Short = %e #%d\n",S,iS);
 
    double MaxShort = theDomain->theParList.MaxShort;
    double MaxLong  = theDomain->theParList.MaxLong;
@@ -485,7 +465,7 @@ void AMR( struct domain * theDomain ){
    int Ng = theDomain->Ng;
    int Nr = theDomain->Nr;
 
-   if( S>MaxShort && rank == rS ){
+   if( S>MaxShort ){
       // printf("KILL!  iS = %d\n",iS);
 
       int iSp = iS+1;
@@ -494,7 +474,7 @@ void AMR( struct domain * theDomain ){
       double drL = theCells[iSm].dr;
       double drR = theCells[iSp].dr;
       int imin = Ng;
-      if( rank==0 ) imin = 0;
+      imin = 0;
       if( drL<drR && iSm>imin ){
          --iS;
          --iSm;
@@ -528,7 +508,7 @@ void AMR( struct domain * theDomain ){
 
    }
 
-   if( L>MaxLong && rank==rL ){
+   if( L>MaxLong ){
       if (iL == 0)
       {
          printf("FORGE! iL = %d\n",iL);         

@@ -68,13 +68,13 @@ void cons2prim( double * cons , double * prim , double dV ){
    }
    if( Pp < PRE_FLOOR )
    {
-      printf("------ ERROR in cons2prim()------- \n");
-      printf("pressure should be above pressure floor! \n");
-      printf("pressure       = %e \n", Pp);
-      printf("pressure floor = %e \n", PRE_FLOOR);
-      printf("dV  = %e \n", dV);
-      printf("rho = %e \n", rho);
-      printf("vr  = %e \n", vr);
+      // printf("------ ERROR in cons2prim()------- \n");
+      // printf("pressure should be above pressure floor! \n");
+      // printf("pressure       = %e \n", Pp);
+      // printf("pressure floor = %e \n", PRE_FLOOR);
+      // printf("dV  = %e \n", dV);
+      // printf("rho = %e \n", rho);
+      // printf("vr  = %e \n", vr);
       if (Pp < 0)
       {
          // assert(0);

@@ -35,8 +35,9 @@ int getTable( void ){
    return(nL);
 }
 
-void setICparams( struct domain * theDomain ){
+int setICparams( struct domain * theDomain ){
    NL = getTable();
+   return(0);
 }
 
 void initial( double * prim , double r ){
@@ -75,4 +76,9 @@ void freeTable( void ){
    free(Pp);
    free(vr);
    free(Om);
+}
+
+int parse_command_line_args ( struct domain * theDomain , int argc , char * argv [] )
+{
+      return(0);
 }

@@ -7,3 +7,5 @@ sedov/sedov3
 *.dat
 *.DS_Store
 SNe
+sync.sh
+exclude_rsync.txt

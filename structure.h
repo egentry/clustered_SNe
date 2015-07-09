@@ -43,6 +43,7 @@ struct domain{
 
    time_t Wallt_init;
    int rank,size;             // MPI rank and size within MPI_COMM_WORLD
+   char output_prefix[80];
 
    struct param_list theParList;  // for reading in from "in.par" file -- see above
 

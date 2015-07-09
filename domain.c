@@ -1,4 +1,5 @@
 
+#include <uuid/uuid.h>
 #include <grackle.h>
 
 #include "structure.h"
@@ -9,11 +10,11 @@ code_units setup_cooling( struct domain * );
 double get_moment_arm( double , double );
 double get_dV( double , double );
 
-void setICparams( struct domain * );
+int  setICparams( struct domain * );
 void setHydroParams( struct domain * );
 void setRiemannParams( struct domain * );
 
-void setupDomain( struct domain * theDomain ){
+int setupDomain( struct domain * theDomain ){
 
    if (theDomain->theParList.With_Cooling == 1)
    {
@@ -35,14 +36,22 @@ void setupDomain( struct domain * theDomain ){
    theDomain->nsnp=-1;
    theDomain->nchk=-1;
 
-   // later changes these to be set by a rank-wise operation
-   theDomain->metallicity            = .02;
-   theDomain->background_density     = 1. * m_proton;
-   theDomain->background_temperature = 1e4;
+   // strcpy(theDomain->output_prefix, "test_"); // if you don't want a uuid prefix 
+   uuid_t  id_binary;
+   char id_ascii[80];
+   uuid_generate(id_binary);
+   uuid_unparse(id_binary, id_ascii);
+   printf("uuid: %s \n", id_ascii);
+   strcat(id_ascii, "_");
+   strcpy(theDomain->output_prefix, id_ascii);
 
-   setICparams( theDomain );
+   int error;
+   error = setICparams( theDomain );
+   if ( error==1 ) return(error);
    setHydroParams( theDomain );
    setRiemannParams( theDomain );
+
+   return(0);
 
 }
 
@@ -88,13 +97,10 @@ void check_dt( struct domain * theDomain , double * dt ){
       final=1;
    }
 
-   if( theDomain->rank==0 ){
-      FILE * abort = NULL;
-      abort = fopen("abort","r");
-      if( abort ){ final = 1; fclose(abort); }
-   }
+   FILE * abort = NULL;
+   abort = fopen("abort","r");
+   if( abort ){ final = 1; fclose(abort); }
 
-   MPI_Allreduce( MPI_IN_PLACE , &final , 1 , MPI_INT , MPI_SUM , MPI_COMM_WORLD );
    if( final ) theDomain->final_step = 1;
 
 }
@@ -117,7 +123,7 @@ void possiblyOutput( struct domain * theDomain , int override ){
    if( LogOut ) n0 = (int)( Nrpt*log(t/t_min)/log(t_fin/t_min) );
    if( theDomain->nrpt < n0 || override ){
       theDomain->nrpt = n0;
-      if( theDomain->rank==0 ) printf("t = %.3e\n",t);
+      printf("t = %.3e\n",t);
    }
 
    n0 = (int)( t*Nchk/t_fin );
@@ -126,11 +132,11 @@ void possiblyOutput( struct domain * theDomain , int override ){
       theDomain->nchk = n0;
       char filename[256];
       if( !override ){
-         if(theDomain->rank==0) printf("Creating Checkpoint #%04d...\n",n0);
+         printf("Creating Checkpoint #%04d...\n",n0);
          sprintf(filename,"checkpoint_%04d",n0);
          output( theDomain , filename, t );
       }else{
-         if(theDomain->rank==0) printf("Creating Final Checkpoint...\n");
+         printf("Creating Final Checkpoint...\n");
          output( theDomain , "output", t );
       }
    }

@@ -3,9 +3,10 @@
 
 static double t = 1.0;
 
-void setICparams( struct domain * theDomain ){
+int setICparams( struct domain * theDomain ){
 
    t = theDomain->theParList.t_min;
+   return(0);
 
 }
 
@@ -36,4 +37,9 @@ void initial( double * prim , double r ){
    prim[XXX] = X;
    prim[AAA] = 0.0;
 
+}
+
+int parse_command_line_args ( struct domain * theDomain , int argc , char * argv [] )
+{
+      return(0);
 }

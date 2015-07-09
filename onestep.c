@@ -15,7 +15,6 @@ void radial_flux( struct domain * , double );
 void add_source( struct domain * , double );
 
 void boundary( struct domain * );
-void exchangeData( struct domain * );
 
 void onestep( struct domain * theDomain , double RK , double dt , int first_step , int last_step ){
 

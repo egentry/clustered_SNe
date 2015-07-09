@@ -8,43 +8,37 @@ void boundary( struct domain * theDomain ){
 
    struct cell * theCells = theDomain->theCells;
    int Nr = theDomain->Nr;
-   int rank = theDomain->rank;
-   int size = theDomain->size;
 
-   // if( rank == 0 )
-   // {
-   //    struct cell * cB = theCells+0;
-   //    struct cell * cP = theCells+1;
-   //    cB->prim[RHO] = cP->prim[RHO];
-   //    cB->prim[PPP] = cP->prim[PPP];
-   //    cB->prim[VRR] = 0;
-   //    cB->wiph = 0;
-   // }
 
-   if ( rank == size-1 )
-   {
-      struct cell * cB = theCells+Nr-1;
-      struct cell * cP = theCells+Nr-2;
-      cB->prim[RHO] = cP->prim[RHO];
-      cB->prim[PPP] = cP->prim[PPP];
-      cB->prim[VRR] = 0;
-      cB->wiph = 0;
-   }
+   // struct cell * cB = theCells+0;
+   // struct cell * cP = theCells+1;
+   // cB->prim[RHO] = cP->prim[RHO];
+   // cB->prim[PPP] = cP->prim[PPP];
+   // cB->prim[VRR] = 0;
+   // cB->wiph = 0;
+
+   struct cell * cB = theCells+Nr-1;
+   struct cell * cP = theCells+Nr-2;
+   cB->prim[RHO] = cP->prim[RHO];
+   cB->prim[PPP] = cP->prim[PPP];
+   cB->prim[VRR] = 0;
+   cB->wiph = 0;
+
    
-   // if( rank == size-1 ){
-   //    struct cell * cB = theCells+Nr-1;
-   //    double rp = cB->riph;
-   //    double rm = rp-cB->dr;
-   //    double r = get_moment_arm(rp,rm);
-   //    initial( cB->prim , r); 
-   // }
+
+   // struct cell * cB = theCells+Nr-1;
+   // double rp = cB->riph;
+   // double rm = rp-cB->dr;
+   // double r = get_moment_arm(rp,rm);
+   // initial( cB->prim , r); 
+
 /*
-   if( rank == 0 ){
-      struct cell * cB = theCells+0;
-      struct cell * cP = theCells+1;
-      cB->prim[RHO] = cP->prim[RHO];
-      cB->prim[PPP] = cP->prim[PPP];
-   }
+
+   struct cell * cB = theCells+0;
+   struct cell * cP = theCells+1;
+   cB->prim[RHO] = cP->prim[RHO];
+   cB->prim[PPP] = cP->prim[PPP];
+
 */
 /*
    int ABSORB_R0 = theDomain->theParList.Absorb_BC;

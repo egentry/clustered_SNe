@@ -5,18 +5,7 @@ OUTPUT   = ascii
 
 EXE      = SNe
 
-
-## Set location of HDF5 dir, for use in reading Grackle cooling tables
-UNAME = $(shell uname)
-ifeq ($(UNAME),Linux)
-H55 = $(HOME)/bin/yt/yt-x86_64
-endif
-ifeq ($(UNAME),Darwin)
-# assumes MacPorts
-H55 = /opt/local
-endif
-
-############# Grackle cooling########################################
+############# Grackle cooling ########################################
 # See grackle documentation/examples to figure out what's going on here
 #
 # This'll pollute a lot of the namespace (e.g. DEFINES, CFLAGS, INCLUDES, LIBS)
@@ -40,43 +29,56 @@ include $(GRACKLE_DIR)/Make.config.assemble
 GRACKLE_INCLUDE = -I$(MACH_INSTALL_PREFIX)/include
 GRACKLE_LIB = -L$(MACH_INSTALL_PREFIX)/lib -lgrackle
 
+############# DEFINITIONS ########################################
 
-DYLD_LIBRARY_PATH 	= $(GRACKLE)/lib  			
-LD_LIBRARY_PATH 	= $(GRACKLE)/lib:$(HOME)/bin/yt/yt-x86_64/lib
+ifeq ($(shell uname),Linux)
+SYSTEM_INC = 
+SYSTEM_LIB = -luuid
+ifeq ($(findstring campusrocks2, $(HOSTNAME)),campusrocks2)
+# Campus cluster options
+SYSTEM_INC = -I$(HOME)/bin/libuuid/include
+SYSTEM_LIB = -L$(HOME)/bin/libuuid/lib -luuid
+endif
+endif
 
-
-############# SUFFIX RULES ########################################
-
+ifeq ($(shell uname),Darwin)
+# Mac options
+SYSTEM_INC = 
+SYSTEM_LIB = 
+endif
 
 CC = mpicc
-FLAGS = -Og -Wall -g 
+FLAGS =  -Wall -g 
 
-INC = -I$(H55)/include
-LIB = -L$(H55)/lib -lm -lhdf5
+INC = $(SYSTEM_INC)
+LIB = -lm $(SYSTEM_LIB)
 
-OBJ = main.o mpisetup.o profiler.o readpar.o domain.o gridsetup.o geometry.o exchange.o misc.o timestep.o onestep.o riemann.o boundary.o plm.o cooling.o $(INITIAL).o $(OUTPUT).o $(HYDRO).o #report.o
+OBJ = main.o mpisetup.o profiler.o readpar.o domain.o gridsetup.o geometry.o misc.o timestep.o onestep.o riemann.o boundary.o plm.o cooling.o $(INITIAL).o $(OUTPUT).o $(HYDRO).o #report.o
 
 HEADERS = structure.h constants.h
+
+############# RULES ########################################
+
 
 default: $(EXE)
 
 %.o: %.c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c $<
+	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c $<
 
 $(TIMESTEP).o: Timestep/$(TIMESTEP).c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Timestep/$(TIMESTEP).c
+	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c Timestep/$(TIMESTEP).c
 
 $(INITIAL).o : Initial/$(INITIAL).c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Initial/$(INITIAL).c
+	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c Initial/$(INITIAL).c
 
 $(HYDRO).o : Hydro/$(HYDRO).c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Hydro/$(HYDRO).c
+	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c Hydro/$(HYDRO).c
 
 $(OUTPUT).o : Output/$(OUTPUT).c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) $(INC) -c Output/$(OUTPUT).c
+	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c Output/$(OUTPUT).c
 
 $(EXE): $(OBJ) $(HEADERS)
-	$(CC) $(LIBS) $(GRACKLE_LIB) $(FLAGS) $(LIB) -o $(EXE) $(OBJ)
+	$(CC) $(FLAGS) -o $(EXE) $(OBJ) $(LIB) $(LIBS) $(GRACKLE_LIB)
 
 clean:
 	rm -f *.o $(EXE)

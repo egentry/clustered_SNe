@@ -7,20 +7,13 @@ void start_clock( struct domain * theDomain ){
  
 int count_cells( struct domain * theDomain ){
 
-   int Ng = theDomain->Ng;
    int Nr = theDomain->Nr;
 
-   int rank = theDomain->rank;
-   int size = theDomain->size;
-
-   int imin = Ng;
-   int imax = Nr-Ng;
-   if( rank == 0 ) imin = 0; 
-   if( rank == size-1 ) imax = Nr;
+   int imin = 0;
+   int imax = Nr;
 
    int Nc = imax-imin;
 
-   MPI_Allreduce( MPI_IN_PLACE , &Nc ,  1 , MPI_INT    , MPI_SUM , MPI_COMM_WORLD );
    return(Nc);
 }
 
@@ -33,21 +26,19 @@ void generate_log( struct domain * theDomain ){
 
    double avgdt = (double)seconds/2./(double)Nc/(double)Nt;
 
-   int size = theDomain->size;
+   char logfile_filename[256] = "";
+   strcat(logfile_filename, theDomain->output_prefix);
+   strcat(logfile_filename, "times.log");
 
-   if( theDomain->rank==0 ){
-      FILE * logfile = fopen("times.log","w");
-      fprintf(logfile,"Run using %d MPI process",size);
-      if( theDomain->size > 1 ) fprintf(logfile,"es");
-      fprintf(logfile,".\n");
-      fprintf(logfile,"Total time = %d sec\n",seconds);
-      fprintf(logfile,"Number of cells = %d\n",Nc);
-      fprintf(logfile,"Number of timesteps = %d (x%d)\n",Nt,2);
-      fprintf(logfile,"Megazones per second = %.2e\n",1./(avgdt*1e6));
-      fprintf(logfile,"Megazones per CPU second = %.2e\n",1./(avgdt*1e6*size));
-      fprintf(logfile,"Time/zone/step = %.2e microseconds\n",(avgdt*1e6));
-      fclose(logfile);
-   }
+   FILE * logfile = fopen(logfile_filename,"w");
+   fprintf(logfile,"Total time = %d sec\n",seconds);
+   fprintf(logfile,"Number of cells = %d\n",Nc);
+   fprintf(logfile,"Number of timesteps = %d (x%d)\n",Nt,2);
+   fprintf(logfile,"Megazones per second = %.2e\n",1./(avgdt*1e6));
+   fprintf(logfile,"Megazones per CPU second = %.2e\n",1./(avgdt*1e6));
+   fprintf(logfile,"Time/zone/step = %.2e microseconds\n",(avgdt*1e6));
+   fclose(logfile);
+
 }
 
 /*
