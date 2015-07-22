@@ -7,9 +7,6 @@
 
 code_units setup_cooling( struct domain * );
 
-double get_moment_arm( double , double );
-double get_dV( double , double );
-
 int  setICparams( struct domain * );
 void setHydroParams( struct domain * );
 void setRiemannParams( struct domain * );
@@ -55,6 +52,8 @@ int setupDomain( struct domain * theDomain ){
 
 }
 
+double get_moment_arm( double , double );
+double get_dV( double , double );
 void initial( double * , double ); 
 void prim2cons( double * , double * , double );
 void cons2prim( double * , double * , double );

@@ -42,7 +42,7 @@ void riemann( struct cell * cL , struct cell * cR, double r , double dA , double
       primR[q] = cR->prim[q] - cR->grad[q]*drR;
    }
 
-   // check pre-conditions 
+   // ======== Verify pre-conditions ========= //
    if (primL[PPP] < PRE_FLOOR)
    {
       printf("------ERROR in riemann()------- \n");
@@ -208,7 +208,7 @@ void riemann( struct cell * cL , struct cell * cR, double r , double dA , double
    }
 
 
-   // Diagnostics verifying post-conditions
+   // ======== Verify post-conditions ========= //
    double primL_tmp[NUM_Q];
    double primR_tmp[NUM_Q];
 
@@ -255,52 +255,5 @@ void riemann( struct cell * cL , struct cell * cR, double r , double dA , double
    }
 
 }
-
-// double calc_adiabatic_internal_energy(double * cons , double * Flux , double dA, double dt)
-// {
-//    // This should be done BEFORE the flux is added to cons
-//    //    - Used for checking internal energy after flux is added
-//    //    - if flux adds too much momentum, such that kinetic energy > total energy, 
-//    //       you can use 
-
-//    // Inputs:
-//    //    - cons   - array of conservative variables
-//    //             - should NOT have the flux already added
-//    //    - Flux   - conservative fluxes across boundaries
-   
-
-//    // get initial states
-//    // E    =    total energy / unit volume
-//    // e    = internal energy / unit mass
-//    // rhoe = internal energy / unit volume
-//    // Pp   = pressure (why the second 'p'?)
-
-//    double rp = c->riph;
-//    double rm = rp-c->dr;
-//    double dV = get_dV( rp , rm )
-   
-//    double rho = cons[DDD]/dV;
-//    double Sr  = cons[SRR]/dV;
-//    double E   = cons[TAU]/dV;
-
-//    // get initial internal energy / unit mass
-
-
-
-
-//    // change cell locations
-//    // most of this is taken from misc.c:move_cells
-
-//    double riph = c->riph + c->wiph*dt;
-
-//    // change cell sizes
-//    // most of this is taken from calc_dr
-
-
-
-
-//    return 1;
-
-// }
 
 

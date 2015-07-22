@@ -13,8 +13,8 @@ double minmod( double a , double b , double c ){
 void plm( struct domain * theDomain ){
 
    struct cell * theCells = theDomain->theCells;
-   int Nr = theDomain->Nr;
-   double PLM = theDomain->theParList.PLM;
+   int Nr  = theDomain->Nr;
+   int PLM = theDomain->theParList.PLM;
    int i,q;
    for( i=0 ; i<Nr ; ++i ){
       int im = i-1;

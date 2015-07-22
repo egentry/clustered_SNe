@@ -6,19 +6,16 @@
 
 #include "../structure.h"
 
-double calc_cooling( double * ,  double * , double , double , code_units );
-
-
 static double GAMMA_LAW = 0.0;
 static double RHO_FLOOR = 0.0;
 static double PRE_FLOOR = 0.0;
-static int USE_RT = 1;
+static int    USE_RT    = 1;
 
 void setHydroParams( struct domain * theDomain ){
    GAMMA_LAW = theDomain->theParList.Adiabatic_Index;
    RHO_FLOOR = theDomain->theParList.Density_Floor;
    PRE_FLOOR = theDomain->theParList.Pressure_Floor;
-   USE_RT = theDomain->theParList.rt_flag;
+   USE_RT    = theDomain->theParList.rt_flag;
 }
 
 void prim2cons( double * prim , double * cons , double dV ){
@@ -41,10 +38,10 @@ void prim2cons( double * prim , double * cons , double dV ){
 
 void cons2prim( double * cons , double * prim , double dV ){
 
-   // E    =    total energy / unit volume
-   // e    = internal energy / unit mass
-   // rhoe = internal energy / unit volume
-   // Pp   = pressure (why the second 'p'?)
+   // // E    :    total energy / unit volume
+   // // e    : internal energy / unit mass
+   // // rhoe : internal energy / unit volume
+   // // Pp   : pressure (why the second 'p'?)
    double rho = cons[DDD]/dV;
    double Sr  = cons[SRR]/dV;
    double E   = cons[TAU]/dV;
@@ -113,7 +110,8 @@ void getUstar( double * prim , double * Ustar , double Sk , double Ss ){
    Ustar[SRR] = rhostar*Ss;
    Ustar[TAU] = .5*rhostar*v2 + Us + rhostar*Ss*(Ss - vr) + Pstar;
 
-   // check post-condition: finite fluxes
+   // ======== Verify post-conditions ========= //
+   // require finite fluxes
    int q;
    for( q=XXX ; q<NUM_Q ; ++q ){
       Ustar[q] = prim[q]*Ustar[DDD];
@@ -148,21 +146,24 @@ void flux( double * prim , double * flux ){
    }
 }
 
+double calc_cooling( double * ,  double * , double , double , code_units );
+
 void source( double * prim , double * cons , double * grad , double rp , double rm , double dV , double dt , double metallicity , code_units cooling_units, int With_Cooling){
    double Pp  = prim[PPP];
    double r  = .5*(rp+rm);
    double r2 = (rp*rp+rm*rm+rp*rm)/3.;
-   cons[SRR] += 2.*Pp*(r/r2)*dV*dt; // shouldn't this have a PLM option? this is just 1st order
+   cons[SRR] += 2.*Pp*(r/r2)*dV*dt; // this is just the 1st order contribution
    // r / r2 is effectively (rp^2 - rm^2) / (rp^3 - rm^3) = d(surface area) / dV
    // so we're doing cons[SRR] += Pp * (4*pi*(rp^2 - rm^2)) * dt
 
-   cons[SRR] += 8*M_PI*grad[PPP]*( (pow(rp,3.) - pow(rm,3.))/3. + r*(pow(rp,2.) - pow(rm,2.))/2. ); // includes 2nd order contribution
+   // includes 2nd order contribution:
+   cons[SRR] += 8*M_PI*grad[PPP]*( (pow(rp,3.) - pow(rm,3.))/3. + r*(pow(rp,2.) - pow(rm,2.))/2. ); 
+
 
    if( With_Cooling == 1)
    {
       cons[TAU] += calc_cooling(prim, cons, metallicity, dt, cooling_units) * dV;  
    }
-
 }
 
 void source_alpha( double * prim , double * cons , double * grad_prim , double r , double dVdt ){
@@ -208,20 +209,44 @@ double get_eta( double * prim , double * grad_prim , double r ){
 }
 
 void vel( double * prim1 , double * prim2 , double * Sl , double * Sr , double * Ss ){
-   
-   double gam = GAMMA_LAW;
+
+   // ============================================= //
+   //
+   //  Calculate linearized wave family velocities
+   //
+   //  Inputs:
+   //    - prim1     - primitive variable array for INNER cell
+   //    - prim2     - primitive variable array for OUTER cell
+   //    - Sl        -  left-most moving sound wave
+   //    - Sr        - right-most moving sound wave
+   //    - Ss        - entropy wave
+   //
+   //  Returns:
+   //       void
+   //
+   //  Side effects:
+   //    - overwrites Sl, Sr, Ss as output variables
+   //
+   //  Notes:
+   //    - Nomenclature assumes "left" is "inner" (smaller radius)
+   //    - The physics doesn't care which is prim1 or prim2,
+   //      but it does matter for the sign convention on velocities
+   //
+   // ============================================= // 
+
+   double gam  = GAMMA_LAW;
 
    double P1   = prim1[PPP];
    double rho1 = prim1[RHO];
    double vn1  = prim1[VRR];
 
-   double cs1 = sqrt(fabs(gam*P1/rho1));
+   double cs1  = sqrt(fabs(gam*P1/rho1));
 
    double P2   = prim2[PPP];
    double rho2 = prim2[RHO];
    double vn2  = prim2[VRR];
 
-   double cs2 = sqrt(fabs(gam*P2/rho2));
+   double cs2  = sqrt(fabs(gam*P2/rho2));
 
    *Ss = ( P2 - P1 + rho1*vn1*(-cs1) - rho2*vn2*cs2 )/( rho1*(-cs1) - rho2*cs2 );
 
@@ -231,41 +256,66 @@ void vel( double * prim1 , double * prim2 , double * Sl , double * Sr , double *
    if( *Sr <  cs2 + vn2 ) *Sr =  cs2 + vn2;
    if( *Sl > -cs2 + vn2 ) *Sl = -cs2 + vn2;
 
-   // verify postcondition: wave family characteristics should have different speeds
+   // ======== Verify post-conditions ========= //
+   // wave family characteristics should have different speeds
    if( *Sr == *Sl)
    {
-      printf("Sr = Sl \n");
+      printf("------- ERROR in vel() ----------- \n");
       printf("Sr = Sl = %e \n", *Sr);
-      printf("cs1 = %e \n", cs1);
-      printf("cs2 = %e \n", cs2);
-      printf("vn1 = %e \n", vn1);
-      printf("vn1 = %e \n", vn2);
-      printf("P1 = %e \n", P1);
+      printf("cs1  = %e \n", cs1);
+      printf("cs2  = %e \n", cs2);
+      printf("vn1  = %e \n", vn1);
+      printf("vn1  = %e \n", vn2);
+      printf("P1   = %e \n", P1);
       printf("rho1 = %e \n", rho1);
-      printf("P2 = %e \n", P2);
+      printf("P2   = %e \n", P2);
       printf("rho2 = %e \n", rho2);
       assert(0);
    }
-   
+  
 }
 
 double mindt( double * prim , double w , double r , double dr ){
+
+   // ============================================= //
+   //
+   //  For a single cell, find the minimum wave crossing time,
+   //  in the cell's rest-frame
+   //
+   //  Inputs:
+   //    - prim      - primitive variable array for INNER cell
+   //    - w         - cell boundary velocity, to subtract from wave families
+   //    - r         - radius of cell center
+   //                - only used if Rayleigh-Taylor code is active
+   //    - dr        - width of cell
+   //
+   //  Returns:
+   //       dt       - minimum wave-crossing time of the 3 waves
+   //
+   //  Side effects:
+   //    None
+   //
+   //  Notes:
+   //    - w is probably the AVERAGE of the velocity of both boundaries
+   //      (see getmindt())
+   //
+   // ============================================= // 
 
    double rho = prim[RHO];
    double Pp  = prim[PPP];
    double vr  = prim[VRR];
    double gam = GAMMA_LAW;
 
-   double cs = sqrt(fabs(gam*Pp/rho));
+   double cs  = sqrt(fabs(gam*Pp/rho));
    double eta = get_eta( prim , NULL , r );
 
-   double maxvr = cs + fabs( vr - w );
-   double dt = dr/maxvr;
+   double maxvr  = cs + fabs( vr - w );
+   double dt     = dr/maxvr;
    double dt_eta = dr*dr/eta;
+
    if( dt > dt_eta && USE_RT ) dt = dt_eta;
 
    return( dt );
-
 }
 
 

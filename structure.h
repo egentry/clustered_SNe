@@ -29,7 +29,9 @@ struct param_list{
    double MaxShort, MaxLong;
    int Absorb_BC, Initial_Regrid, rt_flag;
 
-   double CFL, PLM;
+   double CFL;
+   int    PLM; // Piece-wise reconstruction: 1 = piecewise linear, 0 = piecewise constant
+   int    RK2; // Integration: 1 = 2nd order Runge-Kutta; 0 = 1st order Eulerian
    double Density_Floor, Pressure_Floor;
    int With_Cooling;
    double Adiabatic_Index;
@@ -76,7 +78,7 @@ struct domain{
 struct cell{
    double prim[NUM_Q];   // primitive    variables  (density, pressure,       velocity, etc.)
    double cons[NUM_Q];   // conservative variables  (Mass,    Energy (total), momentum, etc.)
-   double RKcons[NUM_Q]; // holds the state after a Runge-Kutta sub-step
+   double RKcons[NUM_Q]; // holds the value of the conservative variables before a Runge-kutta timestep is started
    double grad[NUM_Q];   // spatial gradient, for PLM reconstruction
    double riph;          // radius of outside edge of cell
    double dr;            // total dr of cell (difference between outside edge + inside edge of cell)

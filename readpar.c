@@ -63,7 +63,8 @@ int read_par_file( struct domain * theDomain ){
    err += readvar( pfile , "Log_Zoning"      , VAR_INT  , &(theList->LogZoning)       );
    err += readvar( pfile , "Log_Radius"      , VAR_DOUB , &(theList->LogRadius)       );
    err += readvar( pfile , "CFL"             , VAR_DOUB , &(theList->CFL)             );
-   err += readvar( pfile , "PLM"             , VAR_DOUB , &(theList->PLM)             );
+   err += readvar( pfile , "PLM"             , VAR_INT  , &(theList->PLM)             );
+   err += readvar( pfile , "RK2"             , VAR_INT  , &(theList->RK2)             );
    err += readvar( pfile , "Adiabatic_Index" , VAR_DOUB , &(theList->Adiabatic_Index) );
    err += readvar( pfile , "Density_Floor"   , VAR_DOUB , &(theList->Density_Floor)   );
    err += readvar( pfile , "Pressure_Floor"  , VAR_DOUB , &(theList->Pressure_Floor)  );

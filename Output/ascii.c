@@ -9,7 +9,7 @@
 double get_moment_arm( double , double );
 double get_dV( double , double );
 
-void output( struct domain * theDomain , char * filestart , double t){
+void output( struct domain * theDomain , char * filestart , double t ){
 
    struct cell * theCells = theDomain->theCells;
    int Nr = theDomain->Nr;
@@ -33,9 +33,8 @@ void output( struct domain * theDomain , char * filestart , double t){
       double rp = c->riph;
       double dr = c->dr; 
       double rm = rp-dr;
-      double r  = get_moment_arm( rp , rm );
       double dV = get_dV( rp , rm );
-      fprintf(pFile,"%18.10e %18.10e %18.10e ",r,dr,dV);
+      fprintf(pFile,"%18.10e %18.10e %18.10e ",rp,dr,dV);
       for( q=0 ; q<NUM_Q ; ++q ){
          fprintf(pFile,"%18.10e ",c->prim[q]);
       }
@@ -53,7 +52,7 @@ void output( struct domain * theDomain , char * filestart , double t){
 
 }
 
-void overview(struct domain * theDomain)
+void overview( struct domain * theDomain )
 {
    // prints an overview of key parameters into a datafile
    
@@ -65,6 +64,7 @@ void overview(struct domain * theDomain)
    fprintf(oFile, "Metallicity:            %e \n", theDomain->metallicity);
    fprintf(oFile, "Background Density:     %e \n", theDomain->background_density);
    fprintf(oFile, "Background Temperature: %e \n", theDomain->background_temperature);
+   fprintf(oFile, "With cooling:           %d \n", theDomain->theParList.With_Cooling);
    time_t current_time = time(NULL);
    fprintf(oFile, "Created at: %s \n", ctime(&current_time));
 

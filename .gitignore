@@ -5,7 +5,9 @@ tmp*
 sedov/sedov3
 *.log
 *.dat
+*.tar.gz
 *.DS_Store
 SNe
 sync.sh
 exclude_rsync.txt
+package_data.sh

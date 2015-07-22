@@ -1,4 +1,5 @@
 
+#include <stdio.h>
 #include <math.h>
 
 #include "../structure.h"
@@ -11,6 +12,8 @@
 static double mu;     // mean molecular weight -- this is the only time it's used
 static double Gamma;  // adiabatic index
 
+static double E_blast = 1e51;        // [erg]
+static double M_blast = 3 * M_sun;   // [g]
 static double V_blast;  // volume of the initial blast (1 cell)
 static double R_blast;  // outermost boundary of initial blast (1 cell)
 
@@ -50,9 +53,7 @@ int setICparams( struct domain * theDomain ){
    //
    // ============================================= //
 
-   int error = 0;
-   error = setup_parameter_study( theDomain );
-   if ( error==1 ) return(error);
+
 
    Gamma = theDomain->theParList.Adiabatic_Index;
 
@@ -60,7 +61,7 @@ int setICparams( struct domain * theDomain ){
    const int n_blast = 2;
    V_blast = 0.;
    R_blast = 0.;
-   for( i=0 ; i<n_blast ; ++i )
+   for( i=1 ; i<n_blast ; ++i )
    {
       struct cell * c = &(theDomain->theCells[i]);
       const double rp = c->riph;
@@ -83,25 +84,28 @@ int setICparams( struct domain * theDomain ){
 
 void initial( double * prim , double r ){
    double rho,Pp;
-
-   const double M_sun = 1.989100e+33;  // [g]
+   double X;
 
    if( r <= R_blast ){
-      const double M_blast = 3 * M_sun;       // [g]
-      const double E_blast = 1e51;  // [erg]
 
-      rho = M_blast / V_blast;
-      Pp  = rho * (Gamma-1) * E_blast / M_blast;
+
+      // rho = M_blast / V_blast;
+      rho = background_density;
+
+      Pp  = (Gamma-1) * E_blast / V_blast;    
+      X = 1.0;
    }else{
       // initial background conditions
       rho = background_density;
       const double T_0 = background_temperature;  // [K]
       Pp  = (rho / (mu * m_proton)) * k_boltzmann * T_0;
+
+      X = 0.0;
    }
    prim[RHO] = rho;
    prim[PPP] = Pp;
    prim[VRR] = 0.0;
-   prim[XXX] = 0.0;
+   prim[XXX] = X;
    prim[AAA] = 0.0;
 }
 
@@ -158,18 +162,18 @@ int setup_parameter_study( struct domain * theDomain )
                                              m_proton*1.33e-3};
 
 
-   if ( (theDomain->rank + completed_runs) >= (n_metallicities * n_background_densities) )
+   if( (theDomain->rank + completed_runs) >= (n_metallicities * n_background_densities) )
    {
       return(1);
    }
 
    int i,j,k;
    k=0;
-   for ( i=0 ; i<n_metallicities ; ++i )
+   for( i=0 ; i<n_metallicities ; ++i )
    {
-      for ( j=0 ; j<n_background_densities ; ++j)
+      for( j=0 ; j<n_background_densities ; ++j)
       {
-         if ( theDomain->rank+completed_runs == k )
+         if( theDomain->rank+completed_runs == k )
          {
             theDomain->metallicity            = metallicities[i];
             theDomain->background_density     = background_densities[j];
@@ -178,6 +182,42 @@ int setup_parameter_study( struct domain * theDomain )
          ++k;
       }
    }
+
+
+   // Set the scale of the simulation -- see Thornton et al. (1998) Eqs 14-35
+   // Assumes E_blast = 1e51
+   double R_thornton;
+   if( log10(theDomain->metallicity / metallicity_solar) > -2  )
+   {
+      // Equation 20
+      R_thornton = 49.3 * pc 
+         * pow(E_blast / 1e51, 2./7) 
+         * pow(theDomain->background_density / m_proton, -.42)
+         * pow(theDomain->metallicity / metallicity_solar, -.1);
+   }
+   else
+   {
+      // Equation 31
+      R_thornton = 78.1 * pc 
+         * pow(E_blast / 1e51, 2./7) 
+         * pow(theDomain->background_density / m_proton, -.42);
+   }
+
+   theDomain->theParList.rmax = 4 * R_thornton;
+   theDomain->theParList.rmin = theDomain->theParList.rmax / 1e4;
+
+   printf("R_min = %le \n", theDomain->theParList.rmin);
+   printf("R_max = %le \n", theDomain->theParList.rmax);
+
+   // Sets the end time appropriately,
+   // having done a 2d power law fit to t_f(n_0, Z)
+   // using the results of Thornton (Table 3)
+   double t_f = 5.52e5 * yr 
+         * pow(theDomain->background_density / m_proton,   -.53)
+         * pow(theDomain->metallicity / metallicity_solar, -.16);
+
+   theDomain->theParList.t_max = 5 * t_f;
+   printf("t_max = %le \n", t_f);
 
    return(0);
 
@@ -201,6 +241,7 @@ int parse_command_line_args ( struct domain * theDomain , int argc , char * argv
    //  Side effects:
    //     - overwrites:
    //        - completed_runs (file-scope static variable)
+   //        - 
    //
    //  Notes:
    //     - Could set r_max, t_end here if desired
@@ -215,6 +256,10 @@ int parse_command_line_args ( struct domain * theDomain , int argc , char * argv
       completed_runs = strtol( argv[1] , &buf, 10);
       printf("completed_runs = %d \n", completed_runs);
    }
+
+   int error = 0;
+   error = setup_parameter_study( theDomain );
+   if ( error==1 ) return(error);
 
    return(0);
 }

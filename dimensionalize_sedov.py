@@ -38,9 +38,9 @@ def main(time, metallicity=metallicity_solar,
     """
 
     # set mass fractions, to agree with Thornton et al 1998 (i.e. constant Y=.23)
-    Z = metallicity
-    Y = .23
-    X = 1 - Y - Z 
+    Z  = metallicity
+    Y  = .23
+    X  = 1 - Y - Z 
     mu = (2*X + .75*Y + .5*Z)**-1.
 
     # THESE UNITS MUST AGREE WITH THE CONSTANTS.H FILE
@@ -83,7 +83,6 @@ def main(time, metallicity=metallicity_solar,
     s = 2.5 - np.log( (rho/(mu * m_p)) * (2*np.pi*hbar**2 / (mu * m_p * k_b * T))**1.5 )
 
     return (r, u, rho, T, c_ad, ener, P, s, mass)
-
 
 yr = 3.155760e+07
 # main(16.4614780406 * yr)

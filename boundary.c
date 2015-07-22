@@ -10,15 +10,16 @@ void boundary( struct domain * theDomain ){
    int Nr = theDomain->Nr;
 
 
-   // struct cell * cB = theCells+0;
-   // struct cell * cP = theCells+1;
-   // cB->prim[RHO] = cP->prim[RHO];
-   // cB->prim[PPP] = cP->prim[PPP];
-   // cB->prim[VRR] = 0;
-   // cB->wiph = 0;
+   struct cell * cB = theCells+0;
+   struct cell * cP = theCells+1;
+   cB->prim[RHO] = cP->prim[RHO];
+   cB->prim[PPP] = cP->prim[PPP];
+   cB->prim[VRR] = cP->prim[VRR];
+   cB->prim[XXX] = cP->prim[XXX];
+   cB->wiph = cP->wiph;
 
-   struct cell * cB = theCells+Nr-1;
-   struct cell * cP = theCells+Nr-2;
+   cB = theCells+Nr-1;
+   cP = theCells+Nr-2;
    cB->prim[RHO] = cP->prim[RHO];
    cB->prim[PPP] = cP->prim[PPP];
    cB->prim[VRR] = 0;
