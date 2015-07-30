@@ -3,7 +3,7 @@ import glob
 import shutil
 import numpy as np
 
-m_proton = 1.672622e-24
+from constants import m_proton
 
 class Overview(object):
     """Overview of a given ./SNe run

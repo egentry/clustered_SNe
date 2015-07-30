@@ -11,3 +11,4 @@ SNe
 sync.sh
 exclude_rsync.txt
 package_data.sh
+saved_runs/

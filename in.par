@@ -8,7 +8,7 @@ T_End			3e10   //3888000
 Num_Reports		1000
 Num_Snapshots	   0  // not implemented
 Num_Checkpoints		100
-Use_Logtime		0
+Use_Logtime		1
 
 //Grid Dimensions//
 Num_R			1024
