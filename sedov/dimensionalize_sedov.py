@@ -3,41 +3,37 @@ import numpy as np
 import os
 from astropy import constants as const 
 
-# from closed_form_sedov import get_momentum_Ekin_Eint
+## Boilerplate path hack to give access to full SNe package
+import sys, os
+if __package__ is None:
+    if os.pardir not in sys.path[0]:
+        file_dir = os.path.dirname(__file__)
+        sys.path.insert(0, os.path.join(file_dir, os.pardir, os.pardir))
+
+from SNe.constants import hbar, k_b, m_proton, pc, yr, gamma, \
+                          metallicity_solar
 
 nstep = 1000
-raw_filename = 'sedov/spherical_standard_omega0p00_nstep_' + str(nstep).zfill(5) + '.dat'
+raw_filename = 'spherical_standard_omega0p00_nstep_' + str(nstep).zfill(5) + '.dat'
+# make that file name relative to this file
+file_dir     = os.path.dirname(__file__)
+raw_filename = os.path.join(file_dir, raw_filename)
 
 if not os.path.exists(raw_filename):
-    os.chdir("sedov")
+    cwd = os.getcwd()
+    os.chdir(file_dir)
     os.system("./sedov3 " + str(nstep))
-    os.chdir("..")
+    os.chdir(cwd)
 
 i, x, den, energy, pressure, velocity, cs = np.loadtxt(raw_filename, skiprows=2, unpack=True)
 
-
-# h_bar does not need to be in agreement with constants.h
-# but it should agree with the value being used in visualize.ipynb
-hbar = const.hbar.cgs.value
-
-
-# THESE UNITS MUST AGREE WITH THE CONSTANTS.H FILE
-# Alternative they can be generated using get_constants.py
-k_b     = 1.380649e-16  # boltzmann's constant
-m_p     = 1.672622e-24  # proton mass [g]
-pc      = 3.085678e+18  # 1 parsec [cm]
-yr      = 3.155760e+07  # year in [s]
-
-metallicity_solar      = .02 #
-background_density     = m_p
+background_density     = m_proton
 background_temperature = 1e4
 
-gamma   = 5/3          # adiabatic index
 
-
-def main(time, metallicity=metallicity_solar, 
-               background_density=background_density,
-               background_temperature=background_temperature):
+def dimensionalized_sedov(time, metallicity=metallicity_solar, 
+                          background_density=background_density,
+                          background_temperature=background_temperature):
     """ 
         Scale sedov solution at a given time
 
@@ -76,15 +72,14 @@ def main(time, metallicity=metallicity_solar,
 
     ener = (1 / (gamma-1)) * P / rho
     c_ad = (gamma * P / rho)**.5
-    T    = P / rho * (mu * m_p / k_b)
+    T    = P / rho * (mu * m_proton / k_b)
 
-    P[(P==0)] = rho[(P==0)] / (mu * m_p) * k_b * T_0
+    P[(P==0)] = rho[(P==0)] / (mu * m_proton) * k_b * T_0
     T[(T==0)] = T_0
 
-    s = 2.5 - np.log( (rho/(mu * m_p)) * (2*np.pi*hbar**2 / (mu * m_p * k_b * T))**1.5 )
+    s = 2.5 - np.log( (rho/(mu * m_proton)) * (2*np.pi*hbar**2 / (mu * m_proton * k_b * T))**1.5 )
 
     return (r, u, rho, T, c_ad, ener, P, s, mass)
 
 
-yr = 3.155760e+07
-sedov = main(100 * yr)
+# sedov = dimensionalized_sedov(100 * yr)

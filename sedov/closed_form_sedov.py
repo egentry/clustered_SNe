@@ -4,9 +4,16 @@ import numpy as np
 import pandas as pd
 from scipy.integrate import quad
 
-from helper_functions import calculate_mean_molecular_weight, \
-                             calculate_entropy, \
-                             calculate_temperature
+## Boilerplate path hack to give access to full SNe package
+import sys, os
+if __package__ is None:
+    if os.pardir not in sys.path[0]:
+        file_dir = os.path.dirname(__file__)
+        sys.path.insert(0, os.path.join(file_dir, os.pardir, os.pardir))
+
+from SNe.helper_functions import calculate_mean_molecular_weight, \
+                                 calculate_entropy, \
+                                 calculate_temperature
 
 class SedovSolution(object):
     """docstring for SedovSolution"""
@@ -452,7 +459,7 @@ class SedovSolution(object):
         return entropy
 
 
-    def generate_solution(self, num=500):
+    def generate_solution(self, num=100):
         """Generate the Sedov solution
 
         Builds the non-dimensional solution using:
@@ -491,8 +498,9 @@ class SedovSolution(object):
         If you need a uniform radial grid either interpolate,
         or better yet, generate a solution using sedov3.f from cococubed
         """
-        V           = np.linspace(self.V_0, self.V_2, num=num)
-        # V           = np.logspace(np.log10(self.V_0), np.log10(self.V_2), num=num)
+        # V           = np.linspace(self.V_0, self.V_2, num=num)
+        V           = self.V_0 \
+                        + (self.V_2 - self.V_0)*np.linspace(0,1,num=num)**7
 
         V           = V[1:]    # ignore the innermost location, where r=0
         radius      = self.l(V)

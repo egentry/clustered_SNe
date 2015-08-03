@@ -4,7 +4,14 @@ import numpy as np
 
 from numba import jit, njit
 
-from constants import m_proton, hbar, k_b, gamma
+## Boilerplate path hack to give access to full SNe package
+import sys, os
+if __package__ is None:
+    if os.pardir not in sys.path[0]:
+        file_dir = os.path.dirname(__file__)
+        sys.path.insert(0, os.path.join(file_dir, os.pardir, os.pardir))
+
+from SNe.constants import m_proton, hbar, k_b, gamma
 
 
 @jit

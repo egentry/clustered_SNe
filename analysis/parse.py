@@ -6,20 +6,24 @@ import pandas as pd
 
 from astropy.convolution import convolve, Gaussian1DKernel
 
-from constants import pc, M_solar, gamma, E_0, \
-                      metallicity_solar
+## Boilerplate path hack to give access to full SNe package
+import sys
+if __package__ is None:
+    if os.pardir not in sys.path[0]:
+        file_dir = os.path.dirname(__file__)
+        sys.path.insert(0, os.path.join(file_dir, os.pardir, os.pardir))
 
-from helper_functions import calculate_mean_molecular_weight, \
-                             calculate_mass, \
-                             calculate_kinetic_energy, \
-                             calculate_internal_energy, \
-                             calculate_momentum, \
-                             calculate_c_ad, \
-                             calculate_entropy, \
-                             calculate_temperature
+from SNe.constants import pc, M_solar, gamma, E_0, \
+                          metallicity_solar
 
-from closed_form_sedov import SedovSolution
-
+from SNe.helper_functions import calculate_mean_molecular_weight, \
+                                 calculate_mass, \
+                                 calculate_kinetic_energy, \
+                                 calculate_internal_energy, \
+                                 calculate_momentum, \
+                                 calculate_c_ad, \
+                                 calculate_entropy, \
+                                 calculate_temperature
 
 
 class RunSummary(object):
@@ -62,8 +66,11 @@ cols = ["Radius", "dR", "dV", "Density",
         "Mass", "M_int", "C_ad"]
 cols_in   = cols[:-6]
 
+
+
+
 def parse_run(data_dir="", id="", last_run=None):
-    checkpoint_filenames = glob.glob(data_dir + id + "*checkpoint_*.dat")
+    checkpoint_filenames = glob.glob(os.path.join(data_dir,id + "*checkpoint_*.dat"))
     checkpoint_filenames = sorted(checkpoint_filenames)
     num_checkpoints = len(checkpoint_filenames)
     

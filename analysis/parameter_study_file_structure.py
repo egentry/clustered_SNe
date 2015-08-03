@@ -3,7 +3,14 @@ import glob
 import shutil
 import numpy as np
 
-from constants import m_proton
+## Boilerplate path hack to give access to full SNe package
+import sys
+if __package__ is None:
+    if os.pardir not in sys.path[0]:
+        file_dir = os.path.dirname(__file__)
+        sys.path.insert(0, os.path.join(file_dir, os.pardir, os.pardir))
+
+from SNe.constants import m_proton
 
 class Overview(object):
     """Overview of a given ./SNe run
@@ -103,7 +110,7 @@ class Overview(object):
 
 def make_dirname_from_properties(background_density, metallicity, 
                                  background_temperature, with_cooling,
-                                 base_dirname=""):
+                                 base_dirname=".."):
     """Create a dirname where the data for this Overview should live
 
 
@@ -143,7 +150,7 @@ def make_dirname_from_properties(background_density, metallicity,
 
     return dirname
 
-def add_id_to_batch_outputs(dirname=""):
+def add_id_to_batch_outputs(dirname=".."):
     """Prepends an id to the batch output (and error) filenames, if an id exists
 
 
@@ -184,7 +191,7 @@ def add_id_to_batch_outputs(dirname=""):
     return
 
 
-def move_files(overall_dirname=""):
+def move_files(overall_dirname=".."):
     """Moves files from current location into their locations on a tree of directories
 
 
@@ -218,7 +225,7 @@ def move_files(overall_dirname=""):
         dirname = overview.make_dirname()
         if not os.path.isdir(dirname):
             os.makedirs(dirname)
-        files = glob.glob(overview.id + "*")
+        files = glob.glob(os.path.join(overall_dirname, overview.id + "*"))
         for file in files:
             shutil.move(file, dirname)
 

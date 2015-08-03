@@ -16,7 +16,7 @@ C      5                 zlo,zhi,zstep,value
 
       character*80 ::    outfile,string,fmt1,fmt2,fmt3
       integer      ::    i,nstep,iargc
-      integer,parameter  ::      nmax = 1000
+      integer,parameter  ::      nmax = 100000
       real*16 ::         time,zpos(nmax)
       real*16 :: eblast,rho0,omega,vel0,ener0,pres0,cs0,gamma
       real*16 ::  xgeom
@@ -26,8 +26,8 @@ C      5                 zlo,zhi,zstep,value
 
 c..popular formats
        fmt1 = "(1x,t4,a,t8,a,t22,a,t36,a,t50,a,t64,a,t78,a,t92,a)"
-       fmt2 = "(1x,i4,1p8e12.4)"
-       fmt3 = "(1x,i4,1p8e14.6)"
+       fmt2 = "(1x,i5,1p8e12.4)"
+       fmt3 = "(1x,i5,1p8e14.6)"
 
 
 c..explicitly set defaults (overridden by command line args)
@@ -72,7 +72,7 @@ C        if (i. lt. 2) stop 'too few arguments'
        end if
 
        write(*,*) nstep
-       write(outfile, "(A35,I4.4, A4)") outfile, nstep, ".dat"
+       write(outfile, "(A35,I5.5, A4)") outfile, nstep, ".dat"
        write(*,*) outfile
 
 
