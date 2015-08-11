@@ -1,8 +1,9 @@
-.ipynb_checkpoints/
+*.ipynb_checkpoints/
 tmp*
 *.o
+*.dylib
 *.pyc
-sedov/sedov3
+analysis/sedov/sedov3
 *.log
 *.dat
 *.tar.gz
@@ -12,3 +13,7 @@ sync.sh
 exclude_rsync.txt
 package_data.sh
 saved_runs/
+include/*
+lib/*
+bin/*
+comparison/

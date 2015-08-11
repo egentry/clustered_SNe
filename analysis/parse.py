@@ -11,19 +11,21 @@ import sys
 if __package__ is None:
     if os.pardir not in sys.path[0]:
         file_dir = os.path.dirname(__file__)
-        sys.path.insert(0, os.path.join(file_dir, os.pardir, os.pardir))
+        sys.path.insert(0, os.path.join(file_dir, 
+                                        os.pardir, 
+                                        os.pardir))
 
-from SNe.constants import pc, M_solar, gamma, E_0, \
-                          metallicity_solar
+from SNe.analysis.constants import pc, M_solar, gamma, E_0, \
+                                   metallicity_solar
 
-from SNe.helper_functions import calculate_mean_molecular_weight, \
-                                 calculate_mass, \
-                                 calculate_kinetic_energy, \
-                                 calculate_internal_energy, \
-                                 calculate_momentum, \
-                                 calculate_c_ad, \
-                                 calculate_entropy, \
-                                 calculate_temperature
+from SNe.analysis.helper_functions import calculate_mean_molecular_weight, \
+                                          calculate_mass, \
+                                          calculate_kinetic_energy, \
+                                          calculate_internal_energy, \
+                                          calculate_momentum, \
+                                          calculate_c_ad, \
+                                          calculate_entropy, \
+                                          calculate_temperature
 
 
 class RunSummary(object):

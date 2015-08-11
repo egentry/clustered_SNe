@@ -9,9 +9,11 @@ import sys, os
 if __package__ is None:
     if os.pardir not in sys.path[0]:
         file_dir = os.path.dirname(__file__)
-        sys.path.insert(0, os.path.join(file_dir, os.pardir, os.pardir))
+        sys.path.insert(0, os.path.join(file_dir, 
+                                        os.pardir, 
+                                        os.pardir))
 
-from SNe.constants import m_proton, hbar, k_b, gamma
+from SNe.analysis.constants import m_proton, hbar, k_b, gamma
 
 
 @jit

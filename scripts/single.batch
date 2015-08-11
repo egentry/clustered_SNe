@@ -1,0 +1,13 @@
+#!/bin/bash
+#
+#$ -M egentry@ucsc.edu
+#$ -m e
+#
+#$ -q small.q
+#
+#$ -cwd
+#$ -S /bin/bash
+#
+
+source $HOME/.bashrc
+time ./SNe

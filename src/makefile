@@ -10,7 +10,7 @@ EXE      = SNe
 #
 # This'll pollute a lot of the namespace (e.g. DEFINES, CFLAGS, INCLUDES, LIBS)
 
-GRACKLE 			= $(HOME)/bin/grackle
+GRACKLE 			= $(HOME)/local/grackle
 GRACKLE_DIR 		= $(GRACKLE)/src/clib
 include $(GRACKLE_DIR)/Make.config.settings
 
@@ -38,8 +38,8 @@ SYSTEM_LIB = -luuid
 ifeq ($(findstring campusrocks2, $(HOSTNAME)),campusrocks2)
 # Campus cluster options
 # 	Overwrite general linux options
-SYSTEM_INC = -I$(HOME)/bin/libuuid/include
-SYSTEM_LIB = -L$(HOME)/bin/libuuid/lib -luuid
+SYSTEM_INC = -I$(HOME)/local/libuuid/include
+SYSTEM_LIB = -L$(HOME)/local/libuuid/lib -luuid
 endif
 endif
 
@@ -59,10 +59,19 @@ OBJ = main.o mpisetup.o profiler.o readpar.o domain.o gridsetup.o geometry.o mis
 
 HEADERS = structure.h constants.h
 
+DYNLIB = -dynamiclib
+DYNLIB_EXT = .dylib
+
+LIB_NAME = ../lib/SNe$(DYNLIB_EXT)
+
 ############# RULES ########################################
 
 
-default: $(EXE)
+default: all
+
+all: $(EXE)
+all: $(LIB_NAME)
+all: move_headers
 
 %.o: %.c $(HEADERS)
 	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c $<
@@ -79,8 +88,15 @@ $(HYDRO).o : Hydro/$(HYDRO).c $(HEADERS)
 $(OUTPUT).o : Output/$(OUTPUT).c $(HEADERS)
 	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c Output/$(OUTPUT).c
 
-$(EXE): $(OBJ) $(HEADERS)
+$(EXE): $(OBJ) $(HEADERS) 
 	$(CC) $(FLAGS) -o $(EXE) $(OBJ) $(LIB) $(LIBS) $(GRACKLE_LIB)
+	cp $(EXE) ../bin/$(EXE)
+
+$(LIB_NAME): $(OBJ) $(HEADERS)
+	$(CC) $(FLAGS) -o $(LIB_NAME) $(OBJ) $(LIB) $(LIBS) $(GRACKLE_LIB)
+
+move_headers: 
+	cp $(HEADERS) ../include/
 
 clean:
 	rm -f *.o $(EXE)

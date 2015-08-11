@@ -8,10 +8,13 @@ import sys, os
 if __package__ is None:
     if os.pardir not in sys.path[0]:
         file_dir = os.path.dirname(__file__)
-        sys.path.insert(0, os.path.join(file_dir, os.pardir, os.pardir))
+        sys.path.insert(0, os.path.join(file_dir, 
+                                        os.pardir,
+                                        os.pardir, 
+                                        os.pardir))
 
-from SNe.constants import hbar, k_b, m_proton, pc, yr, gamma, \
-                          metallicity_solar
+from SNe.analysis.constants import hbar, k_b, m_proton, pc, yr, gamma, \
+                                   metallicity_solar
 
 nstep = 1000
 raw_filename = 'spherical_standard_omega0p00_nstep_' + str(nstep).zfill(5) + '.dat'
