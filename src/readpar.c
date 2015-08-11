@@ -5,7 +5,7 @@
 
 enum{VAR_INT,VAR_DOUB,VAR_STR};
 
-int readvar( char * filename , char * varname , int vartype , void * ptr ){
+int readvar( char * filename , const char * varname , int vartype , void * ptr ){
 
    FILE * inFile = fopen( filename , "r" );
    char s[512];
@@ -37,7 +37,7 @@ int readvar( char * filename , char * varname , int vartype , void * ptr ){
    }else if( vartype == VAR_DOUB ){
       *((double *)ptr) = (double)temp;
    }else{
-      strcpy( ptr , stringval );
+      strcpy( (char *) ptr , stringval );
    }
 
    return(0);

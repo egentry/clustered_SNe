@@ -4,7 +4,9 @@
 #include <stdlib.h>
 #include <assert.h>
 
+extern "C" {
 #include <grackle.h>
+}
 
 #include "constants.h" // defines physical constants
 #include "structure.h" 
@@ -40,12 +42,12 @@ double calc_cooling( double * prim ,  double * cons , double metallicity , doubl
     gr_float *density, *energy, *x_velocity, *y_velocity, *z_velocity;
     gr_float *metal_density;
 
-    density         = malloc(field_size * sizeof(gr_float));
-    energy          = malloc(field_size * sizeof(gr_float));
-    x_velocity      = malloc(field_size * sizeof(gr_float));
-    y_velocity      = malloc(field_size * sizeof(gr_float));
-    z_velocity      = malloc(field_size * sizeof(gr_float));
-    metal_density   = malloc(field_size * sizeof(gr_float));
+    density         = new gr_float[field_size];
+    energy          = new gr_float[field_size];
+    x_velocity      = new gr_float[field_size];
+    y_velocity      = new gr_float[field_size];
+    z_velocity      = new gr_float[field_size];
+    metal_density   = new gr_float[field_size];
 
     double density_initial = prim[RHO];
     double energy_initial  = (1. / (grackle_data.Gamma - 1.)) * prim[PPP] / prim[RHO];

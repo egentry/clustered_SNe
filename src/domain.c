@@ -105,7 +105,7 @@ void check_dt( struct domain * theDomain , double * dt ){
 }
 
 // void snapshot( struct domain * , char * );
-void output( struct domain * , char *, double );
+void output( struct domain * , const char *, double );
 
 void possiblyOutput( struct domain * theDomain , int override ){
 

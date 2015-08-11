@@ -9,7 +9,7 @@
 double get_moment_arm( double , double );
 double get_dV( double , double );
 
-void output( struct domain * theDomain , char * filestart , double t ){
+void output( struct domain * theDomain , const char * filestart , double t ){
 
    struct cell * theCells = theDomain->theCells;
    int Nr = theDomain->Nr;

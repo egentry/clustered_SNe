@@ -5,56 +5,91 @@ OUTPUT   = ascii
 
 EXE      = SNe
 
-############# Grackle cooling ########################################
-# See grackle documentation/examples to figure out what's going on here
-#
-# This'll pollute a lot of the namespace (e.g. DEFINES, CFLAGS, INCLUDES, LIBS)
 
-GRACKLE 			= $(HOME)/local/grackle
-GRACKLE_DIR 		= $(GRACKLE)/src/clib
-include $(GRACKLE_DIR)/Make.config.settings
-
-MAKE_CONFIG_MACHINE  = $(GRACKLE_DIR)/Make.config.machine
-include $(GRACKLE_DIR)/Make.config.machine
-
-MAKE_CONFIG_OVERRIDE = $(GRACKLE_DIR)/Make.config.override
-include $(MAKE_CONFIG_OVERRIDE)
-CONFIG_USE_MPI = yes
-
-include $(GRACKLE_DIR)/Make.config.assemble
-
--include $(GRACKLE_DIR)/Make.mach.$(CONFIG_MACHINE)
--include $(HOME)/.grackle/Make.mach.$(CONFIG_MACHINE)
-
-GRACKLE_INCLUDE = -I$(MACH_INSTALL_PREFIX)/include
-GRACKLE_LIB = -L$(MACH_INSTALL_PREFIX)/lib -lgrackle
-
-############# DEFINITIONS ########################################
+############# SYSTEM SPECIFIC ########################################
+INC = 
+LIB = -lm
 
 ifeq ($(shell uname),Linux)
 # General linux options
-SYSTEM_INC = 
-SYSTEM_LIB = -luuid
+CC = gcc
+CXX = g++
+
+C_FLAGS =  -Wall -g
+CXX_FLAGS = -Wall -g -std=c++11
+
+INC += 
+LIB += -luuid
+
+INC_BOOST = 
+LIB_BOOST =
+
+INC_GSL =
+LIB_GSL =
+
+INC_GRACKLE = -I$(HOME)/local/grackle/include -DCONFIG_BFLOAT_8
+LIB_GRACKLE = -L$(HOME)/local/grackle/lib -lgrackle
+
+DYNLIB = -shared
+DYNLIB_EXT = .so
+endif
+
 ifeq ($(findstring campusrocks2, $(HOSTNAME)),campusrocks2)
 # Campus cluster options
 # 	Overwrite general linux options
-SYSTEM_INC = -I$(HOME)/local/libuuid/include
-SYSTEM_LIB = -L$(HOME)/local/libuuid/lib -luuid
-endif
+CC = gcc
+CXX = g++
+
+C_FLAGS =  -Wall -g
+CXX_FLAGS = -Wall -g -std=c++11
+
+INC += -I$(HOME)/local/libuuid/include
+LIB += -L$(HOME)/local/libuuid/lib -luuid
+
+INC_BOOST = 
+LIB_BOOST =
+
+INC_GSL =
+LIB_GSL =
+
+INC_GRACKLE = -I$(HOME)/local/grackle/include -DCONFIG_BFLOAT_8
+LIB_GRACKLE = -L$(HOME)/local/grackle/lib -lgrackle
+
+DYNLIB = -shared
+DYNLIB_EXT = .so
 endif
 
 ifeq ($(shell uname),Darwin)
 # Mac options
-SYSTEM_INC = 
-SYSTEM_LIB = 
-endif
-
 CC = cc
 CXX = c++
-FLAGS =  -Wall -g 
 
-INC = $(SYSTEM_INC)
-LIB = -lm $(SYSTEM_LIB)
+C_FLAGS =  -Wall -g
+CXX_FLAGS = -Wall -g -std=c++11
+
+INC += 
+LIB +=
+
+INC_BOOST = 
+LIB_BOOST =
+
+INC_GSL =
+LIB_GSL =
+
+INC_GRACKLE = -I$(HOME)/local/grackle/include -DCONFIG_BFLOAT_8
+LIB_GRACKLE = -L$(HOME)/local/grackle/lib -lgrackle
+
+DYNLIB = -dynamiclib
+DYNLIB_EXT = .dylib
+endif
+
+INC +=  $(INC_BOOST) $(INC_GSL) $(INC_GRACKLE)
+LIB +=  $(LIB_BOOST) $(LIB_GSL) $(LIB_GRACKLE)
+
+LIB_NAME = ../lib/$(EXE)$(DYNLIB_EXT)
+
+############# SYSTEM SPECIFIC ########################################
+
 
 OBJ = main.o profiler.o readpar.o domain.o gridsetup.o \
       geometry.o misc.o timestep.o riemann.o boundary.o plm.o \
@@ -63,10 +98,6 @@ OBJ = main.o profiler.o readpar.o domain.o gridsetup.o \
 
 HEADERS = structure.h constants.h
 
-DYNLIB = -dynamiclib
-DYNLIB_EXT = .dylib
-
-LIB_NAME = ../lib/SNe$(DYNLIB_EXT)
 
 ############# RULES ########################################
 
@@ -78,26 +109,26 @@ all: $(LIB_NAME)
 all: move_headers
 
 %.o: %.c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c $<
+	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c $<
 
 $(TIMESTEP).o: Timestep/$(TIMESTEP).c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c Timestep/$(TIMESTEP).c
+	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c Timestep/$(TIMESTEP).c
 
 $(INITIAL).o : Initial/$(INITIAL).c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c Initial/$(INITIAL).c
+	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c Initial/$(INITIAL).c
 
 $(HYDRO).o : Hydro/$(HYDRO).c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c Hydro/$(HYDRO).c
+	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c Hydro/$(HYDRO).c
 
 $(OUTPUT).o : Output/$(OUTPUT).c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c Output/$(OUTPUT).c
+	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c Output/$(OUTPUT).c
 
 $(EXE): $(OBJ) $(HEADERS) 
-	$(CC) $(FLAGS) -o $(EXE) $(OBJ) $(LIB) $(LIBS) $(GRACKLE_LIB)
+	$(CXX) $(CXX_FLAGS) -o $(EXE) $(OBJ) $(LIB)
 	cp $(EXE) ../bin/$(EXE)
 
 $(LIB_NAME): $(OBJ) $(HEADERS)
-	$(CC) $(FLAGS) -o $(LIB_NAME) $(OBJ) $(LIB) $(LIBS) $(GRACKLE_LIB)
+	$(CXX) $(CXX_FLAGS) -o $(LIB_NAME) $(OBJ) $(LIB)
 
 move_headers: 
 	cp $(HEADERS) ../include/

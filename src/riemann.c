@@ -22,7 +22,7 @@ void prim2cons( double * , double * , double );
 void cons2prim( double * , double * , double );
 void flux( double * , double * );
 void getUstar( double * , double * , double , double );
-void vel( double * , double * , double * , double * , double * , double );
+void vel( double * , double * , double * , double * , double * );
 double get_eta( double * , double * , double );
 double get_dV( double , double );
 
@@ -73,7 +73,7 @@ void riemann( struct cell * cL , struct cell * cR, double r , double dA , double
 
    double Sl,Sr,Ss;
 
-   vel( primL , primR , &Sl , &Sr , &Ss , r );
+   vel( primL , primR , &Sl , &Sr , &Ss );
 
    double Fl[NUM_Q];
    double Fr[NUM_Q];

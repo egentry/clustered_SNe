@@ -1,8 +1,10 @@
 
 #include <string.h>
 #include <assert.h>
-#include <math.h>
+// #include <math.h>
 #include <grackle.h>
+#include <cmath>
+
 
 #include "structure.h"
 
@@ -670,7 +672,7 @@ void AMR( struct domain * theDomain ){
       // equal primitives + conservatives between two split cells
       for ( q=0 ; q<NUM_Q ; ++q)
       {
-         if ( abs((c->prim[q] - prim_tmp[q]) / prim_tmp[q]) > 1e-6)
+         if ( std::abs((c->prim[q] - prim_tmp[q]) / prim_tmp[q]) > 1e-6)
          {
             printf("-----ERROR in AMR (forge) ------- \n");
             printf("expected cp->prim[%d] == prim_tmp[%d] \n", q, q);
@@ -680,7 +682,7 @@ void AMR( struct domain * theDomain ){
             printf("fractional error : %e \n", (cp->prim[q] - prim_tmp[q]) / prim_tmp[q]);
             assert(0);
          }
-         if ( abs((cp->prim[q] - prim_tmp[q]) / prim_tmp[q]) > 1e-6)
+         if ( std::abs((cp->prim[q] - prim_tmp[q]) / prim_tmp[q]) > 1e-6)
          {
             printf("-----ERROR in AMR (forge) ------- \n");
             printf("expected cp->prim[%d] == prim_tmp[%d] \n", q, q);
@@ -690,7 +692,7 @@ void AMR( struct domain * theDomain ){
             printf("fractional error : %e \n", (cp->prim[q] - prim_tmp[q]) / prim_tmp[q]);
             assert(0);
          }
-         if ( abs((cp->prim[q] - c->prim[q]) / c->prim[q]) > 1e-6)
+         if ( std::abs((cp->prim[q] - c->prim[q]) / c->prim[q]) > 1e-6)
          {
             printf("-----ERROR in AMR (forge) ------- \n");
             printf("expected cp->prim[%d] == c->prim[%d] \n", q, q);
@@ -700,7 +702,7 @@ void AMR( struct domain * theDomain ){
             printf("fractional error : %e \n", (cp->prim[q] - c->prim[q]) / c->prim[q]);
             assert(0);
          }
-         if ( abs((cp->cons[q] - c->cons[q]) / c->cons[q]) > 1e-6)
+         if ( std::abs((cp->cons[q] - c->cons[q]) / c->cons[q]) > 1e-6)
          {
             printf("-----ERROR in AMR (forge) ------- \n");
             printf("expected cp->cons[%d] == c->cons[%d] \n", q, q);
