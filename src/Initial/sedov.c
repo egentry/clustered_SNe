@@ -42,7 +42,7 @@ int setICparams( struct domain * theDomain ){
    //
    //  Outputs:
    //     - error        - 0 for successful execution
-   //                    - 1 for failure (should cause this rank to quietly stop)
+   //                    - 1 for failure (should cause this run to quietly stop)
    //
    //  Side effects:
    //     - overwrites the static variables for these initial conditions
@@ -124,7 +124,7 @@ int setup_parameter_study( struct domain * theDomain )
    //
    //  Outputs:
    //     - error        - 0 for successful execution
-   //                    - 1 for failure (should cause this rank to quietly stop)
+   //                    - 1 for failure (should cause this run to quietly stop)
    //
    //  Side effects:
    //     - overwrites:
@@ -162,7 +162,7 @@ int setup_parameter_study( struct domain * theDomain )
                                              m_proton*1.33e-3};
 
 
-   if( (theDomain->rank + completed_runs) >= (n_metallicities * n_background_densities) )
+   if( completed_runs >= (n_metallicities * n_background_densities) )
    {
       return(1);
    }
@@ -173,7 +173,7 @@ int setup_parameter_study( struct domain * theDomain )
    {
       for( j=0 ; j<n_background_densities ; ++j)
       {
-         if( theDomain->rank+completed_runs == k )
+         if( completed_runs == k )
          {
             theDomain->metallicity            = metallicities[i];
             theDomain->background_density     = background_densities[j];
@@ -236,7 +236,7 @@ int parse_command_line_args ( struct domain * theDomain , int argc , char * argv
    //
    //  Outputs:
    //     - error        - 0 for successful execution
-   //                    - 1 for failure (should cause this rank to quietly stop)
+   //                    - 1 for failure (should cause this run to quietly stop)
    //
    //  Side effects:
    //     - overwrites:

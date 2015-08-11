@@ -49,13 +49,17 @@ SYSTEM_INC =
 SYSTEM_LIB = 
 endif
 
-CC = mpicc
+CC = cc
+CXX = c++
 FLAGS =  -Wall -g 
 
 INC = $(SYSTEM_INC)
 LIB = -lm $(SYSTEM_LIB)
 
-OBJ = main.o mpisetup.o profiler.o readpar.o domain.o gridsetup.o geometry.o misc.o timestep.o riemann.o boundary.o plm.o cooling.o $(INITIAL).o $(OUTPUT).o $(HYDRO).o #report.o
+OBJ = main.o profiler.o readpar.o domain.o gridsetup.o \
+      geometry.o misc.o timestep.o riemann.o boundary.o plm.o \
+      cooling.o \
+      $(INITIAL).o $(OUTPUT).o $(HYDRO).o
 
 HEADERS = structure.h constants.h
 

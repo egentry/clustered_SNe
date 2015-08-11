@@ -2,7 +2,6 @@
 #include "structure.h"
 
 int    read_par_file(            struct domain * );
-int    mpiSetup(                 struct domain * , int , char *[] );
 int    parse_command_line_args ( struct domain * , int , char *[] );
 void   setupGrid(                struct domain * );
 int    setupDomain(              struct domain * );
@@ -20,29 +19,18 @@ void   freeDomain(               struct domain * );
 int main( int argc , char * argv[] ){
  
    int error;
-   error = MPI_Init(&argc,&argv);
-   if( error!=MPI_SUCCESS ) return(0);
 
    struct domain theDomain = {0};
 
    error = read_par_file( &theDomain );
    if( error==1 ) 
    {
-      MPI_Finalize();
-      return(0);
-   }
-   
-   error = mpiSetup( &theDomain , argc , argv );
-   if( error==1 ) 
-   {
-      MPI_Finalize();
       return(0);
    }
    
    error =  parse_command_line_args ( &theDomain , argc , argv );
    if( error==1 ) 
    {
-      MPI_Finalize();
       return(0);
    }
 
@@ -50,7 +38,6 @@ int main( int argc , char * argv[] ){
    error = setupDomain( &theDomain );
    if( error==1 ) 
    {
-      MPI_Finalize();
       return(0);
    }
 
@@ -74,7 +61,6 @@ int main( int argc , char * argv[] ){
 
    generate_log( &theDomain );
    freeDomain( &theDomain );
-   MPI_Finalize();
 
    return(0);
 

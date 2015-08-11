@@ -4,7 +4,6 @@
 enum{RHO,PPP,VRR,XXX,AAA}; // respectively: density, Pressure, radial velocity, XXX (passive scalar), AAA (eddy strength)
 enum{DDD,TAU,SRR}; // respectively: mass, energy, momentum (radial)
 
-#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -44,7 +43,6 @@ struct domain{
    int Nr,Ng;                 // number of cells (total and guard, respectively)
 
    time_t Wallt_init;
-   int rank,size;             // MPI rank and size within MPI_COMM_WORLD
    char output_prefix[80];
 
    struct param_list theParList;  // for reading in from "in.par" file -- see above
