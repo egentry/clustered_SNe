@@ -106,7 +106,7 @@ code_units setup_cooling( struct domain * theDomain )
 
     char grackle_data_file[80] = "";
     strcat(grackle_data_file, getenv("HOME"));
-    strcat(grackle_data_file, "/bin/grackle/input/CloudyData_UVB=HM2012.h5"); 
+    strcat(grackle_data_file, "/local/grackle/input/CloudyData_UVB=HM2012.h5"); 
 
     printf("grackle data file: %s \n", grackle_data_file);
 
