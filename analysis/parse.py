@@ -15,8 +15,8 @@ if __package__ is None:
                                         os.pardir, 
                                         os.pardir))
 
-from SNe.analysis.constants import pc, M_solar, gamma, E_0, \
-                                   metallicity_solar
+from SNe.analysis.constants import m_proton, pc, M_solar, gamma, E_0, \
+                                   metallicity_solar, yr
 
 from SNe.analysis.helper_functions import calculate_mean_molecular_weight, \
                                           calculate_mass, \
@@ -87,7 +87,7 @@ def parse_run(data_dir="", id="", last_run=None):
         times[k] = float(line.split()[3])
         f.close()
 
-    overview_filename = data_dir + id + "overview.dat"
+    overview_filename = os.path.join(data_dir, id + "overview.dat")
     if os.path.exists(overview_filename):
         f = open(overview_filename, "r")
         line = f.readline()
@@ -104,7 +104,13 @@ def parse_run(data_dir="", id="", last_run=None):
         background_density = m_proton
         background_temperature = 1e4
         print("Using defaults")
-  
+
+    SNe_times_filename = os.path.join(data_dir, id + "SNe_times.dat")
+    if os.path.exists(SNe_times_filename):
+        SNe_times = np.loadtxt(SNe_times_filename)
+    else:
+        SNe_times = np.array([0.])
+    SNe_times.sort()
 
     mu = calculate_mean_molecular_weight(metallicity)
 
@@ -204,6 +210,8 @@ def parse_run(data_dir="", id="", last_run=None):
     last_run.R_shock    = R_shock
     last_run.momentum   = momentum
     last_run.Luminosity = Luminosity
+
+    last_run.SNe_times  = SNe_times
     
     # filter for when initial transients have settled
     # assume that the settling time scales with the total time

@@ -1,7 +1,7 @@
 
 #include <math.h>
 
-#include "structure.h"
+#include "structure.H"
 
 double get_dA( double r ){
    return( 4.*M_PI*r*r );

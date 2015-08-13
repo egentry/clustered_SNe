@@ -55,6 +55,8 @@ class Overview(object):
         # Add trailing slash (if dirname isn't empty)
         self.dirname = os.path.join(self.dirname, "")
         
+        self.num_SNe = 0 # default, since earlier runs won't have this saved
+
         f = open(filename, "r")
         for line in f:
             if "Metallicity" in line:
@@ -65,7 +67,17 @@ class Overview(object):
                 self.background_temperature = float(line.split()[2])
             elif "With cooling" in line:
                 self.with_cooling = bool(int(line.split()[2]))
+            elif "Number of SNe" in line:
+                self.num_SNe = int(line.split()[-1])
         f.close()
+
+        SNe_times_filename = filename.replace("overview", "SNe_times") 
+        if os.path.exists(SNe_times_filename):
+            self.SNe_times = np.loadtxt(SNe_times_filename)
+        else:
+            self.SNe_times = np.array([0.])
+        self.SNe_times.sort()
+
 
         return
 

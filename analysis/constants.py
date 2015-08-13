@@ -36,4 +36,3 @@ def print_constants():
 	print("yr =    ", str("{0:e}").format(units.year.to('s')))
 
 	return
-

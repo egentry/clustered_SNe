@@ -1,5 +1,5 @@
 
-#include "structure.h"
+#include "structure.H"
 
 void AMR( struct domain * ); 
 void set_wcell( struct domain * );

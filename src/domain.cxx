@@ -1,9 +1,17 @@
 
+#include <iostream>
+
 #include <uuid/uuid.h>
 #include <grackle.h>
 
-#include "structure.h"
-#include "constants.h"
+#include <assert.h>
+
+#include "domain.H"
+#include "structure.H"
+#include "constants.H"
+#include "blast.H"
+
+#include <algorithm>
 
 code_units setup_cooling( struct domain * );
 
@@ -13,10 +21,13 @@ void setRiemannParams( struct domain * );
 
 int setupDomain( struct domain * theDomain ){
 
+   int error;
+
    if (theDomain->theParList.With_Cooling == 1)
    {
       theDomain->cooling_units = setup_cooling(theDomain);
    }
+
 
    theDomain->t       = theDomain->theParList.t_min;
    theDomain->t_init  = theDomain->theParList.t_min;
@@ -33,7 +44,9 @@ int setupDomain( struct domain * theDomain ){
    theDomain->nsnp=-1;
    theDomain->nchk=-1;
 
-   // strcpy(theDomain->output_prefix, "test_"); // if you don't want a uuid prefix 
+   // // if you don't want a uuid prefix: 
+   // strcpy(theDomain->output_prefix, "test_");
+   
    uuid_t  id_binary;
    char id_ascii[80];
    uuid_generate(id_binary);
@@ -42,11 +55,36 @@ int setupDomain( struct domain * theDomain ){
    strcat(id_ascii, "_");
    strcpy(theDomain->output_prefix, id_ascii);
 
-   int error;
    error = setICparams( theDomain );
    if ( error==1 ) return(error);
    setHydroParams( theDomain );
    setRiemannParams( theDomain );
+
+   // everything below should probably go in a separate function?
+
+   assert( std::is_sorted( theDomain->SNe_times.rbegin(),
+                           theDomain->SNe_times.rend()   ) );
+
+   // SNe_times should have been set within the initial conditions
+   // probably within parse_command_line_args?
+   if ( theDomain->SNe_times.size() > 0 )
+   {
+
+      double t_first_SN = theDomain->SNe_times.back();
+      double t_last_SN  = theDomain->SNe_times.front();
+
+      theDomain->t      += t_first_SN;
+      theDomain->t_init += t_first_SN;
+      theDomain->t_fin  += t_last_SN;
+
+   }
+   else
+   {
+      std::cerr << "Error: No SNe in this run. Exiting." << std::endl;
+      // no supernovae. For now, just kill the process
+      // but maybe figure out a better way to respond?
+      return 1; 
+   }
 
    return(0);
 

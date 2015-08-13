@@ -1,7 +1,7 @@
 
 #include <string.h>
 
-#include "structure.h"
+#include "structure.H"
 
 enum{VAR_INT,VAR_DOUB,VAR_STR};
 

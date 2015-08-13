@@ -1,5 +1,5 @@
 
-#include "structure.h"
+#include "structure.H"
 
 double get_moment_arm( double , double );
 void initial( double * , double ); 
