@@ -1,10 +1,12 @@
 
 #include <string.h>
 #include <assert.h>
-#include <math.h>
+// #include <math.h>
 #include <grackle.h>
+#include <cmath>
 
-#include "structure.h"
+
+#include "structure.H"
 
 double get_dA( double );
 double get_dV( double , double );
@@ -144,35 +146,37 @@ void adjust_RK_cons( struct domain * theDomain , double RK ){
       }
 
       // ======== Verify post-conditions ========= //
-      double prim_tmp[NUM_Q];
-      double rp = c->riph;
-      double rm = rp-c->dr;
-      double dV = get_dV( rp , rm );
-      cons2prim( c->cons , prim_tmp , dV );
+      #ifndef NDEBUG
+         double prim_tmp[NUM_Q];
+         double rp = c->riph;
+         double rm = rp-c->dr;
+         double dV = get_dV( rp , rm );
+         cons2prim( c->cons , prim_tmp , dV );
 
-      if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor)
-      {
-         printf("------ ERROR in adjust_RK_cons()------- \n");
-         printf("pressure should be above pressure floor! \n");
-         printf("pressure       = %e in cell %i \n", prim_tmp[PPP], i);
-         printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
-         printf("rp = %e \n", rp);
-         printf("rm = %e \n", rm);
-         printf("dr = %e \n", c->dr);
-         assert(0);
-      }
-      for( q=0 ; q<NUM_Q ; ++q)
-      {
-         if(!isfinite(prim_tmp[q]) && q!=AAA)
+         if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor)
          {
             printf("------ ERROR in adjust_RK_cons()------- \n");
-            printf("prim[%d] = %e in cell %d \n", q, prim_tmp[q], i);
+            printf("pressure should be above pressure floor! \n");
+            printf("pressure       = %e in cell %i \n", prim_tmp[PPP], i);
+            printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
             printf("rp = %e \n", rp);
             printf("rm = %e \n", rm);
             printf("dr = %e \n", c->dr);
             assert(0);
          }
-      }
+         for( q=0 ; q<NUM_Q ; ++q)
+         {
+            if(!isfinite(prim_tmp[q]) && q!=AAA)
+            {
+               printf("------ ERROR in adjust_RK_cons()------- \n");
+               printf("prim[%d] = %e in cell %d \n", q, prim_tmp[q], i);
+               printf("rp = %e \n", rp);
+               printf("rm = %e \n", rm);
+               printf("dr = %e \n", c->dr);
+               assert(0);
+            }
+         }
+      #endif
    }
 }
 
@@ -207,59 +211,62 @@ void move_cells( struct domain * theDomain , double RK , double dt){
       struct cell * c = theCells+i;
 
       // ======== Verify pre-conditions ========= //
-      
-      double prim_tmp[NUM_Q];
-      double rp = c->riph;
-      double rm = rp-c->dr;
-      double dV = get_dV( rp , rm );
-      cons2prim( c->cons , prim_tmp , dV );
-      if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor)
-      {
-         printf("------ ERROR in move_cells() before moving------- \n");
-         printf("pressure should be above pressure floor! \n");
-         printf("pressure       = %e in cell %i \n", prim_tmp[PPP], i);
-         printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
-         printf("rp = %e \n", c->riph);
-         printf("rm = %e \n", c->riph - c->dr);
-         printf("dr = %e \n", c->dr);
-         assert(0);
-      }
+      #ifndef NDEBUG
+         
+         double prim_tmp[NUM_Q];
+         double rp = c->riph;
+         double rm = rp-c->dr;
+         double dV = get_dV( rp , rm );
+         cons2prim( c->cons , prim_tmp , dV );
+         if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor)
+         {
+            printf("------ ERROR in move_cells() before moving------- \n");
+            printf("pressure should be above pressure floor! \n");
+            printf("pressure       = %e in cell %i \n", prim_tmp[PPP], i);
+            printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
+            printf("rp = %e \n", c->riph);
+            printf("rm = %e \n", c->riph - c->dr);
+            printf("dr = %e \n", c->dr);
+            assert(0);
+         }
+      #endif
 
       // ======== Move Cells ========= //
 
       c->riph += c->wiph*dt;
 
       // ======== Verify post-conditions ========= //
-
-      rp = c->riph;
-      rm = rp-c->dr;
-      dV = get_dV( rp , rm );
-      cons2prim( c->cons , prim_tmp , dV );
-      if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor)
-      {
-         printf("------ ERROR in move_cells() after moving------- \n");
-         printf("pressure should be above pressure floor! \n");
-         printf("pressure       = %e in cell %i \n", prim_tmp[PPP], i);
-         printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
-         printf("rp = %e \n", rp);
-         printf("rm = %e \n", rm);
-         printf("dr = %e \n", c->dr);
-         assert(0);
-      }
-      int q;
-      for( q=0 ; q<NUM_Q ; ++q)
-      {
-         if(!isfinite(prim_tmp[q]) && q!=AAA)
+      #ifndef NDEBUG
+         rp = c->riph;
+         rm = rp-c->dr;
+         dV = get_dV( rp , rm );
+         cons2prim( c->cons , prim_tmp , dV );
+         if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor)
          {
-            printf("------ ERROR in move_cells()------- \n");
-            printf("non-finite prim[q] \n");
-            printf("prim[%d] = %e in cell %d \n", q, prim_tmp[q], i);
+            printf("------ ERROR in move_cells() after moving------- \n");
+            printf("pressure should be above pressure floor! \n");
+            printf("pressure       = %e in cell %i \n", prim_tmp[PPP], i);
+            printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
             printf("rp = %e \n", rp);
             printf("rm = %e \n", rm);
             printf("dr = %e \n", c->dr);
             assert(0);
          }
-      }
+         int q;
+         for( q=0 ; q<NUM_Q ; ++q)
+         {
+            if(!isfinite(prim_tmp[q]) && q!=AAA)
+            {
+               printf("------ ERROR in move_cells()------- \n");
+               printf("non-finite prim[q] \n");
+               printf("prim[%d] = %e in cell %d \n", q, prim_tmp[q], i);
+               printf("rp = %e \n", rp);
+               printf("rm = %e \n", rm);
+               printf("dr = %e \n", c->dr);
+               assert(0);
+            }
+         }
+      #endif
    }
 }
 
@@ -363,31 +370,32 @@ void calc_prim( struct domain * theDomain ){
 
 
       // ======== Verify post-conditions ========= //
-
-      if(c->prim[PPP] < theDomain->theParList.Pressure_Floor)
-      {
-         printf("------ ERROR in calc_prim()------- \n");
-         printf("pressure should be above pressure floor! \n");
-         printf("pressure       = %e in cell %i \n", c->prim[PPP], i);
-         printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
-         printf("rp = %e \n", rp);
-         printf("rm = %e \n", rm);
-         printf("dr = %e \n", c->dr);
-         assert(0);
-      }
-      int q;
-      for( q=0 ; q<NUM_Q ; ++q)
-      {
-         if(!isfinite(c->prim[q]) && q!=AAA)
+      #ifndef NDEBUG
+         if(c->prim[PPP] < theDomain->theParList.Pressure_Floor)
          {
             printf("------ ERROR in calc_prim()------- \n");
-            printf("prim[%d] = %e in cell %d \n", q, c->prim[q], i);
+            printf("pressure should be above pressure floor! \n");
+            printf("pressure       = %e in cell %i \n", c->prim[PPP], i);
+            printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
             printf("rp = %e \n", rp);
             printf("rm = %e \n", rm);
             printf("dr = %e \n", c->dr);
             assert(0);
          }
-      }
+         int q;
+         for( q=0 ; q<NUM_Q ; ++q)
+         {
+            if(!isfinite(c->prim[q]) && q!=AAA)
+            {
+               printf("------ ERROR in calc_prim()------- \n");
+               printf("prim[%d] = %e in cell %d \n", q, c->prim[q], i);
+               printf("rp = %e \n", rp);
+               printf("rm = %e \n", rm);
+               printf("dr = %e \n", c->dr);
+               assert(0);
+            }
+         }
+      #endif
    }
 }
 
@@ -448,30 +456,31 @@ void add_source( struct domain * theDomain , double dt ){
 
 
       // ======== Verify post-conditions ========= //
-
-      if(c->prim[PPP] < theDomain->theParList.Pressure_Floor)
-      {
-         printf("------ ERROR in add_source()------- \n");
-         printf("pressure should be above pressure floor! \n");
-         printf("pressure       = %e in cell %i \n", c->prim[PPP], i);
-         printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
-         printf("rp = %e \n", rp);
-         printf("rm = %e \n", rm);
-         printf("dr = %e \n", c->dr);
-         assert(0);
-      }
-      for( q=0 ; q<NUM_Q ; ++q)
-      {
-         if(!isfinite(c->prim[q]) && q!=AAA)
+      #ifndef NDEBUG
+         if(c->prim[PPP] < theDomain->theParList.Pressure_Floor)
          {
             printf("------ ERROR in add_source()------- \n");
-            printf("prim[%d] = %e in cell %d \n", q, c->prim[q], i);
+            printf("pressure should be above pressure floor! \n");
+            printf("pressure       = %e in cell %i \n", c->prim[PPP], i);
+            printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
             printf("rp = %e \n", rp);
             printf("rm = %e \n", rm);
             printf("dr = %e \n", c->dr);
             assert(0);
          }
-      }
+         for( q=0 ; q<NUM_Q ; ++q)
+         {
+            if(!isfinite(c->prim[q]) && q!=AAA)
+            {
+               printf("------ ERROR in add_source()------- \n");
+               printf("prim[%d] = %e in cell %d \n", q, c->prim[q], i);
+               printf("rp = %e \n", rp);
+               printf("rm = %e \n", rm);
+               printf("dr = %e \n", c->dr);
+               assert(0);
+            }
+         }
+      #endif
    }   
 
 }
@@ -519,29 +528,6 @@ void longandshort( struct domain * theDomain , double * L , double * S , int * i
       if( Long  < l ){ Long  = l; iLong  = i; } 
       if( Short < s ){ Short = s; iShort = i; } 
    }
-
-
-   // double tolerance = 0.5; // fudge factor -- explore this later
-   // i = 0;
-   // double rmin_0 = theDomain->theParList.rmin;
-   // double l = rmin   / rmin_0;
-   // double s = rmin_0 / rmin;
-   // if ( logscale )
-   // {
-   //    l = log10(l);
-   //    s = log10(s);
-   // }
-   // if ( l > tolerance )
-   // {
-   //    Long  = theDomain->theParList.MaxLong*2;
-   //    iLong = i;
-   // }
-   // else if ( s > tolerance )
-   // {
-   //    Short = s;
-   //    iShort = i;
-   // }
-
 
    *iS = iShort;
    *iL = iLong;
@@ -619,7 +605,7 @@ void AMR( struct domain * theDomain ){
    }
 
    if( L>MaxLong ){
-      if (iL == 0)
+      if (iL == 1)
       {
          // printf("FORGE! iL = %d\n",iL);         
       }
@@ -638,14 +624,13 @@ void AMR( struct domain * theDomain ){
       double rm = rp - c->dr;
       double r0 = pow( .5*(rp*rp*rp+rm*rm*rm) , 1./3. );
 
-      c->riph  = r0;
-      c->dr    = r0-rm;
-      cp->dr   = rp-r0; // cp->riph already set at rp
-
-      double dV_orig = get_dV(c->riph, c->riph - c->dr);
+      double dV_orig = get_dV(rp, rm);
       double prim_tmp[NUM_Q];
       cons2prim ( c->cons , prim_tmp , dV_orig);
 
+      c->riph  = r0;
+      c->dr    = r0-rm;
+      cp->dr   = rp-r0; // cp->riph already set at rp
 
       int q;
       for( q=0 ; q<NUM_Q ; ++q ){
@@ -667,50 +652,52 @@ void AMR( struct domain * theDomain ){
 
 
       // ======== Verify post-conditions ========= //
-      // equal primitives + conservatives between two split cells
-      for ( q=0 ; q<NUM_Q ; ++q)
-      {
-         if ( abs((c->prim[q] - prim_tmp[q]) / prim_tmp[q]) > 1e-6)
+      #ifndef NDEBUG
+         // equal primitives + conservatives between two split cells
+         for ( q=0 ; q<NUM_Q ; ++q)
          {
-            printf("-----ERROR in AMR (forge) ------- \n");
-            printf("expected cp->prim[%d] == prim_tmp[%d] \n", q, q);
-            printf("instead found: \n");
-            printf("c->prim[%d]  = %e \n", q, c->prim[q]);
-            printf("prim_tmp[%d] = %e \n", q, prim_tmp[q]);
-            printf("fractional error : %e \n", (cp->prim[q] - prim_tmp[q]) / prim_tmp[q]);
-            assert(0);
+            if ( std::abs((c->prim[q] - prim_tmp[q]) / prim_tmp[q]) > 1e-6)
+            {
+               printf("-----ERROR in AMR (forge) ------- \n");
+               printf("expected cp->prim[%d] == prim_tmp[%d] \n", q, q);
+               printf("instead found: \n");
+               printf("c->prim[%d]  = %e \n", q, c->prim[q]);
+               printf("prim_tmp[%d] = %e \n", q, prim_tmp[q]);
+               printf("fractional error : %e \n", (cp->prim[q] - prim_tmp[q]) / prim_tmp[q]);
+               assert(0);
+            }
+            if ( std::abs((cp->prim[q] - prim_tmp[q]) / prim_tmp[q]) > 1e-6)
+            {
+               printf("-----ERROR in AMR (forge) ------- \n");
+               printf("expected cp->prim[%d] == prim_tmp[%d] \n", q, q);
+               printf("instead found: \n");
+               printf("cp->prim[%d] = %e \n", q, cp->prim[q]);
+               printf("prim_tmp[%d] = %e \n", q, prim_tmp[q]);
+               printf("fractional error : %e \n", (cp->prim[q] - prim_tmp[q]) / prim_tmp[q]);
+               assert(0);
+            }
+            if ( std::abs((cp->prim[q] - c->prim[q]) / c->prim[q]) > 1e-6)
+            {
+               printf("-----ERROR in AMR (forge) ------- \n");
+               printf("expected cp->prim[%d] == c->prim[%d] \n", q, q);
+               printf("instead found: \n");
+               printf("cp->prim[%d] = %e \n", q, cp->prim[q]);
+               printf("c ->prim[%d] = %e \n", q, c ->prim[q]);
+               printf("fractional error : %e \n", (cp->prim[q] - c->prim[q]) / c->prim[q]);
+               assert(0);
+            }
+            if ( std::abs((cp->cons[q] - c->cons[q]) / c->cons[q]) > 1e-6)
+            {
+               printf("-----ERROR in AMR (forge) ------- \n");
+               printf("expected cp->cons[%d] == c->cons[%d] \n", q, q);
+               printf("instead found: \n");
+               printf("cp->cons[%d] = %e \n", q, cp->cons[q]);
+               printf("c ->cons[%d] = %e \n", q, c ->cons[q]);
+               printf("fractional error : %e \n", (cp->cons[q] - c->cons[q]) / c->cons[q]);
+               assert(0);
+            }
          }
-         if ( abs((cp->prim[q] - prim_tmp[q]) / prim_tmp[q]) > 1e-6)
-         {
-            printf("-----ERROR in AMR (forge) ------- \n");
-            printf("expected cp->prim[%d] == prim_tmp[%d] \n", q, q);
-            printf("instead found: \n");
-            printf("cp->prim[%d] = %e \n", q, cp->prim[q]);
-            printf("prim_tmp[%d] = %e \n", q, prim_tmp[q]);
-            printf("fractional error : %e \n", (cp->prim[q] - prim_tmp[q]) / prim_tmp[q]);
-            assert(0);
-         }
-         if ( abs((cp->prim[q] - c->prim[q]) / c->prim[q]) > 1e-6)
-         {
-            printf("-----ERROR in AMR (forge) ------- \n");
-            printf("expected cp->prim[%d] == c->prim[%d] \n", q, q);
-            printf("instead found: \n");
-            printf("cp->prim[%d] = %e \n", q, cp->prim[q]);
-            printf("c ->prim[%d] = %e \n", q, c ->prim[q]);
-            printf("fractional error : %e \n", (cp->prim[q] - c->prim[q]) / c->prim[q]);
-            assert(0);
-         }
-         if ( abs((cp->cons[q] - c->cons[q]) / c->cons[q]) > 1e-6)
-         {
-            printf("-----ERROR in AMR (forge) ------- \n");
-            printf("expected cp->cons[%d] == c->cons[%d] \n", q, q);
-            printf("instead found: \n");
-            printf("cp->cons[%d] = %e \n", q, cp->cons[q]);
-            printf("c ->cons[%d] = %e \n", q, c ->cons[q]);
-            printf("fractional error : %e \n", (cp->cons[q] - c->cons[q]) / c->cons[q]);
-            assert(0);
-         }
-      }
+      #endif
    }
 }
 

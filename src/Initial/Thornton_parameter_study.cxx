@@ -1,9 +1,10 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <assert.h>
 
-#include "../structure.h"
-#include "../constants.h"
+#include "../structure.H"
+#include "../constants.H"
 
 
 // ======== STATIC VARIABLES SPECIFIC TO THESE INITIAL CONDITIONS ========= //
@@ -13,9 +14,6 @@ static double mu;     // mean molecular weight -- this is the only time it's use
 static double Gamma;  // adiabatic index
 
 static double E_blast = 1e51;        // [erg]
-static double M_blast = 3 * M_sun;   // [g]
-static double V_blast;  // volume of the initial blast (1 cell)
-static double R_blast;  // outermost boundary of initial blast (1 cell)
 
 static int    completed_runs; // for starting a parameter study mid-way
 
@@ -57,19 +55,6 @@ int setICparams( struct domain * theDomain ){
 
    Gamma = theDomain->theParList.Adiabatic_Index;
 
-   int i;
-   const int n_blast = 2;
-   V_blast = 0.;
-   R_blast = 0.;
-   for( i=1 ; i<n_blast ; ++i )
-   {
-      struct cell * c = &(theDomain->theCells[i]);
-      const double rp = c->riph;
-      const double rm = rp - c->dr; 
-      V_blast += get_dV( rp , rm );
-      R_blast = rp;
-   }
-
    background_density     = theDomain->background_density;
    background_temperature = theDomain->background_temperature;
 
@@ -86,22 +71,13 @@ void initial( double * prim , double r ){
    double rho,Pp;
    double X;
 
-   if( r <= R_blast ){
+   // initial background conditions
+   rho = background_density;
+   const double T_0 = background_temperature;  // [K]
+   Pp  = (rho / (mu * m_proton)) * k_boltzmann * T_0;
 
+   X = 0.0;
 
-      // rho = M_blast / V_blast;
-      rho = background_density;
-
-      Pp  = (Gamma-1) * E_blast / V_blast;    
-      X = 1.0;
-   }else{
-      // initial background conditions
-      rho = background_density;
-      const double T_0 = background_temperature;  // [K]
-      Pp  = (rho / (mu * m_proton)) * k_boltzmann * T_0;
-
-      X = 0.0;
-   }
    prim[RHO] = rho;
    prim[PPP] = Pp;
    prim[VRR] = 0.0;
@@ -248,6 +224,11 @@ int parse_command_line_args ( struct domain * theDomain , int argc , char * argv
    //       (would be useful for scaling domain to scale from inputs)
    //
    // ============================================= //
+
+   // set only one supernova
+   // maybe there's a better spot for this?
+   assert( theDomain->SNe_times.size() == 0 );
+   theDomain->SNe_times.push_back(0.0 * yr);
 
    completed_runs = 0;
    if ( argc > 1 )

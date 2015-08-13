@@ -1,5 +1,5 @@
 
-#include "structure.h"
+#include "structure.H"
 
 void start_clock( struct domain * theDomain ){
    theDomain->Wallt_init = time(NULL);

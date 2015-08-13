@@ -1,5 +1,8 @@
 
-#include "structure.h"
+#include <iostream>
+
+#include "structure.H"
+#include "blast.H"
 
 int    read_par_file(            struct domain * );
 int    parse_command_line_args ( struct domain * , int , char *[] );
@@ -25,12 +28,14 @@ int main( int argc , char * argv[] ){
    error = read_par_file( &theDomain );
    if( error==1 ) 
    {
+      std::cerr << "Error in read_par_file" << std::endl;
       return(0);
    }
    
-   error =  parse_command_line_args ( &theDomain , argc , argv );
+   error =  parse_command_line_args( &theDomain , argc , argv );
    if( error==1 ) 
    {
+      std::cerr << "Error in parse_command_line_args" << std::endl;
       return(0);
    }
 
@@ -38,6 +43,7 @@ int main( int argc , char * argv[] ){
    error = setupDomain( &theDomain );
    if( error==1 ) 
    {
+      std::cerr << "Error in setupDomain" << std::endl;
       return(0);
    }
 
@@ -49,6 +55,7 @@ int main( int argc , char * argv[] ){
 
    while( !(theDomain.final_step) ){
 
+      add_blasts( &theDomain );
       set_wcell( &theDomain );
       double dt = getmindt( &theDomain );
       check_dt( &theDomain , &dt );

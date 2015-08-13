@@ -1,5 +1,5 @@
 
-#include "../structure.h"
+#include "../structure.H"
 
 static int NL = 0;
 static double * rr  = NULL;

@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include "structure.h"
+#include "structure.H"
 
 
 void calc_dr(struct domain * );

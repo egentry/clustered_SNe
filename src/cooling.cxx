@@ -4,10 +4,12 @@
 #include <stdlib.h>
 #include <assert.h>
 
+extern "C" {
 #include <grackle.h>
+}
 
-#include "constants.h" // defines physical constants
-#include "structure.h" 
+#include "constants.H" // defines physical constants
+#include "structure.H" 
 
 double calc_cooling( double * prim ,  double * cons , double metallicity , double dt , code_units my_units )
 {
@@ -40,12 +42,12 @@ double calc_cooling( double * prim ,  double * cons , double metallicity , doubl
     gr_float *density, *energy, *x_velocity, *y_velocity, *z_velocity;
     gr_float *metal_density;
 
-    density         = malloc(field_size * sizeof(gr_float));
-    energy          = malloc(field_size * sizeof(gr_float));
-    x_velocity      = malloc(field_size * sizeof(gr_float));
-    y_velocity      = malloc(field_size * sizeof(gr_float));
-    z_velocity      = malloc(field_size * sizeof(gr_float));
-    metal_density   = malloc(field_size * sizeof(gr_float));
+    density         = new gr_float[field_size];
+    energy          = new gr_float[field_size];
+    x_velocity      = new gr_float[field_size];
+    y_velocity      = new gr_float[field_size];
+    z_velocity      = new gr_float[field_size];
+    metal_density   = new gr_float[field_size];
 
     double density_initial = prim[RHO];
     double energy_initial  = (1. / (grackle_data.Gamma - 1.)) * prim[PPP] / prim[RHO];
@@ -83,12 +85,12 @@ double calc_cooling( double * prim ,  double * cons , double metallicity , doubl
     double dE = (energy[0] - energy_initial) * density_initial; // energy per unit volume
 
     // printf("use_grackle: %d \n", grackle_data.use_grackle);
-    free(density);
-    free(energy);
-    free(x_velocity);
-    free(y_velocity);
-    free(z_velocity);
-    free(metal_density);
+    delete density;
+    delete energy;
+    delete x_velocity;
+    delete y_velocity;
+    delete z_velocity;
+    delete metal_density;
     return dE;
 
 };    
@@ -105,8 +107,8 @@ code_units setup_cooling( struct domain * theDomain )
 
 
     char grackle_data_file[80] = "";
-    strcat(grackle_data_file, getenv("HOME"));
-    strcat(grackle_data_file, "/local/grackle/input/CloudyData_UVB=HM2012.h5"); 
+    strcat(grackle_data_file, GRACKLE_DIR);  // "GRACKLE_DIR" set by preprocessor
+    strcat(grackle_data_file, "/input/CloudyData_UVB=HM2012.h5"); 
 
     printf("grackle data file: %s \n", grackle_data_file);
 

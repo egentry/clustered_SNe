@@ -11,6 +11,8 @@ enum{DDD,TAU,SRR}; // respectively: mass, energy, momentum (radial)
 #include <time.h>
 #include <grackle.h>
 
+#include <vector>
+
 #define NUM_Q 5 // number of evolved variables
 #define NUM_G 2 // number of guard cells (counting both ends)
 
@@ -70,6 +72,12 @@ struct domain{
    // For Sedov initial conditions:
    double background_density;       
    double background_temperature;   
+
+   std::vector<double> SNe_times;
+
+   double cluster_mass; // [solar masses]
+   int seed;
+
 
 };
 

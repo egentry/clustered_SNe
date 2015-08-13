@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <grackle.h>
 
-#include "../structure.h"
+#include "../structure.H"
 
 static double GAMMA_LAW = 0.0;
 static double RHO_FLOOR = 0.0;
@@ -52,17 +52,18 @@ void cons2prim( double * cons , double * prim , double dV ){
    double gam = GAMMA_LAW;
    double Pp = (gam-1.)*rhoe;
 
-   if( rho<RHO_FLOOR ) 
-   {
-      printf("------ ERROR in cons2prim() -- RHO_FLOOR ------- \n");
-      printf("rho = %e \n", rho );
-      printf("Expected rho > %e \n", RHO_FLOOR);
-      printf("dV = %e \n", dV);
-      rho=RHO_FLOOR; 
+   #ifndef NDEBUG
+      if( rho<RHO_FLOOR ) 
+      {
+         printf("------ ERROR in cons2prim() -- RHO_FLOOR ------- \n");
+         printf("rho = %e \n", rho );
+         printf("Expected rho > %e \n", RHO_FLOOR);
+         printf("dV = %e \n", dV);
+         rho=RHO_FLOOR; 
 
-
-      assert(0);
-   }
+         assert(0);
+      }
+   #endif
    if( Pp < PRE_FLOOR )
    {
       // printf("------ ERROR in cons2prim()------- \n");
@@ -112,18 +113,19 @@ void getUstar( double * prim , double * Ustar , double Sk , double Ss ){
 
    // ======== Verify post-conditions ========= //
    // require finite fluxes
-   int q;
-   for( q=XXX ; q<NUM_Q ; ++q ){
-      Ustar[q] = prim[q]*Ustar[DDD];
-      if(!isfinite(Ustar[q]) && q!=AAA)
-      {
-         printf("Ustar[%d] = %e in 'getUstar()' \n", q, Ustar[q]);
-         printf("prim[%d]  = %e in 'getUstar()' \n", q, prim[q]);
-         printf("Sk        = %20.10le in 'getUstar()' \n", Sk);
-         printf("Ss        = %20.10le in 'getUstar()' \n", Ss);
-         assert(0);
+   #ifndef NDEBUG
+      for( int q=XXX ; q<NUM_Q ; ++q ){
+         Ustar[q] = prim[q]*Ustar[DDD];
+         if(!isfinite(Ustar[q]) && q!=AAA)
+         {
+            printf("Ustar[%d] = %e in 'getUstar()' \n", q, Ustar[q]);
+            printf("prim[%d]  = %e in 'getUstar()' \n", q, prim[q]);
+            printf("Sk        = %20.10le in 'getUstar()' \n", Sk);
+            printf("Ss        = %20.10le in 'getUstar()' \n", Ss);
+            assert(0);
+         }
       }
-   }
+   #endif
 
 }
 
@@ -140,8 +142,7 @@ void flux( double * prim , double * flux ){
    flux[SRR] = rho*vr*vr + Pp;
    flux[TAU] = (.5*rho*v2 + rhoe + Pp)*vr;
 
-   int q;
-   for( q=XXX ; q<NUM_Q ; ++q ){
+   for( int q=XXX ; q<NUM_Q ; ++q ){
       flux[q] = flux[DDD]*prim[q];
    }
 }
@@ -258,20 +259,22 @@ void vel( double * prim1 , double * prim2 , double * Sl , double * Sr , double *
 
    // ======== Verify post-conditions ========= //
    // wave family characteristics should have different speeds
-   if( *Sr == *Sl)
-   {
-      printf("------- ERROR in vel() ----------- \n");
-      printf("Sr = Sl = %e \n", *Sr);
-      printf("cs1  = %e \n", cs1);
-      printf("cs2  = %e \n", cs2);
-      printf("vn1  = %e \n", vn1);
-      printf("vn1  = %e \n", vn2);
-      printf("P1   = %e \n", P1);
-      printf("rho1 = %e \n", rho1);
-      printf("P2   = %e \n", P2);
-      printf("rho2 = %e \n", rho2);
-      assert(0);
-   }
+   #ifndef NDEBUG
+      if( *Sr == *Sl)
+      {
+         printf("------- ERROR in vel() ----------- \n");
+         printf("Sr = Sl = %e \n", *Sr);
+         printf("cs1  = %e \n", cs1);
+         printf("cs2  = %e \n", cs2);
+         printf("vn1  = %e \n", vn1);
+         printf("vn1  = %e \n", vn2);
+         printf("P1   = %e \n", P1);
+         printf("rho1 = %e \n", rho1);
+         printf("P2   = %e \n", P2);
+         printf("rho2 = %e \n", rho2);
+         assert(0);
+      }
+   #endif
   
 }
 

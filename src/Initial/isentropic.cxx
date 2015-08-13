@@ -1,5 +1,5 @@
 
-#include "../structure.h"
+#include "../structure.H"
 
 int setICparams( struct domain * theDomain ){
    return(0);

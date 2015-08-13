@@ -1,72 +1,127 @@
 
-INITIAL  = sedov
+INITIAL  = cluster_SNe
 HYDRO    = euler
 OUTPUT   = ascii
 
 EXE      = SNe
 
-############# Grackle cooling ########################################
-# See grackle documentation/examples to figure out what's going on here
-#
-# This'll pollute a lot of the namespace (e.g. DEFINES, CFLAGS, INCLUDES, LIBS)
 
-GRACKLE 			= $(HOME)/local/grackle
-GRACKLE_DIR 		= $(GRACKLE)/src/clib
-include $(GRACKLE_DIR)/Make.config.settings
+############# SYSTEM SPECIFIC ########################################
+INC = 
+LIB = -lm
 
-MAKE_CONFIG_MACHINE  = $(GRACKLE_DIR)/Make.config.machine
-include $(GRACKLE_DIR)/Make.config.machine
 
-MAKE_CONFIG_OVERRIDE = $(GRACKLE_DIR)/Make.config.override
-include $(MAKE_CONFIG_OVERRIDE)
-CONFIG_USE_MPI = yes
-
-include $(GRACKLE_DIR)/Make.config.assemble
-
--include $(GRACKLE_DIR)/Make.mach.$(CONFIG_MACHINE)
--include $(HOME)/.grackle/Make.mach.$(CONFIG_MACHINE)
-
-GRACKLE_INCLUDE = -I$(MACH_INSTALL_PREFIX)/include
-GRACKLE_LIB = -L$(MACH_INSTALL_PREFIX)/lib -lgrackle
-
-############# DEFINITIONS ########################################
 
 ifeq ($(shell uname),Linux)
 # General linux options
-SYSTEM_INC = 
-SYSTEM_LIB = -luuid
+CC = gcc
+CXX = g++
+
+C_FLAGS =  -Wall -g
+CXX_FLAGS = -Wall -g -std=c++11
+
+INC += 
+LIB += -luuid
+
+SLUG_DIR = $(HOME)/local/slug2
+INC_SLUG = -I$(SLUG_DIR)/src
+LIB_SLUG = -L$(SLUG_DIR)/src -lslug
+
+INC_BOOST = 
+LIB_BOOST = -lboost_system -lboost_filesystem
+
+INC_GSL =
+LIB_GSL =
+
+#GRACKLE_DIR is needed for a define statement within cooling
+GRACKLE_DIR = $(HOME)/local/grackle
+INC_GRACKLE = -I$(GRACKLE_DIR)/include -DCONFIG_BFLOAT_8
+LIB_GRACKLE = -L$(GRACKLE_DIR)/lib -lgrackle
+
+DYNLIB = -shared
+DYNLIB_EXT = .so
+endif
+
 ifeq ($(findstring campusrocks2, $(HOSTNAME)),campusrocks2)
 # Campus cluster options
 # 	Overwrite general linux options
-SYSTEM_INC = -I$(HOME)/local/libuuid/include
-SYSTEM_LIB = -L$(HOME)/local/libuuid/lib -luuid
-endif
+CC = gcc
+CXX = g++
+
+C_FLAGS =  -Wall -g
+CXX_FLAGS = -Wall -g -std=c++11
+
+INC += -I$(HOME)/local/libuuid/include
+LIB += -L$(HOME)/local/libuuid/lib -luuid
+
+SLUG_DIR = $(HOME)/local/slug2
+INC_SLUG = -I$(SLUG_DIR)/src
+LIB_SLUG = -L$(SLUG_DIR)/src -lslug
+
+INC_BOOST = 
+LIB_BOOST = -lboost_system -lboost_filesystem
+
+INC_GSL =
+LIB_GSL =
+
+#GRACKLE_DIR is needed for a define statement within cooling
+GRACKLE_DIR = $(HOME)/local/grackle
+INC_GRACKLE = -I$(GRACKLE_DIR)/include -DCONFIG_BFLOAT_8
+LIB_GRACKLE = -L$(GRACKLE_DIR)/lib -lgrackle
+
+DYNLIB = -shared
+DYNLIB_EXT = .so
 endif
 
 ifeq ($(shell uname),Darwin)
 # Mac options
-SYSTEM_INC = 
-SYSTEM_LIB = 
-endif
-
 CC = cc
 CXX = c++
-FLAGS =  -Wall -g 
 
-INC = $(SYSTEM_INC)
-LIB = -lm $(SYSTEM_LIB)
+C_FLAGS =  -Wall -g
+CXX_FLAGS = -Wall -g -std=c++11
 
-OBJ = main.o profiler.o readpar.o domain.o gridsetup.o \
-      geometry.o misc.o timestep.o riemann.o boundary.o plm.o \
-      cooling.o \
-      $(INITIAL).o $(OUTPUT).o $(HYDRO).o
+INC += 
+LIB +=
 
-HEADERS = structure.h constants.h
+SLUG_DIR = $(HOME)/local/slug2
+INC_SLUG = -I$(SLUG_DIR)/src
+LIB_SLUG = -L$(SLUG_DIR)/src -lslug
+
+INC_BOOST = 
+LIB_BOOST = -lboost_system -lboost_filesystem
+
+INC_GSL =
+LIB_GSL =
+
+#GRACKLE_DIR is needed for a define statement within cooling
+GRACKLE_DIR = $(HOME)/local/grackle
+INC_GRACKLE = -I$(GRACKLE_DIR)/include -DCONFIG_BFLOAT_8
+LIB_GRACKLE = -L$(GRACKLE_DIR)/lib -lgrackle
 
 DYNLIB = -dynamiclib
 DYNLIB_EXT = .dylib
+endif
 
-LIB_NAME = ../lib/SNe$(DYNLIB_EXT)
+INC +=  $(INC_SLUG) $(INC_BOOST) $(INC_GSL) $(INC_GRACKLE)
+LIB +=  $(LIB_SLUG) $(LIB_BOOST) $(LIB_GSL) $(LIB_GRACKLE)
+
+INC_DIR = ../include/
+LIB_DIR = ../lib/
+LIB_NAME = $(LIB_DIR)lib$(EXE)$(DYNLIB_EXT)
+
+DEFINES += -DGRACKLE_DIR=\"$(GRACKLE_DIR)\"
+DEFINES += -DSLUG_DIR=\"$(SLUG_DIR)\"
+
+############# SYSTEM SPECIFIC ########################################
+
+
+OBJ = main.o profiler.o readpar.o domain.o gridsetup.o \
+      geometry.o misc.o timestep.o riemann.o boundary.o plm.o \
+      cooling.o blast.o \
+      $(INITIAL).o $(OUTPUT).o $(HYDRO).o
+
+HEADERS = structure.H constants.H blast.H domain.H
 
 ############# RULES ########################################
 
@@ -78,29 +133,34 @@ all: $(LIB_NAME)
 all: move_headers
 
 %.o: %.c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c $<
+	$(CC) $(DEFINES) $(C_FLAGS) $(INC) -c $<
 
-$(TIMESTEP).o: Timestep/$(TIMESTEP).c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c Timestep/$(TIMESTEP).c
+%.o: %.cxx $(HEADERS)
+	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c $<
 
-$(INITIAL).o : Initial/$(INITIAL).c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c Initial/$(INITIAL).c
+$(TIMESTEP).o: Timestep/$(TIMESTEP).cxx $(HEADERS)
+	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c Timestep/$(TIMESTEP).cxx
 
-$(HYDRO).o : Hydro/$(HYDRO).c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c Hydro/$(HYDRO).c
+$(INITIAL).o : Initial/$(INITIAL).cxx $(HEADERS)
+	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c Initial/$(INITIAL).cxx
 
-$(OUTPUT).o : Output/$(OUTPUT).c $(HEADERS)
-	$(CC) $(DEFINES) $(CFLAGS) $(INC) $(INCLUDES) $(GRACKLE_INCLUDE) $(FLAGS) -c Output/$(OUTPUT).c
+$(HYDRO).o : Hydro/$(HYDRO).cxx $(HEADERS)
+	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c Hydro/$(HYDRO).cxx
+
+$(OUTPUT).o : Output/$(OUTPUT).cxx $(HEADERS)
+	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c Output/$(OUTPUT).cxx
 
 $(EXE): $(OBJ) $(HEADERS) 
-	$(CC) $(FLAGS) -o $(EXE) $(OBJ) $(LIB) $(LIBS) $(GRACKLE_LIB)
+	$(CXX) $(CXX_FLAGS) -o $(EXE) $(OBJ) $(LIB)
 	cp $(EXE) ../bin/$(EXE)
 
-$(LIB_NAME): $(OBJ) $(HEADERS)
-	$(CC) $(FLAGS) -o $(LIB_NAME) $(OBJ) $(LIB) $(LIBS) $(GRACKLE_LIB)
+$(LIB_NAME): $(OBJ) $(HEADERS) $(EXE)
+	mkdir -p $(LIB_DIR)
+	$(CXX) $(CXX_FLAGS) -o $(LIB_NAME) $(OBJ) $(LIB)
 
 move_headers: 
-	cp $(HEADERS) ../include/
+	mkdir -p $(INC_DIR)
+	cp $(HEADERS) $(INC_DIR)
 
 clean:
 	rm -f *.o $(EXE)
