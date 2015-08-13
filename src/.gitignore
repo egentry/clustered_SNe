@@ -1,0 +1,6 @@
+*.o
+*.dat
+*.log
+*.so
+*.dylib
+SNe

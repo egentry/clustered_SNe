@@ -1,0 +1,3 @@
+exclude_rsync.txt
+package_data.sh
+sync.sh
