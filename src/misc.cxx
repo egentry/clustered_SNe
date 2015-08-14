@@ -3,7 +3,8 @@
 #include <assert.h>
 // #include <math.h>
 #include <grackle.h>
-#include <cmath>
+#include <cmath> // std::abs
+#include <cfloat> // std::isfinite
 
 
 #include "structure.H"
@@ -166,7 +167,7 @@ void adjust_RK_cons( struct domain * theDomain , double RK ){
          }
          for( q=0 ; q<NUM_Q ; ++q)
          {
-            if(!isfinite(prim_tmp[q]) && q!=AAA)
+            if(!std::isfinite(prim_tmp[q]) && q!=AAA)
             {
                printf("------ ERROR in adjust_RK_cons()------- \n");
                printf("prim[%d] = %e in cell %d \n", q, prim_tmp[q], i);
@@ -255,7 +256,7 @@ void move_cells( struct domain * theDomain , double RK , double dt){
          int q;
          for( q=0 ; q<NUM_Q ; ++q)
          {
-            if(!isfinite(prim_tmp[q]) && q!=AAA)
+            if(!std::isfinite(prim_tmp[q]) && q!=AAA)
             {
                printf("------ ERROR in move_cells()------- \n");
                printf("non-finite prim[q] \n");
@@ -385,7 +386,7 @@ void calc_prim( struct domain * theDomain ){
          int q;
          for( q=0 ; q<NUM_Q ; ++q)
          {
-            if(!isfinite(c->prim[q]) && q!=AAA)
+            if(!std::isfinite(c->prim[q]) && q!=AAA)
             {
                printf("------ ERROR in calc_prim()------- \n");
                printf("prim[%d] = %e in cell %d \n", q, c->prim[q], i);
@@ -470,7 +471,7 @@ void add_source( struct domain * theDomain , double dt ){
          }
          for( q=0 ; q<NUM_Q ; ++q)
          {
-            if(!isfinite(c->prim[q]) && q!=AAA)
+            if(!std::isfinite(c->prim[q]) && q!=AAA)
             {
                printf("------ ERROR in add_source()------- \n");
                printf("prim[%d] = %e in cell %d \n", q, c->prim[q], i);

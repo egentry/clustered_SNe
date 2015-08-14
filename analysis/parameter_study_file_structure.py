@@ -57,6 +57,8 @@ class Overview(object):
         
         self.num_SNe = 0 # default, since earlier runs won't have this saved
 
+        # this parsing is redundant with parts from parse_run in parse.py
+        # they should probably be consolidated
         f = open(filename, "r")
         for line in f:
             if "Metallicity" in line:

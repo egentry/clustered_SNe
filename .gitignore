@@ -1,6 +1,7 @@
 tmp*
 *__pycache__
 .ipynb_checkpoints
+*.tar.gz
 *.dat
 *.log
 saved_runs/

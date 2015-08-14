@@ -50,7 +50,7 @@ CC = gcc
 CXX = g++
 
 C_FLAGS =  -Wall -g
-CXX_FLAGS = -Wall -g -std=c++11
+CXX_FLAGS = -Wall -g -std=c++11 -fPIC
 
 INC += 
 LIB += -lstdc++
@@ -83,7 +83,7 @@ CC = cc
 CXX = c++
 
 C_FLAGS =  -Wall -g
-CXX_FLAGS = -Wall -g -std=c++11
+CXX_FLAGS = -Wall -g -std=c++11 -fPIC
 
 INC += 
 LIB += 

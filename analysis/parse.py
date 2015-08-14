@@ -90,14 +90,17 @@ def parse_run(data_dir="", id="", last_run=None):
     overview_filename = os.path.join(data_dir, id + "overview.dat")
     if os.path.exists(overview_filename):
         f = open(overview_filename, "r")
-        line = f.readline()
-        metallicity = float(line.split()[1])
-
-        line = f.readline()
-        background_density = float(line.split()[2])
-
-        line = f.readline()
-        background_temperature = float(line.split()[2])
+        for line in f:
+            if "Metallicity" in line:
+                metallicity = float(line.split()[1])
+            elif "Background Density" in line:
+                background_density = float(line.split()[2])
+            elif "Background Temperature" in line:
+                background_temperature = float(line.split()[2])
+            elif "With cooling" in line:
+                with_cooling = bool(int(line.split()[2]))
+            elif "Number of SNe" in line:
+                num_SNe = int(line.split()[-1])
         f.close()
     else:
         metallicity = metallicity_solar
@@ -230,3 +233,5 @@ def parse_run(data_dir="", id="", last_run=None):
                                  background_density,
                                  background_temperature)
     return parse_results
+
+parse_run(data_dir="../src", id="")
