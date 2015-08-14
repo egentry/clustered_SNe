@@ -1,9 +1,9 @@
 #!/bin/bash
 #
+#$ -t 1-10
+#
 #$ -M egentry@ucsc.edu
 #$ -m e
-#
-#$ -q small.q
 #
 #$ -cwd
 #$ -S /bin/bash

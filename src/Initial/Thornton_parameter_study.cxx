@@ -1,4 +1,6 @@
 
+#include <iostream>
+
 #include <stdio.h>
 #include <math.h>
 #include <assert.h>
@@ -140,6 +142,8 @@ int setup_parameter_study( struct domain * theDomain )
 
    if( completed_runs >= (n_metallicities * n_background_densities) )
    {
+      std::cerr << "completed_runs is greater than the number of runs possible"
+                << std::endl;
       return(1);
    }
 
@@ -231,10 +235,10 @@ int parse_command_line_args ( struct domain * theDomain , int argc , char * argv
    theDomain->SNe_times.push_back(0.0 * yr);
 
    completed_runs = 0;
-   if ( argc > 1 )
+   if ( argc > 2 )
    {
       char *buf;
-      completed_runs = strtol( argv[1] , &buf, 10);
+      completed_runs = strtol( argv[2] , &buf, 10);
       printf("completed_runs = %d \n", completed_runs);
    }
 

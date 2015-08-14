@@ -1,13 +1,23 @@
 
+#include <iostream>
 #include <string.h>
+#include <string>
 
 #include "structure.H"
+#include "readpar.H"
 
 enum{VAR_INT,VAR_DOUB,VAR_STR};
 
-int readvar( char * filename , const char * varname , int vartype , void * ptr ){
+int readvar( std::string filename , const char * varname , int vartype , 
+             void * ptr ){
 
-   FILE * inFile = fopen( filename , "r" );
+   FILE * inFile = fopen( filename.c_str() , "r" );
+   if (inFile==NULL)
+   {
+      std::cerr << "Input file \"" << filename << "\" not found." << std::endl;
+      return 1;
+   }
+
    char s[512];
    char nm[512];
    char s1[512];
@@ -22,7 +32,10 @@ int readvar( char * filename , const char * varname , int vartype , void * ptr )
    }
    
    fclose( inFile );
-   if( found==0 ) return(1);
+   if( found==0 ){
+       std::cerr << "Variable not found by readvar: " << varname << std::endl;
+      return(1);
+   } 
 
    char * s2 = s1+strlen(nm)+strspn(s1+strlen(nm),"\t :=>_");
 
@@ -43,41 +56,70 @@ int readvar( char * filename , const char * varname , int vartype , void * ptr )
    return(0);
 }
 
-int read_par_file( struct domain * theDomain ){
+int read_par_file( struct domain * theDomain , int argc , char * argv [] ){
 
    struct param_list * theList = &( theDomain->theParList );
 
-   char pfile[] = "in.par";
+   std::string par_filename("in.par");
+   if ( argc > 1 )
+   {
+      par_filename = std::string(argv[1]);
+   }
+
 
    int err=0;  
 
-   err += readvar( pfile , "Num_R"           , VAR_INT  , &(theList->Num_R)           );
-   err += readvar( pfile , "Num_Reports"     , VAR_INT  , &(theList->NumRepts)        );
-   err += readvar( pfile , "Num_Snapshots"   , VAR_INT  , &(theList->NumSnaps)        );
-   err += readvar( pfile , "Num_Checkpoints" , VAR_INT  , &(theList->NumChecks)       );
-   err += readvar( pfile , "T_Start"         , VAR_DOUB , &(theList->t_min)           );
-   err += readvar( pfile , "T_End"           , VAR_DOUB , &(theList->t_max)           );
-   err += readvar( pfile , "R_Min"           , VAR_DOUB , &(theList->rmin)            );
-   err += readvar( pfile , "R_Max"           , VAR_DOUB , &(theList->rmax)            );
-   err += readvar( pfile , "Use_Logtime"     , VAR_INT  , &(theList->Out_LogTime)     );
-   err += readvar( pfile , "Log_Zoning"      , VAR_INT  , &(theList->LogZoning)       );
-   err += readvar( pfile , "Log_Radius"      , VAR_DOUB , &(theList->LogRadius)       );
-   err += readvar( pfile , "CFL"             , VAR_DOUB , &(theList->CFL)             );
-   err += readvar( pfile , "PLM"             , VAR_INT  , &(theList->PLM)             );
-   err += readvar( pfile , "RK2"             , VAR_INT  , &(theList->RK2)             );
-   err += readvar( pfile , "Adiabatic_Index" , VAR_DOUB , &(theList->Adiabatic_Index) );
-   err += readvar( pfile , "Density_Floor"   , VAR_DOUB , &(theList->Density_Floor)   );
-   err += readvar( pfile , "Pressure_Floor"  , VAR_DOUB , &(theList->Pressure_Floor)  );
-   err += readvar( pfile , "With_Cooling"    , VAR_INT  , &(theList->With_Cooling)    );
-   err += readvar( pfile , "Mesh_Motion"     , VAR_INT  , &(theList->Mesh_Motion)     );
-   err += readvar( pfile , "Riemann_Solver"  , VAR_INT  , &(theList->Riemann_Solver)  );
-   err += readvar( pfile , "Use_RT"          , VAR_INT  , &(theList->rt_flag)         );
-   err += readvar( pfile , "Use_Logtime"     , VAR_INT  , &(theList->Out_LogTime)     );
-   err += readvar( pfile , "Max_Aspect_Short", VAR_DOUB , &(theList->MaxShort)        );
-   err += readvar( pfile , "Max_Aspect_Long" , VAR_DOUB , &(theList->MaxLong)         );
+   err += readvar( par_filename , "Num_R"           , VAR_INT  ,
+                                  &(theList->Num_R)           );
+   err += readvar( par_filename , "Num_Reports"     , VAR_INT  ,
+                                  &(theList->NumRepts)        );
+   err += readvar( par_filename , "Num_Snapshots"   , VAR_INT  ,
+                                  &(theList->NumSnaps)        );
+   err += readvar( par_filename , "Num_Checkpoints" , VAR_INT  ,
+                                  &(theList->NumChecks)       );
+   err += readvar( par_filename , "T_Start"         , VAR_DOUB ,
+                                  &(theList->t_min)           );
+   err += readvar( par_filename , "T_End"           , VAR_DOUB ,
+                                  &(theList->t_max)           );
+   err += readvar( par_filename , "R_Min"           , VAR_DOUB ,
+                                  &(theList->rmin)            );
+   err += readvar( par_filename , "R_Max"           , VAR_DOUB ,
+                                  &(theList->rmax)            );
+   err += readvar( par_filename , "Use_Logtime"     , VAR_INT  ,
+                                  &(theList->Out_LogTime)     );
+   err += readvar( par_filename , "Log_Zoning"      , VAR_INT  ,
+                                  &(theList->LogZoning)       );
+   err += readvar( par_filename , "Log_Radius"      , VAR_DOUB ,
+                                  &(theList->LogRadius)       );
+   err += readvar( par_filename , "CFL"             , VAR_DOUB ,
+                                  &(theList->CFL)             );
+   err += readvar( par_filename , "PLM"             , VAR_INT  ,
+                                  &(theList->PLM)             );
+   err += readvar( par_filename , "RK2"             , VAR_INT  ,
+                                  &(theList->RK2)             );
+   err += readvar( par_filename , "Adiabatic_Index" , VAR_DOUB ,
+                                  &(theList->Adiabatic_Index) );
+   err += readvar( par_filename , "Density_Floor"   , VAR_DOUB ,
+                                  &(theList->Density_Floor)   );
+   err += readvar( par_filename , "Pressure_Floor"  , VAR_DOUB ,
+                                  &(theList->Pressure_Floor)  );
+   err += readvar( par_filename , "With_Cooling"    , VAR_INT  ,
+                                  &(theList->With_Cooling)    );
+   err += readvar( par_filename , "Mesh_Motion"     , VAR_INT  ,
+                                  &(theList->Mesh_Motion)     );
+   err += readvar( par_filename , "Riemann_Solver"  , VAR_INT  ,
+                                  &(theList->Riemann_Solver)  );
+   err += readvar( par_filename , "Use_RT"          , VAR_INT  ,
+                                  &(theList->rt_flag)         );
+   err += readvar( par_filename , "Use_Logtime"     , VAR_INT  ,
+                                  &(theList->Out_LogTime)     );
+   err += readvar( par_filename , "Max_Aspect_Short", VAR_DOUB ,
+                                  &(theList->MaxShort)        );
+   err += readvar( par_filename , "Max_Aspect_Long" , VAR_DOUB ,
+                                  &(theList->MaxLong)         );
 
    if( err > 0 ){
-      printf("Read Failed\n");
+      std::cerr << "Reading parameter file failed" << std::endl;
       return(1);
    }
 

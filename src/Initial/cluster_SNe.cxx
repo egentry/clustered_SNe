@@ -151,9 +151,14 @@ int setup_parameter_study( struct domain * theDomain )
                                        pow(10, 5)};
 
 
-   if( completed_runs >= (n_metallicities * n_background_densities) )
+   if( completed_runs >= (n_metallicities * n_background_densities 
+                                          * n_cluster_masses)      )
    {
-      return(1);
+      // just add more seeds to the lowest mass case
+      theDomain->metallicity            = metallicities[0];
+      theDomain->background_density     = background_densities[0];
+      theDomain->background_temperature = 1e4;
+      theDomain->cluster_mass           = cluster_masses[0];
    }
 
    int run=0;
@@ -247,18 +252,18 @@ int parse_command_line_args ( struct domain * theDomain , int argc , char * argv
    assert( theDomain->SNe_times.size() == 0 );
 
    completed_runs = 0;
-   if ( argc > 1 )
+   if ( argc > 2 )
    {
       char *buf;
-      completed_runs = strtol( argv[1] , &buf, 10);
+      completed_runs = strtol( argv[2] , &buf, 10);
       printf("completed_runs = %d \n", completed_runs);
    }
    std::random_device rd;
    theDomain->seed = rd();
-   if ( argc > 2 )
+   if ( argc > 3 )
    {
       char *buf;
-      theDomain->seed = strtol( argv[2] , &buf, 10);
+      theDomain->seed = strtol( argv[3] , &buf, 10);
       printf("seed = %u \n", theDomain->seed);
    }
 

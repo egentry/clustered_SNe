@@ -3,8 +3,8 @@
 
 #include "structure.H"
 #include "blast.H"
+#include "readpar.H" // read_par_file()
 
-int    read_par_file(            struct domain * );
 int    parse_command_line_args ( struct domain * , int , char *[] );
 void   setupGrid(                struct domain * );
 int    setupDomain(              struct domain * );
@@ -25,7 +25,7 @@ int main( int argc , char * argv[] ){
 
    struct domain theDomain = {0};
 
-   error = read_par_file( &theDomain );
+   error = read_par_file( &theDomain , argc , argv );
    if( error==1 ) 
    {
       std::cerr << "Error in read_par_file" << std::endl;
