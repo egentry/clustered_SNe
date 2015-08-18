@@ -15,7 +15,7 @@ void output( struct domain * theDomain , const char * filestart , double t ){
    int Nr = theDomain->Nr;
 
    char filename[256] = "";
-   strcat(filename, theDomain->output_prefix);
+   strcat(filename, theDomain->output_prefix.c_str());
    strcat(filename, filestart);
    strcat(filename, ".dat");
 
@@ -63,7 +63,7 @@ void overview( struct domain * theDomain )
    // which changes depending on the initial conditions / which run we're doing
 
    char overview_filename[256] = "";
-   strcat(overview_filename, theDomain->output_prefix);
+   strcat(overview_filename, theDomain->output_prefix.c_str());
    strcat(overview_filename, "overview.dat");
    FILE * oFile = fopen(overview_filename,"w");
 
@@ -79,7 +79,7 @@ void overview( struct domain * theDomain )
       fprintf(oFile, "Number of SNe:       %lu \n", theDomain->SNe_times.size());
 
       char SNe_times_filename[256] = "";
-      strcat(SNe_times_filename, theDomain->output_prefix);
+      strcat(SNe_times_filename, theDomain->output_prefix.c_str());
       strcat(SNe_times_filename, "SNe_times.dat");
       FILE * SNe_times_oFile = fopen(SNe_times_filename,"w");
          fprintf(SNe_times_oFile, "# SNe times [s]: \n");

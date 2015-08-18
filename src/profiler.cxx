@@ -27,7 +27,7 @@ void generate_log( struct domain * theDomain ){
    double avgdt = (double)seconds/2./(double)Nc/(double)Nt;
 
    char logfile_filename[256] = "";
-   strcat(logfile_filename, theDomain->output_prefix);
+   strcat(logfile_filename, theDomain->output_prefix.c_str());
    strcat(logfile_filename, "times.log");
 
    FILE * logfile = fopen(logfile_filename,"w");

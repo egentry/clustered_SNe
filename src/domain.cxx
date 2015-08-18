@@ -1,5 +1,6 @@
 
 #include <iostream>
+#include <string>
 
 #include <uuid/uuid.h>
 #include <grackle.h>
@@ -40,20 +41,17 @@ int setupDomain( struct domain * theDomain ){
    theDomain->count_steps = 0;
    theDomain->final_step  = 0;
 
-   theDomain->nrpt=-1;
-   theDomain->nsnp=-1;
-   theDomain->nchk=-1;
-
-   // // if you don't want a uuid prefix: 
-   // strcpy(theDomain->output_prefix, "test_");
+   theDomain->nrpt   = -1;
+   theDomain->nsnp   = -1;
+   theDomain->nchk   = -1;
+   theDomain->nchk_0 =  0;
    
    uuid_t  id_binary;
-   char id_ascii[80];
+   char id_ascii[36];
    uuid_generate(id_binary);
    uuid_unparse(id_binary, id_ascii);
-   printf("uuid: %s \n", id_ascii);
-   strcat(id_ascii, "_");
-   strcpy(theDomain->output_prefix, id_ascii);
+   printf("generated uuid: %s \n", id_ascii);
+   theDomain->output_prefix = std::string(id_ascii).append("_");
 
    error = setICparams( theDomain );
    if ( error==1 ) return(error);
@@ -80,10 +78,10 @@ int setupDomain( struct domain * theDomain ){
    }
    else
    {
-      std::cerr << "Error: No SNe in this run. Exiting." << std::endl;
+      // std::cerr << "Error: No SNe in this run. Exiting." << std::endl;
       // no supernovae. For now, just kill the process
       // but maybe figure out a better way to respond?
-      return 1; 
+      // return 1; 
    }
 
    return(0);
@@ -147,24 +145,28 @@ void output( struct domain * , const char *, double );
 
 void possiblyOutput( struct domain * theDomain , int override ){
 
-   double t = theDomain->t;
+   double t     = theDomain->t;
    double t_min = theDomain->t_init;
    double t_fin = theDomain->t_fin;
-   double Nrpt = theDomain->N_rpt;
-   // double Nsnp = theDomain->N_snp;
-   double Nchk = theDomain->N_chk;
+   int Nrpt     = theDomain->N_rpt;
+   // int Nsnp = theDomain->N_snp;
+   int Nchk     = theDomain->N_chk;
+   int nchk_0   = theDomain->nchk_0;
+
    int LogOut = theDomain->theParList.Out_LogTime;
    int n0;
 
-   n0 = (int)( t*Nrpt/t_fin );
-   if( LogOut ) n0 = (int)( Nrpt*log(t/t_min)/log(t_fin/t_min) );
+   n0 = static_cast<int> ( (t-t_min)*Nrpt / (t_fin-t_min) ) ;
+   if( LogOut ) n0 = static_cast <int> ( Nrpt*log(t/t_min)/log(t_fin/t_min) );
+   n0 += nchk_0;
    if( theDomain->nrpt < n0 || override ){
       theDomain->nrpt = n0;
       printf("t = %.3e\n",t);
    }
 
-   n0 = (int)( t*Nchk/t_fin );
-   if( LogOut ) n0 = (int)( Nchk*log(t/t_min)/log(t_fin/t_min) );
+   n0 = static_cast<int> ( (t-t_min)*Nchk / (t_fin-t_min) );
+   if( LogOut ) n0 = static_cast<int> ( Nchk*log(t/t_min)/log(t_fin/t_min) );
+   n0 += nchk_0;
    if( (theDomain->nchk < n0 && Nchk>0) || override ){
       theDomain->nchk = n0;
       char filename[256];

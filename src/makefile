@@ -1,5 +1,5 @@
 
-INITIAL  = cluster_SNe
+INITIAL  = restart
 HYDRO    = euler
 OUTPUT   = ascii
 
