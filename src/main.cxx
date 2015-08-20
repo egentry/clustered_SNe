@@ -2,73 +2,75 @@
 #include <iostream>
 
 #include "structure.H"
+
 #include "blast.H"
 #include "readpar.H" // read_par_file()
+#include "domain.H" // check_dt, possiblyOutput, setupDomain, freeDomain
+#include "misc.H" // getmindt, set_wcell
+#include "profiler.H" // start_clock, generate_log
+#include "timestep.H"
+#include "Output/ascii.H" // overview
+#include "Initial/initial_conditions.H" // select_initial_conditions
 
-int    parse_command_line_args ( struct domain * , int , char *[] );
-void   setupGrid(                struct domain * );
-int    setupDomain(              struct domain * );
-void   setupCells(               struct domain * );
-void   overview(                 struct domain * );
-void   start_clock(              struct domain * );
-void   set_wcell(                struct domain * );
-double getmindt(                 struct domain * );
-void   check_dt(                 struct domain * , double * );
-void   possiblyOutput(           struct domain * , int );
-void   timestep(                 struct domain * , double );
-void   generate_log(             struct domain * );
-void   freeDomain(               struct domain * );
+int main( int argc , char * argv[] )
+{
 
-int main( int argc , char * argv[] ){
- 
-   int error;
+    int error;
 
-   struct domain theDomain = {0};
+    struct domain theDomain = {0};
 
-   error = read_par_file( &theDomain , argc , argv );
-   if( error==1 ) 
-   {
-      std::cerr << "Error in read_par_file" << std::endl;
-      return(0);
-   }
-   
-   error =  parse_command_line_args( &theDomain , argc , argv );
-   if( error==1 ) 
-   {
-      std::cerr << "Error in parse_command_line_args" << std::endl;
-      return(0);
-   }
+    error = read_par_file( &theDomain , argc , argv );
+    if( error==1 ) 
+    {
+        std::cerr << "Error in read_par_file" << std::endl;
+        return 0;
+    }
 
-   setupGrid( &theDomain );   
-   error = setupDomain( &theDomain );
-   if( error==1 ) 
-   {
-      std::cerr << "Error in setupDomain" << std::endl;
-      return(0);
-   }
+    Initial_Conditions * ICs;
+    ICs = select_initial_conditions(theDomain.theParList.ICs);
 
-   setupCells( &theDomain );
+    error = ICs->parse_command_line_args( &theDomain , argc , argv );
+    if( error==1 ) 
+    {
+        std::cerr << "Error in parse_command_line_args" << std::endl;
+        return 0;
+    }
 
-   overview( &theDomain );
+    error = setupDomain( &theDomain , ICs );
+    if( error==1 ) 
+    {
+        std::cerr << "Error in setupDomain" << std::endl;
+        return 0;
+    }
 
-   start_clock( &theDomain ); 
+    ICs->setup_grid( &theDomain );   
 
-   while( !(theDomain.final_step) ){
+    error = overview( &theDomain );
+    if( error==1)
+    {
+        std::cerr << "Error in overview" << std::endl;
+        return 0;
+    }
 
-      add_blasts( &theDomain );
-      set_wcell( &theDomain );
-      double dt = getmindt( &theDomain );
-      check_dt( &theDomain , &dt );
-      possiblyOutput( &theDomain , 0 );
-      timestep( &theDomain , dt );
+    start_clock( &theDomain ); 
 
-   }
+    while( !(theDomain.final_step) )
+    {
 
-   possiblyOutput( &theDomain , 1 );
+        add_blasts( &theDomain );
+        set_wcell( &theDomain );
+        double dt = getmindt( &theDomain );
+        check_dt( &theDomain , &dt );
+        possiblyOutput( &theDomain , 0 );
+        timestep( &theDomain , dt );
 
-   generate_log( &theDomain );
-   freeDomain( &theDomain );
+    }
 
-   return(0);
+    possiblyOutput( &theDomain , 1 );
+
+    generate_log( &theDomain );
+    freeDomain( &theDomain );
+
+    return 0;
 
 }

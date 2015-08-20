@@ -9,9 +9,11 @@ extern "C" {
 }
 
 #include "constants.H" // defines physical constants
+#include "cooling.H"
 #include "structure.H" 
 
-double calc_cooling( double * prim ,  double * cons , double metallicity , double dt , code_units my_units )
+double calc_cooling( double * prim ,  double * cons , 
+                     double dt , code_units my_units )
 {
 
     int i;
@@ -60,7 +62,7 @@ double calc_cooling( double * prim ,  double * cons , double metallicity , doubl
         x_velocity[i]       = prim[VRR];          // radial velocity
         y_velocity[i]       = 0;
         z_velocity[i]       = 0;
-        metal_density[i]    = metallicity * density[i];
+        metal_density[i]    = prim[ZZZ] * density[i];
     }
 
 

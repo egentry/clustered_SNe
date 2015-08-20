@@ -1,8 +1,4 @@
 
-INITIAL  = restart
-HYDRO    = euler
-OUTPUT   = ascii
-
 EXE      = SNe
 
 
@@ -146,12 +142,28 @@ DEFINES += -DSLUG_DIR=\"$(SLUG_DIR)\"
 ############# SYSTEM SPECIFIC ########################################
 
 
-OBJ = main.o profiler.o readpar.o domain.o gridsetup.o \
+OBJ = main.o profiler.o readpar.o domain.o \
       geometry.o misc.o timestep.o riemann.o boundary.o plm.o \
       cooling.o blast.o \
-      $(INITIAL).o $(OUTPUT).o $(HYDRO).o
+      Initial/initial_conditions.o \
+      Initial/restart_ICs.o Initial/chevalier_ICs.o \
+      Initial/cluster_SNe_ICs.o Initial/ejecta_ICs.o \
+      Initial/isentropic_ICs.o Initial/messy_ICs.o \
+      Initial/shocktube_ICs.o Initial/Thornton_parameter_study_ICs.o \
+      Initial/uniform_ICs.o \
+      Output/ascii.o Hydro/euler.o
 
-HEADERS = structure.H constants.H blast.H domain.H readpar.H
+HEADERS = blast.H boundary.H constants.H cooling.H domain.H \
+			geometry.H misc.H profiler.H readpar.H structure.H \
+			timestep.H \
+	      	Output/ascii.H Hydro/euler.H \
+			Initial/Thornton_parameter_study_ICs.H \
+			Initial/chevalier_ICs.H Initial/cluster_SNe_ICs.H \
+			Initial/ejecta_ICs.H Initial/initial_conditions.H \
+			Initial/isentropic_ICs.H Initial/messy_ICs.H \
+			Initial/restart_ICs.H Initial/shocktube_ICs.H \
+			Initial/uniform_ICs.H
+
 
 ############# RULES ########################################
 
@@ -163,23 +175,9 @@ all: $(LIB_NAME)
 all: $(EXE)
 all: move_headers
 
-%.o: %.c $(HEADERS)
-	$(CC) $(DEFINES) $(C_FLAGS) $(INC) -c $<
 
 %.o: %.cxx $(HEADERS)
-	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c $<
-
-$(TIMESTEP).o: Timestep/$(TIMESTEP).cxx $(HEADERS)
-	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c Timestep/$(TIMESTEP).cxx
-
-$(INITIAL).o : Initial/$(INITIAL).cxx $(HEADERS)
-	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c Initial/$(INITIAL).cxx
-
-$(HYDRO).o : Hydro/$(HYDRO).cxx $(HEADERS)
-	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c Hydro/$(HYDRO).cxx
-
-$(OUTPUT).o : Output/$(OUTPUT).cxx $(HEADERS)
-	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c Output/$(OUTPUT).cxx
+	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c $< -o $@
 
 $(EXE): $(OBJ) $(HEADERS) $(LIB_NAME)
 	$(CXX) $(CXX_FLAGS) -o $(EXE) $(OBJ) $(LIB)
@@ -191,7 +189,7 @@ exe_from_lib: $(OBJ) $(HEADERS) $(LIB_NAME)
 
 $(LIB_NAME): $(OBJ) $(HEADERS)
 	mkdir -p $(LIB_DIR)
-	$(CXX) $(CXX_FLAGS) -o $(LIB_NAME) $(OBJ) $(LIB) $(DYNLIB) $(LIB_FLAGS)
+	$(CXX) $(CXX_FLAGS) -o $(LIB_NAME) $(OBJ) $(LIB) $(DYNLIB) $(LIB_FLAGS) -LInitial/
 
 move_headers: 
 	mkdir -p $(INC_DIR)
@@ -199,3 +197,4 @@ move_headers:
 
 clean:
 	rm -f *.o $(EXE) $(LIB_NAME) ../bin/$(EXE)
+	rm -f Hydro/*.o Output/*.o

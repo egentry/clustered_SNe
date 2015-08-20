@@ -1,9 +1,11 @@
 tmp*
 *__pycache__
 .ipynb_checkpoints
+*Untitled*.ipynb
 *.tar.gz
 *.dat
 *.log
 saved_runs/
 comparison/
 papers/
+init

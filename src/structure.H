@@ -1,7 +1,8 @@
 #ifndef _STRUCTURE_H
 #define _STRUCTURE_H
 
-enum{RHO,PPP,VRR,XXX,AAA}; // respectively: density, Pressure, radial velocity, XXX (passive scalar), AAA (eddy strength)
+// respectively: density, Pressure, radial velocity, metallicity, AAA (eddy strength)
+enum{RHO,PPP,VRR,ZZZ,AAA};
 enum{DDD,TAU,SRR}; // respectively: mass, energy, momentum (radial)
 
 #include <string>
@@ -11,7 +12,9 @@ enum{DDD,TAU,SRR}; // respectively: mass, energy, momentum (radial)
 #include <math.h>
 #include <string.h>
 #include <time.h>
+extern "C" {
 #include <grackle.h>
+}
 
 #include <vector>
 
@@ -38,6 +41,8 @@ struct param_list{
    double Density_Floor, Pressure_Floor;
    int With_Cooling;
    double Adiabatic_Index;
+
+   std::string ICs;
 
 };
 
