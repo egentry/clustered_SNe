@@ -136,11 +136,12 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
     if( completed_runs >= (n_metallicities * n_background_densities 
                                           * n_cluster_masses)      )
     {
-      // just add more seeds to the lowest mass case
-      theDomain->metallicity            = metallicities[0];
-      theDomain->background_density     = background_densities[0];
-      theDomain->background_temperature = 1e4;
-      theDomain->cluster_mass           = cluster_masses[0];
+        // just add more seeds to the lowest mass case
+        theDomain->metallicity            = metallicities[0];
+        metallicity                       = metallicities[0];
+        theDomain->background_density     = background_densities[0];
+        theDomain->background_temperature = 1e4;
+        theDomain->cluster_mass           = cluster_masses[0];
     }
 
     int run=0;
@@ -153,6 +154,7 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
                 if( completed_runs == run )
                 {
                     theDomain->metallicity            = metallicities[i];
+                    metallicity                       = metallicities[i];
                     theDomain->background_density     = background_densities[j];
                     theDomain->background_temperature = 1e4;
                     theDomain->cluster_mass           = cluster_masses[k];

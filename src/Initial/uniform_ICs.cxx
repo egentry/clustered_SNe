@@ -1,7 +1,7 @@
 
 #include "../structure.H"
 #include "initial_conditions.H"
-#include "uniform_ICs.h"
+#include "uniform_ICs.H"
 
 
 void Uniform_ICs::initial( double * prim , double r )

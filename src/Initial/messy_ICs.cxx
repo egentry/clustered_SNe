@@ -1,7 +1,7 @@
 
 #include "../structure.H"
 #include "initial_conditions.H"
-#include "messy_ICs.h"
+#include "messy_ICs.H"
 
 
 void Messy_ICs::initial( double * prim , double r )

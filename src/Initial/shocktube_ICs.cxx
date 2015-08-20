@@ -1,7 +1,7 @@
 
 #include "../structure.H"
 #include "initial_conditions.H"
-#include "shocktube_ICs.h"
+#include "shocktube_ICs.H"
 
 
 void Shocktube_ICs::initial( double * prim , double r )

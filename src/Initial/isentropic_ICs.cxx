@@ -1,7 +1,7 @@
 
 #include "../structure.H"
 #include "initial_conditions.H"
-#include "isentropic_ICs.h"
+#include "isentropic_ICs.H"
 
 void Isentropic_ICs::initial( double * prim , double r )
 {
