@@ -18,49 +18,78 @@
 #include "Thornton_parameter_study_ICs.H"
 #include "uniform_ICs.H"
 
+#include <boost/algorithm/string.hpp>    
+
 Initial_Conditions * select_initial_conditions( std::string IC_name )
 {
 
     std::cout << "Using ICs: " << IC_name << std::endl;
 
-    if ( IC_name.compare("chevalier") == 0 )
+    std::string IC_name_lowercase = std::string(IC_name);
+    boost::algorithm::to_lower(IC_name_lowercase);
+
+    std::string IC_name_tmp;
+
+    IC_name_tmp = "chevalier";
+    boost::algorithm::to_lower(IC_name_tmp);
+    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
     {
         return new Chevalier_ICs;
     }
-    if ( IC_name.compare("ejecta") == 0 )
+
+    IC_name_tmp = "ejecta";
+    boost::algorithm::to_lower(IC_name_tmp);
+    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
     {
         return new Ejecta_ICs;
     }
-    if ( IC_name.compare("cluster_SNe") == 0 )
+
+    IC_name_tmp = "cluster_SNe";
+    boost::algorithm::to_lower(IC_name_tmp);
+    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
     {
         return new Cluster_SNe_ICs;
     }
-    if ( IC_name.compare("isentropic") == 0 )
+
+    IC_name_tmp = "isentropic";
+    boost::algorithm::to_lower(IC_name_tmp);
+    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
     {
         return new Isentropic_ICs;
     }
 
-    if ( IC_name.compare("messy") == 0 )
+    IC_name_tmp = "messy";
+    boost::algorithm::to_lower(IC_name_tmp);
+
+    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
     {
         return new Messy_ICs;
     }
 
-    if ( IC_name.compare("restart") == 0 )
+    IC_name_tmp = "restart";
+    boost::algorithm::to_lower(IC_name_tmp);
+    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
     {
         return new Restart_ICs;
     }
 
-    if ( IC_name.compare("shocktube") == 0 )
+    IC_name_tmp = "shocktube";
+    boost::algorithm::to_lower(IC_name_tmp);
+    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
     {
         return new Shocktube_ICs;
     }
 
-    if ( IC_name.compare("Thornton_parameter_study") == 0 )
+    IC_name_tmp = "Thornton_parameter_study";
+    boost::algorithm::to_lower(IC_name_tmp);
+    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
     {
         return new Thornton_Parameter_Study_ICs;
     }
 
-    if ( IC_name.compare("uniform") == 0 )
+    IC_name_tmp = "uniform";
+    boost::algorithm::to_lower(IC_name_tmp);
+    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
     {
         return new Uniform_ICs;
     }
