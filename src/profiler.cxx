@@ -1,11 +1,14 @@
 
 #include "structure.H"
+#include "profiler.H"
 
-void start_clock( struct domain * theDomain ){
+void start_clock( struct domain * theDomain )
+{
    theDomain->Wallt_init = time(NULL);
 }
  
-int count_cells( struct domain * theDomain ){
+int count_cells( struct domain * theDomain )
+{
 
    int Nr = theDomain->Nr;
 
@@ -14,10 +17,11 @@ int count_cells( struct domain * theDomain ){
 
    int Nc = imax-imin;
 
-   return(Nc);
+   return Nc;
 }
 
-void generate_log( struct domain * theDomain ){
+void generate_log( struct domain * theDomain )
+{
    time_t endtime = time(NULL);
    int seconds = (int) (endtime - theDomain->Wallt_init);
    
@@ -27,7 +31,7 @@ void generate_log( struct domain * theDomain ){
    double avgdt = (double)seconds/2./(double)Nc/(double)Nt;
 
    char logfile_filename[256] = "";
-   strcat(logfile_filename, theDomain->output_prefix);
+   strcat(logfile_filename, theDomain->output_prefix.c_str());
    strcat(logfile_filename, "times.log");
 
    FILE * logfile = fopen(logfile_filename,"w");

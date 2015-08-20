@@ -1,25 +1,31 @@
 
 #include <iostream>
+#include <string>
 
 #include <uuid/uuid.h>
+extern "C" {
 #include <grackle.h>
+}
 
 #include <assert.h>
 
-#include "domain.H"
-#include "structure.H"
-#include "constants.H"
 #include "blast.H"
+#include "constants.H"
+#include "cooling.H"
+#include "domain.H"
+#include "geometry.H"
+#include "riemann.H"
+#include "structure.H"
+#include "Initial/initial_conditions.H"
+#include "Hydro/euler.H"
+#include "Output/ascii.H"
 
 #include <algorithm>
 
-code_units setup_cooling( struct domain * );
 
-int  setICparams( struct domain * );
-void setHydroParams( struct domain * );
-void setRiemannParams( struct domain * );
-
-int setupDomain( struct domain * theDomain ){
+int setupDomain( struct domain * theDomain , 
+                 Initial_Conditions * ICs )
+{
 
    int error;
 
@@ -40,22 +46,19 @@ int setupDomain( struct domain * theDomain ){
    theDomain->count_steps = 0;
    theDomain->final_step  = 0;
 
-   theDomain->nrpt=-1;
-   theDomain->nsnp=-1;
-   theDomain->nchk=-1;
-
-   // // if you don't want a uuid prefix: 
-   // strcpy(theDomain->output_prefix, "test_");
+   theDomain->nrpt   = -1;
+   theDomain->nsnp   = -1;
+   theDomain->nchk   = -1;
+   theDomain->nchk_0 =  0;
    
    uuid_t  id_binary;
-   char id_ascii[80];
+   char id_ascii[36];
    uuid_generate(id_binary);
    uuid_unparse(id_binary, id_ascii);
-   printf("uuid: %s \n", id_ascii);
-   strcat(id_ascii, "_");
-   strcpy(theDomain->output_prefix, id_ascii);
+   printf("generated uuid: %s \n", id_ascii);
+   theDomain->output_prefix = std::string(id_ascii).append("_");
 
-   error = setICparams( theDomain );
+   error = ICs->setICparams( theDomain );
    if ( error==1 ) return(error);
    setHydroParams( theDomain );
    setRiemannParams( theDomain );
@@ -80,58 +83,31 @@ int setupDomain( struct domain * theDomain ){
    }
    else
    {
-      std::cerr << "Error: No SNe in this run. Exiting." << std::endl;
+      // std::cerr << "Error: No SNe in this run. Exiting." << std::endl;
       // no supernovae. For now, just kill the process
       // but maybe figure out a better way to respond?
-      return 1; 
+      // return 1; 
    }
 
-   return(0);
+   return 0;
 
 }
 
-double get_moment_arm( double , double );
-double get_dV( double , double );
-void initial( double * , double ); 
-void prim2cons( double * , double * , double );
-void cons2prim( double * , double * , double );
-void boundary( struct domain * );
-void setupCells( struct domain * theDomain ){
-
-   int i;
-   struct cell * theCells = theDomain->theCells;
-   int Nr = theDomain->Nr;
-
-   for( i=0 ; i<Nr ; ++i ){
-      struct cell * c = &(theCells[i]);
-      double rp = c->riph;
-      double rm = rp - c->dr;
-      c->wiph = 0.0; 
-      double r = get_moment_arm( rp , rm );
-      double dV = get_dV( rp , rm );
-      initial( c->prim , r ); 
-      prim2cons( c->prim , c->cons , dV );
-      cons2prim( c->cons , c->prim , dV );
-      c->P_old  = c->prim[PPP];
-      c->dV_old = dV;
-   }
-
-   boundary( theDomain );
-
-}
 
 void freeDomain( struct domain * theDomain ){
    free( theDomain->theCells );
 }
+
 
 void check_dt( struct domain * theDomain , double * dt ){
 
    double t = theDomain->t;
    double tmax = theDomain->t_fin;
    int final=0;
-   if( t + *dt > tmax ){
-      *dt = tmax-t;
-      final=1;
+   if( t + *dt > tmax )
+   {
+        *dt = tmax-t;
+        final=1;
    }
 
    FILE * abort = NULL;
@@ -143,40 +119,49 @@ void check_dt( struct domain * theDomain , double * dt ){
 }
 
 // void snapshot( struct domain * , char * );
-void output( struct domain * , const char *, double );
 
-void possiblyOutput( struct domain * theDomain , int override ){
+void possiblyOutput( struct domain * theDomain , int override )
+{
 
-   double t = theDomain->t;
-   double t_min = theDomain->t_init;
-   double t_fin = theDomain->t_fin;
-   double Nrpt = theDomain->N_rpt;
-   // double Nsnp = theDomain->N_snp;
-   double Nchk = theDomain->N_chk;
-   int LogOut = theDomain->theParList.Out_LogTime;
-   int n0;
+    double t     = theDomain->t;
+    double t_min = theDomain->t_init;
+    double t_fin = theDomain->t_fin;
+    int Nrpt     = theDomain->N_rpt;
+    // int Nsnp = theDomain->N_snp;
+    int Nchk     = theDomain->N_chk;
+    int nchk_0   = theDomain->nchk_0;
 
-   n0 = (int)( t*Nrpt/t_fin );
-   if( LogOut ) n0 = (int)( Nrpt*log(t/t_min)/log(t_fin/t_min) );
-   if( theDomain->nrpt < n0 || override ){
-      theDomain->nrpt = n0;
-      printf("t = %.3e\n",t);
-   }
+    int LogOut = theDomain->theParList.Out_LogTime;
+    int n0;
 
-   n0 = (int)( t*Nchk/t_fin );
-   if( LogOut ) n0 = (int)( Nchk*log(t/t_min)/log(t_fin/t_min) );
-   if( (theDomain->nchk < n0 && Nchk>0) || override ){
-      theDomain->nchk = n0;
-      char filename[256];
-      if( !override ){
-         printf("Creating Checkpoint #%04d...\n",n0);
-         sprintf(filename,"checkpoint_%04d",n0);
-         output( theDomain , filename, t );
-      }else{
-         printf("Creating Final Checkpoint...\n");
-         output( theDomain , "output", t );
-      }
-   }
+    n0 = static_cast<int> ( (t-t_min)*Nrpt / (t_fin-t_min) ) ;
+    if( LogOut ) n0 = static_cast <int> ( Nrpt*log(t/t_min)/log(t_fin/t_min) );
+    n0 += nchk_0;
+    if( theDomain->nrpt < n0 || override )
+    {
+        theDomain->nrpt = n0;
+        printf("t = %.3e\n",t);
+    }
+
+    n0 = static_cast<int> ( (t-t_min)*Nchk / (t_fin-t_min) );
+    if( LogOut ) n0 = static_cast<int> ( Nchk*log(t/t_min)/log(t_fin/t_min) );
+    n0 += nchk_0;
+    if( (theDomain->nchk < n0 && Nchk>0) || override )
+    {
+        theDomain->nchk = n0;
+        char filename[256];
+        if( !override )
+        {
+            printf("Creating Checkpoint #%04d...\n",n0);
+            sprintf(filename,"checkpoint_%04d",n0);
+            output( theDomain , filename, t );
+        }
+        else
+        {
+            printf("Creating Final Checkpoint...\n");
+            output( theDomain , "output", t );
+        }
+    }
 /*
    n0 = (int)( t*Nsnp/t_fin );
    if( LogOut ) n0 = (int)( Nsnp*log(t/t_min)/log(t_fin/t_min) );

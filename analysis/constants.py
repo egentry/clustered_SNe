@@ -11,7 +11,7 @@ m_proton = 1.672622e-24
 
 pc       = units.pc.to(units.cm)
 yr       = units.yr.to(units.s)
-M_solar  = units.MsolMass.to(units.g)
+M_solar  = units.solMass.to(units.g)
 gamma    = 5/3
 
 metallicity_solar = .02

@@ -1,15 +1,20 @@
 #ifndef _STRUCTURE_H
 #define _STRUCTURE_H
 
-enum{RHO,PPP,VRR,XXX,AAA}; // respectively: density, Pressure, radial velocity, XXX (passive scalar), AAA (eddy strength)
+// respectively: density, Pressure, radial velocity, metallicity, AAA (eddy strength)
+enum{RHO,PPP,VRR,ZZZ,AAA};
 enum{DDD,TAU,SRR}; // respectively: mass, energy, momentum (radial)
+
+#include <string>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
 #include <time.h>
+extern "C" {
 #include <grackle.h>
+}
 
 #include <vector>
 
@@ -37,6 +42,8 @@ struct param_list{
    int With_Cooling;
    double Adiabatic_Index;
 
+   std::string ICs;
+
 };
 
 struct domain{
@@ -45,7 +52,7 @@ struct domain{
    int Nr,Ng;                 // number of cells (total and guard, respectively)
 
    time_t Wallt_init;
-   char output_prefix[80];
+   std::string output_prefix;
 
    struct param_list theParList;  // for reading in from "in.par" file -- see above
 
@@ -62,6 +69,7 @@ struct domain{
    int N_snp;   // unused
    int nchk;
    int N_chk;
+   int nchk_0; // checkpoint numbering starts *at* nchk_0 (used for restart)
 
    int final_step;        // flag that lets the code know when to terminate
 

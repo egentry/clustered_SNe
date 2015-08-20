@@ -63,7 +63,7 @@ class ParseResults(object):
 
 
 cols = ["Radius", "dR", "dV", "Density", 
-        "Pressure", "Velocity", "X", "Alpha", 
+        "Pressure", "Velocity", "Z", "Alpha", 
         "Temperature", "Energy", "Entropy", 
         "Mass", "M_int", "C_ad"]
 cols_in   = cols[:-6]
@@ -128,7 +128,7 @@ def parse_run(data_dir="", id="", last_run=None):
     R_shock  = np.empty(num_checkpoints) # size of the shock/remnant
     
     M_tot    = np.empty(num_checkpoints)
-    X_tot    = np.empty(num_checkpoints)
+    Z_tot    = np.empty(num_checkpoints)
     zones    = np.empty(num_checkpoints)
     
     Luminosity = np.empty(num_checkpoints)
@@ -167,7 +167,7 @@ def parse_run(data_dir="", id="", last_run=None):
                                          df_tmp.Velocity.values)
         E_tot[k]    = E_kin[k] + E_int[k]
         M_tot[k]    = df_tmp.M_int[-1]
-        X_tot[k]    = np.sum(df_tmp.Mass * df_tmp.X)
+        Z_tot[k]    = np.sum(df_tmp.Mass * df_tmp.Z)
         zones[k]    = df_tmp.shape[0]
         
         over_dense = df_tmp.Density > background_density * 1.1
@@ -204,7 +204,7 @@ def parse_run(data_dir="", id="", last_run=None):
     last_run.times      = times
     last_run.zones      = zones
     last_run.E_tot      = E_tot
-    last_run.X_tot      = X_tot
+    last_run.Z_tot      = Z_tot
     last_run.E_int      = E_int
     last_run.E_kin      = E_kin
     last_run.E_R_int    = E_R_int

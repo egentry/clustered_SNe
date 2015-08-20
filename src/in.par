@@ -2,7 +2,7 @@
 
 //Time Range//
 T_Start			1e0
-T_End			3e10   //3888000
+T_End			3e13   //3888000
 
 //Output Frequency//
 Num_Reports		1000
@@ -33,5 +33,8 @@ With_Cooling 	1
 //Hydro Parameters
 Adiabatic_Index		1.666666667
 Use_RT			0
+
+//Initial Conditions
+ICs Thornton_parameter_study
 
 
