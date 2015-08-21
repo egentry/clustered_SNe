@@ -117,16 +117,16 @@ class Overview(object):
         """
 
         dirname = make_dirname_from_properties(self.background_density, 
-                                         self.metallicity, 
-                                         self.background_temperature,
-                                         self.with_cooling,
-                                         base_dirname = self.dirname)
+                                               self.metallicity, 
+                                               self.background_temperature,
+                                               self.with_cooling,
+                                               base_dirname = "")
         return dirname
 
 
 def make_dirname_from_properties(background_density, metallicity, 
                                  background_temperature, with_cooling,
-                                 base_dirname=".."):
+                                 base_dirname=os.pardir):
     """Create a dirname where the data for this Overview should live
 
 
@@ -166,7 +166,7 @@ def make_dirname_from_properties(background_density, metallicity,
 
     return dirname
 
-def add_id_to_batch_outputs(dirname=".."):
+def add_id_to_batch_outputs(dirname=os.pardir, batch_name="Thornton_parameter_study"):
     """Prepends an id to the batch output (and error) filenames, if an id exists
 
 
@@ -175,6 +175,11 @@ def add_id_to_batch_outputs(dirname=".."):
     dirname : Optional[str]
         The name of the directory containing the batch files
 
+    batch_name : Optional[str]
+        The batch script would be named "<batch_name>.batch",
+        so the output and error streams would have been captured as
+        "<batch_name>.batch.(o|e)*"
+
 
     Side effects
     ------------
@@ -185,37 +190,44 @@ def add_id_to_batch_outputs(dirname=".."):
 
     Expects
     --------
-    Output and error files should start with "SNe.batch.(o|e)"
-        This is the default behavior if you submit a "SNe.batch" file to SGE qsub
 
     """
 
-    batch_outputs = glob.glob(os.path.join(dirname, "SNe.batch.o*"))
+    batch_outputs = glob.glob(os.path.join(dirname, batch_name + ".batch.o*"))
     for batch_output in batch_outputs:
         f = open(batch_output, "r")
         for line in f:
             if "uuid" in line:
-                id = line.split()[1]
+                id = line.split()[-1]
                 if id not in batch_output:
-                    os.rename(batch_output, id + "_" + batch_output)
+                    batch_output_parts = os.path.split(batch_output)
+                    new_batch_output = os.path.join(batch_output_parts[0],
+                                             id + "_" + batch_output_parts[1])
+                    os.rename(batch_output, new_batch_output)
                 batch_error = batch_output.replace("batch.o", "batch.e")
                 if id not in batch_error:
-                    os.rename(batch_error, id + "_" + batch_error)
+                    batch_error_parts = os.path.split(batch_error)
+                    new_batch_error = os.path.join(batch_error_parts[0],
+                                             id + "_" + batch_error_parts[1])
+                    os.rename(batch_error, new_batch_error)
                 break
         f.close()
 
     return
 
 
-def move_files(overall_dirname=".."):
+def move_files(source_dirname=os.path.join(os.pardir, "src"),
+               target_dirname=os.path.join(os.pardir)):
     """Moves files from current location into their locations on a tree of directories
 
 
     Parameters
     ---------
-    overall_dirname : Optional[str]
+    source_dirname : Optional[str]
         The name the directory containing the files initially
-        Note: the subsequent moves will be relative to this directory
+
+    target_dirname: Optional[srt]
+        Files will be saved to "<target_dirname>/saved_runs/riemann..."
 
 
     Side effects
@@ -227,22 +239,26 @@ def move_files(overall_dirname=".."):
 
     Expects
     --------
-    Output and error files should start with "SNe.batch.(o|e)"
-        This is the default behavior if you submit a "SNe.batch" file to SGE qsub
+    Output and error files should start with "<batch_name>.batch.(o|e)"
+        This is the default behavior if you submit a "<batch_name>.batch" file to SGE qsub
 
     """
-    add_id_to_batch_outputs(dirname=overall_dirname)
-    overview_filenames = glob.glob(os.path.join(overall_dirname, "*overview.dat"))
+    add_id_to_batch_outputs(dirname=source_dirname)
+    overview_filenames = glob.glob(os.path.join(source_dirname, "*overview.dat"))
     overviews = [None] * len(overview_filenames)
     for i, overview_filename in enumerate(overview_filenames):
         overviews[i] = Overview(overview_filename)
 
     for overview in overviews:
         dirname = overview.make_dirname()
+        dirname = os.path.join(target_dirname, dirname)
         if not os.path.isdir(dirname):
             os.makedirs(dirname)
-        files = glob.glob(os.path.join(overall_dirname, overview.id + "*"))
+        files = glob.glob(os.path.join(source_dirname, overview.id + "*"))
         for file in files:
             shutil.move(file, dirname)
 
-# move_files()
+# move_files(source_dirname="../src", target_dirname="..")
+
+
+

@@ -170,7 +170,8 @@ def parse_run(data_dir="", id="", last_run=None):
         Z_tot[k]    = np.sum(df_tmp.Mass * df_tmp.Z)
         zones[k]    = df_tmp.shape[0]
         
-        over_dense = df_tmp.Density > background_density * 1.1
+        # over_dense = df_tmp.Density != background_density
+        over_dense = df_tmp.Density > background_density * 1.0001
         if np.any(over_dense):
             R_shock[k] = np.max(df_tmp.Radius[over_dense])
         else:    
@@ -219,7 +220,7 @@ def parse_run(data_dir="", id="", last_run=None):
     # filter for when initial transients have settled
     # assume that the settling time scales with the total time
     #   (e.g. since t_0 of Thornton should scale with our final end time)
-    t_settled           = np.max(times) / 1e4
+    t_settled           = np.max(times) / 3e3
     valid_lums          = Luminosity[times > t_settled]
     smoothing_width     = 2 # how many checkpoints wide
     smoothing_kernel    = Gaussian1DKernel(smoothing_width)
@@ -234,4 +235,4 @@ def parse_run(data_dir="", id="", last_run=None):
                                  background_temperature)
     return parse_results
 
-parse_run(data_dir="../src", id="")
+# parse_run(data_dir="../src", id="")
