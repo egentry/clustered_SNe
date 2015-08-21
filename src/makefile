@@ -153,9 +153,9 @@ OBJ = main.o profiler.o readpar.o domain.o \
       Initial/uniform_ICs.o \
       Output/ascii.o Hydro/euler.o
 
-HEADERS = blast.H boundary.H constants.H cooling.H domain.H \
-			geometry.H misc.H profiler.H readpar.H structure.H \
-			timestep.H \
+HEADERS = 	blast.H boundary.H constants.H cooling.H domain.H \
+			geometry.H misc.H plm.H profiler.H readpar.H \
+			structure.H timestep.H \
 	      	Output/ascii.H Hydro/euler.H \
 			Initial/Thornton_parameter_study_ICs.H \
 			Initial/chevalier_ICs.H Initial/cluster_SNe_ICs.H \
@@ -193,7 +193,14 @@ $(LIB_NAME): $(OBJ) $(HEADERS)
 
 move_headers: 
 	mkdir -p $(INC_DIR)
-	cp $(HEADERS) $(INC_DIR)/
+	mkdir -p $(INC_DIR)/Initial
+	mkdir -p $(INC_DIR)/Hydro
+	mkdir -p $(INC_DIR)/Output
+	mkdir -p $(INC_DIR)/Initial
+	for HEADER in $(HEADERS); \
+	do \
+		cp -f $$HEADER $(INC_DIR)/$$HEADER ; \
+	done
 
 clean:
 	rm -f *.o $(EXE) $(LIB_NAME) ../bin/$(EXE)
