@@ -187,8 +187,8 @@ int get_SNe( const double cluster_mass, std::vector<double>&SNe_times,
     boost::filesystem::path tracks_path("lib/tracks/Z0140v00.txt");
     tracks_path = slug_path / tracks_path;
 
-    while( SNe_times.size() != 2)
-    {
+    // while( SNe_times.size() != 2)
+    // {
         slug_PDF imf(imf_path.string().c_str(), rng, true); 
         std::vector<double> star_masses; 
         imf.drawPopulation(cluster_mass, star_masses);
@@ -201,7 +201,7 @@ int get_SNe( const double cluster_mass, std::vector<double>&SNe_times,
                 SNe_times.push_back(tracks.star_lifetime(mass)); // [yr]
             }
         }
-    }
+    // }
     // sort in reverse order, so we can pop off SNe as they happen
     std::sort(SNe_times.rbegin(), SNe_times.rend());
 
