@@ -58,7 +58,8 @@ class ParseResults(object):
         self.checkpoint_filenames   = checkpoint_filenames 
         self.metallicity            = metallicity
         self.background_density     = background_density 
-        self.background_temperature = background_temperature 
+        self.background_temperature = background_temperature
+        self.cluster_mass           = 0 
         return
 
 
@@ -75,6 +76,9 @@ def parse_run(data_dir="", id="", last_run=None):
     checkpoint_filenames = glob.glob(os.path.join(data_dir,id + "*checkpoint_*.dat"))
     checkpoint_filenames = sorted(checkpoint_filenames)
     num_checkpoints = len(checkpoint_filenames)
+
+    if num_checkpoints == 0:
+        raise FileNotFoundError("No checkpoints found")
     
     # ensure that the id is actually the FULL id
     basename = os.path.basename(checkpoint_filenames[0])
@@ -101,6 +105,8 @@ def parse_run(data_dir="", id="", last_run=None):
                 with_cooling = bool(int(line.split()[2]))
             elif "Number of SNe" in line:
                 num_SNe = int(line.split()[-1])
+            elif "Cluster Mass" in line:
+                cluster_mass = float(line.split()[-1])
         f.close()
     else:
         metallicity = metallicity_solar
@@ -216,6 +222,7 @@ def parse_run(data_dir="", id="", last_run=None):
     last_run.Luminosity = Luminosity
 
     last_run.SNe_times  = SNe_times
+    last_run.cluster_mass = cluster_mass * M_solar
     
     # filter for when initial transients have settled
     # assume that the settling time scales with the total time

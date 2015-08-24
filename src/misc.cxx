@@ -622,7 +622,7 @@ void AMR( struct domain * theDomain )
         {
             // printf("FORGE! iL = %d\n",iL);         
         }
-        // printf("FORGE! iL = %d\n",iL);
+        printf("FORGE! iL = %d\n",iL);
 
         theDomain->Nr += 1;
         Nr = theDomain->Nr;
@@ -640,7 +640,7 @@ void AMR( struct domain * theDomain )
 
         double dV_orig = get_dV(rp, rm);
         double prim_tmp[NUM_Q];
-        cons2prim ( c->cons , prim_tmp , dV_orig);
+        cons2prim ( c->cons , prim_tmp , dV_orig, true);
 
         c->riph  = r0;
         c->dr    = r0-rm;
@@ -655,11 +655,11 @@ void AMR( struct domain * theDomain )
         }
 
         double dV = get_dV( r0 , rm );
-        cons2prim( c->cons , c->prim , dV );
+        cons2prim( c->cons , c->prim , dV , true);
         c->P_old = c->prim[PPP];
         c->dV_old = dV;
         dV = get_dV( rp , r0 );
-        cons2prim( cp->cons , cp->prim , dV );
+        cons2prim( cp->cons , cp->prim , dV , true);
         cp->P_old = cp->prim[PPP];
         cp->dV_old = dV;
 
@@ -670,9 +670,22 @@ void AMR( struct domain * theDomain )
         // equal primitives + conservatives between two split cells
         for ( int q=0 ; q<NUM_Q ; ++q)
         {
-            if ( std::abs((c->prim[q] - prim_tmp[q]) / prim_tmp[q]) > 1e-6)
+            double tol = 1e-3;
+            if ( std::abs((dV_orig/2 - dV) / dV) > tol)
             {
                 printf("-----ERROR in AMR (forge) ------- \n");
+                printf("just split cell: %d \n", iL);
+                printf("expected dV_orig/2 == dV \n");
+                printf("instead found: \n");
+                printf("dV_orig/2  = %e \n", dV_orig/2);
+                printf("dV         = %e \n", dV);
+                printf("fractional error : %e \n", (dV_orig/2 - dV) / dV);
+                // assert(0);
+            }
+            if ( std::abs((c->prim[q] - prim_tmp[q]) / prim_tmp[q]) > tol)
+            {
+                printf("-----ERROR in AMR (forge) ------- \n");
+                printf("just split cell: %d \n", iL);
                 printf("expected cp->prim[%d] == prim_tmp[%d] \n", q, q);
                 printf("instead found: \n");
                 printf("c->prim[%d]  = %e \n", q, c->prim[q]);
@@ -680,9 +693,10 @@ void AMR( struct domain * theDomain )
                 printf("fractional error : %e \n", (cp->prim[q] - prim_tmp[q]) / prim_tmp[q]);
                 assert(0);
             }
-            if ( std::abs((cp->prim[q] - prim_tmp[q]) / prim_tmp[q]) > 1e-6)
+            if ( std::abs((cp->prim[q] - prim_tmp[q]) / prim_tmp[q]) > tol)
             {
                 printf("-----ERROR in AMR (forge) ------- \n");
+                printf("just split cell: %d \n", iL);
                 printf("expected cp->prim[%d] == prim_tmp[%d] \n", q, q);
                 printf("instead found: \n");
                 printf("cp->prim[%d] = %e \n", q, cp->prim[q]);
@@ -690,9 +704,10 @@ void AMR( struct domain * theDomain )
                 printf("fractional error : %e \n", (cp->prim[q] - prim_tmp[q]) / prim_tmp[q]);
                 assert(0);
             }
-            if ( std::abs((cp->prim[q] - c->prim[q]) / c->prim[q]) > 1e-6)
+            if ( std::abs((cp->prim[q] - c->prim[q]) / c->prim[q]) > tol)
             {
                 printf("-----ERROR in AMR (forge) ------- \n");
+                printf("just split cell: %d \n", iL);
                 printf("expected cp->prim[%d] == c->prim[%d] \n", q, q);
                 printf("instead found: \n");
                 printf("cp->prim[%d] = %e \n", q, cp->prim[q]);
@@ -700,9 +715,10 @@ void AMR( struct domain * theDomain )
                 printf("fractional error : %e \n", (cp->prim[q] - c->prim[q]) / c->prim[q]);
                 assert(0);
             }
-            if ( std::abs((cp->cons[q] - c->cons[q]) / c->cons[q]) > 1e-6)
+            if ( std::abs((cp->cons[q] - c->cons[q]) / c->cons[q]) > tol)
             {
                 printf("-----ERROR in AMR (forge) ------- \n");
+                printf("just split cell: %d \n", iL);
                 printf("expected cp->cons[%d] == c->cons[%d] \n", q, q);
                 printf("instead found: \n");
                 printf("cp->cons[%d] = %e \n", q, cp->cons[q]);

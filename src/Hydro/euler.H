@@ -8,7 +8,7 @@ extern "C" {
 
 void setHydroParams( struct domain * theDomain );
 void prim2cons( double * prim , double * cons , double dV );
-void cons2prim( double * cons , double * prim , double dV );
+void cons2prim( double * cons , double * prim , double dV , bool verbose=false );
 void getUstar( double * prim , double * Ustar , double Sk , double Ss );
 void flux( double * prim , double * flux );
 void source( double * prim , double * cons , double * grad , 

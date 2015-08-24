@@ -184,7 +184,7 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
          * pow(theDomain->background_density / m_proton, -.42);
     }
 
-    theDomain->theParList.rmax = 4 * R_thornton;
+    theDomain->theParList.rmax = 2 * 4 * R_thornton;
     theDomain->theParList.rmin = theDomain->theParList.rmax / 1e4;
 
     printf("R_min = %le \n", theDomain->theParList.rmin);
@@ -197,7 +197,7 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
          * pow(theDomain->background_density / m_proton,   -.53)
          * pow(theDomain->metallicity / metallicity_solar, -.16);
 
-    theDomain->theParList.t_max = 5 * t_f;
+    theDomain->theParList.t_max = 5 * t_f * 5;
     printf("t_max = %le \n", t_f);
 
     return 0;
@@ -236,17 +236,18 @@ int Cluster_SNe_ICs::parse_command_line_args (  struct domain * theDomain ,
     completed_runs = 0;
     if ( argc > 2 )
     {
-      char *buf;
-      completed_runs = strtol( argv[2] , &buf, 10);
-      printf("completed_runs = %d \n", completed_runs);
+        char *buf;
+        completed_runs = strtol( argv[2] , &buf, 10);
+        printf("completed_runs = %d \n", completed_runs);
     }
+
     std::random_device rd;
     theDomain->seed = rd();
     if ( argc > 3 )
     {
-      char *buf;
-      theDomain->seed = strtol( argv[3] , &buf, 10);
-      printf("seed = %u \n", theDomain->seed);
+        char *buf;
+        theDomain->seed = strtol( argv[3] , &buf, 10);
+        printf("seed = %u \n", theDomain->seed);
     }
 
     int error = 0;
@@ -256,9 +257,9 @@ int Cluster_SNe_ICs::parse_command_line_args (  struct domain * theDomain ,
     // maybe there's a better spot for this?
     assert( theDomain->SNe_times.size() == 0 );
     error = get_SNe(theDomain->cluster_mass,
-                   theDomain->SNe_times,
-                   theDomain->metallicity,
-                   theDomain->seed);
+                    theDomain->SNe_times,
+                    theDomain->metallicity,
+                    theDomain->seed);
     if ( error>0 ) return(error);
 
     return 0;

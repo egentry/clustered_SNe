@@ -36,7 +36,8 @@ This code will generally not run immediately out of the box.  In addition to the
       - Requires quad precision math, but this can be removed
         - Removing quad precision math will result in not being able to generate a sedov solution at small radii (this problem is purely aesthetic
     - Python (tested for v.3, probably backwards compatible)
-    - IPython 3 
+    - IPython+Jupyter (tested for v.4; requires minor changes to be compatible with v.3)
+      - ipywidgets (tested for v.4; can be found in IPython.html.widgets for IPython 3)
     - Matplotlib
     - Numpy
     - Astropy

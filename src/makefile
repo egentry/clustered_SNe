@@ -167,8 +167,6 @@ HEADERS = 	blast.H boundary.H constants.H cooling.H domain.H \
 
 ############# RULES ########################################
 
-.PHONY: exe_from_lib SNe
-
 default: all 
 
 all: $(LIB_NAME)
@@ -192,12 +190,13 @@ $(LIB_NAME): $(OBJ) $(HEADERS)
 	$(CXX) $(CXX_FLAGS) -o $(LIB_NAME) $(OBJ) $(LIB) $(DYNLIB) $(LIB_FLAGS) -LInitial/
 
 move_headers: 
-	mkdir -p $(INC_DIR)
-	mkdir -p $(INC_DIR)/Initial
-	mkdir -p $(INC_DIR)/Hydro
-	mkdir -p $(INC_DIR)/Output
-	mkdir -p $(INC_DIR)/Initial
-	for HEADER in $(HEADERS); \
+	@ mkdir -p $(INC_DIR)
+	@ mkdir -p $(INC_DIR)/Initial
+	@ mkdir -p $(INC_DIR)/Hydro
+	@ mkdir -p $(INC_DIR)/Output
+	@ mkdir -p $(INC_DIR)/Initial
+	@ echo "Moving headers into " $(INC_DIR)
+	@ for HEADER in $(HEADERS); \
 	do \
 		cp -f $$HEADER $(INC_DIR)/$$HEADER ; \
 	done

@@ -42,7 +42,7 @@ void prim2cons( double * prim , double * cons , double dV )
     }
 }
 
-void cons2prim( double * cons , double * prim , double dV )
+void cons2prim( double * cons , double * prim , double dV , bool verbose)
 {
 
     // // E    :    total energy / unit volume
@@ -73,17 +73,17 @@ void cons2prim( double * cons , double * prim , double dV )
     #endif
     if( Pp < PRE_FLOOR )
     {
-        // printf("------ ERROR in cons2prim()------- \n");
-        // printf("pressure should be above pressure floor! \n");
-        // printf("pressure       = %e \n", Pp);
-        // printf("pressure floor = %e \n", PRE_FLOOR);
-        // printf("dV  = %e \n", dV);
-        // printf("rho = %e \n", rho);
-        // printf("vr  = %e \n", vr);
-        if (Pp < 0)
+        if (verbose)
         {
-            // assert(0);
+            printf("------ ERROR in cons2prim()------- \n");
+            printf("pressure should be above pressure floor! \n");
+            printf("pressure       = %e \n", Pp);
+            printf("pressure floor = %e \n", PRE_FLOOR);
+            printf("dV  = %e \n", dV);
+            printf("rho = %e \n", rho);
+            printf("vr  = %e \n", vr);
         }
+        // assert(Pp > 0);
 
         Pp = PRE_FLOOR;
     } 
