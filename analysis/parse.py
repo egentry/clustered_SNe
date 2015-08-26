@@ -25,7 +25,9 @@ from SNe.analysis.helper_functions import calculate_mean_molecular_weight, \
                                           calculate_momentum, \
                                           calculate_c_ad, \
                                           calculate_entropy, \
-                                          calculate_temperature
+                                          calculate_temperature, \
+                                          calculate_w_cell, \
+                                          calculate_crossing_time
 
 
 class RunSummary(object):
@@ -66,8 +68,8 @@ class ParseResults(object):
 cols = ["Radius", "dR", "dV", "Density", 
         "Pressure", "Velocity", "Z", "Alpha", 
         "Temperature", "Energy", "Entropy", 
-        "Mass", "M_int", "C_ad"]
-cols_in   = cols[:-6]
+        "Mass", "M_int", "C_ad", "Crossing_time"]
+cols_in   = cols[:-7]
 
 
 
@@ -162,6 +164,11 @@ def parse_run(data_dir="", id="", last_run=None):
                                                   df_tmp.Density.values, mu)
         df_tmp["C_ad"]        = calculate_c_ad(df_tmp.Pressure.values,
                                                df_tmp.Density.values)
+        w_cell = calculate_w_cell(df_tmp.Velocity.values)
+        df_tmp["Crossing_time"] = calculate_crossing_time(df_tmp.C_ad.values,
+                                                          df_tmp.Velocity.values,
+                                                          w_cell,
+                                                          df_tmp.dR.values )
         df_tmp["zones"]       = np.arange(array_tmp.shape[0])
         
         E_kin[k]    = calculate_kinetic_energy(df_tmp.Mass.values,

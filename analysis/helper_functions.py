@@ -59,3 +59,16 @@ def calculate_entropy(temperature, density, mu):
 def calculate_temperature(pressure, density, mu):
     temperature = pressure / density * (mu * m_proton / k_b)
     return temperature
+
+@jit 
+def calculate_w_cell(velocity):
+    if len(velocity) > 1: 
+        w_cell = np.append(0, .5*(velocity[1:] + velocity[:-1]) )
+        return w_cell
+    else:
+        raise ValueError("'velocity' must have multiple entries")
+
+@jit
+def calculate_crossing_time(c_ad, velocity, w, dr):
+    crossing_time = dr / (c_ad + np.abs(velocity - w))
+    return crossing_time
