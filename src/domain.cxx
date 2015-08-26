@@ -27,94 +27,94 @@ int setupDomain( struct domain * theDomain ,
                  Initial_Conditions * ICs )
 {
 
-   int error;
+    int error;
 
-   if (theDomain->theParList.With_Cooling == 1)
-   {
-      theDomain->cooling_units = setup_cooling(theDomain);
-   }
+    if (theDomain->theParList.With_Cooling == 1)
+    {
+        theDomain->cooling_units = setup_cooling(theDomain);
+    }
 
 
-   theDomain->t       = theDomain->theParList.t_min;
-   theDomain->t_init  = theDomain->theParList.t_min;
-   theDomain->t_fin   = theDomain->theParList.t_max;
+    theDomain->t       = theDomain->theParList.t_min;
+    theDomain->t_init  = theDomain->theParList.t_min;
+    theDomain->t_fin   = theDomain->theParList.t_max;
 
-   theDomain->N_rpt = theDomain->theParList.NumRepts;
-   theDomain->N_snp = theDomain->theParList.NumSnaps;
-   theDomain->N_chk = theDomain->theParList.NumChecks;
+    theDomain->N_rpt = theDomain->theParList.NumRepts;
+    theDomain->N_snp = theDomain->theParList.NumSnaps;
+    theDomain->N_chk = theDomain->theParList.NumChecks;
 
-   theDomain->count_steps = 0;
-   theDomain->final_step  = 0;
+    theDomain->count_steps = 0;
+    theDomain->final_step  = 0;
 
-   theDomain->nrpt   = -1;
-   theDomain->nsnp   = -1;
-   theDomain->nchk   = -1;
-   theDomain->nchk_0 =  0;
-   
-   uuid_t  id_binary;
-   char id_ascii[36];
-   uuid_generate(id_binary);
-   uuid_unparse(id_binary, id_ascii);
-   printf("generated uuid: %s \n", id_ascii);
-   theDomain->output_prefix = std::string(id_ascii).append("_");
+    theDomain->nrpt   = -1;
+    theDomain->nsnp   = -1;
+    theDomain->nchk   = -1;
+    theDomain->nchk_0 =  0;
 
-   error = ICs->setICparams( theDomain );
-   if ( error==1 ) return(error);
-   setHydroParams( theDomain );
-   setRiemannParams( theDomain );
+    uuid_t  id_binary;
+    char id_ascii[36];
+    uuid_generate(id_binary);
+    uuid_unparse(id_binary, id_ascii);
+    printf("generated uuid: %s \n", id_ascii);
+    theDomain->output_prefix = std::string(id_ascii).append("_");
 
-   // everything below should probably go in a separate function?
+    error = ICs->setICparams( theDomain );
+    if ( error==1 ) return(error);
+    setHydroParams( theDomain );
+    setRiemannParams( theDomain );
 
-   assert( std::is_sorted( theDomain->SNe_times.rbegin(),
+    // everything below should probably go in a separate function?
+
+    assert( std::is_sorted( theDomain->SNe_times.rbegin(),
                            theDomain->SNe_times.rend()   ) );
 
-   // SNe_times should have been set within the initial conditions
-   // probably within parse_command_line_args?
-   if ( theDomain->SNe_times.size() > 0 )
-   {
+    // SNe_times should have been set within the initial conditions
+    // probably within parse_command_line_args?
+    if ( theDomain->SNe_times.size() > 0 )
+    {
 
-      double t_first_SN = theDomain->SNe_times.back();
-      double t_last_SN  = theDomain->SNe_times.front();
+        double t_first_SN = theDomain->SNe_times.back();
+        double t_last_SN  = theDomain->SNe_times.front();
 
-      theDomain->t      += t_first_SN;
-      theDomain->t_init += t_first_SN;
-      theDomain->t_fin  += t_last_SN;
+        theDomain->t      += t_first_SN;
+        theDomain->t_init += t_first_SN;
+        theDomain->t_fin  += t_last_SN;
 
-   }
-   else
-   {
-      // std::cerr << "Error: No SNe in this run. Exiting." << std::endl;
-      // no supernovae. For now, just kill the process
-      // but maybe figure out a better way to respond?
-      // return 1; 
-   }
+    }
+    else
+    {
+        // std::cerr << "Error: No SNe in this run. Exiting." << std::endl;
+        // no supernovae. For now, just kill the process
+        // but maybe figure out a better way to respond?
+        // return 1; 
+    }
 
-   return 0;
+    return 0;
 
 }
 
 
 void freeDomain( struct domain * theDomain ){
-   free( theDomain->theCells );
+    free( theDomain->theCells );
 }
 
 
 void check_dt( struct domain * theDomain , double * dt ){
 
-   double t = theDomain->t;
-   double tmax = theDomain->t_fin;
-   int final=0;
-   if( t + *dt > tmax )
-   {
+    double t = theDomain->t;
+    double tmax = theDomain->t_fin;
+    int final=0;
+    if( t + *dt > tmax )
+    {
         *dt = tmax-t;
         final=1;
-   }
+    }
 
-   FILE * abort = NULL;
-   abort = fopen("abort","r");
-   if( abort ){ final = 1; fclose(abort); }
+    FILE * abort = NULL;
+    abort = fopen("abort","r");
+    if( abort ){ final = 1; fclose(abort); }
 
-   if( final ) theDomain->final_step = 1;
+    if( final ) theDomain->final_step = 1;
 
 }
 
@@ -163,15 +163,15 @@ void possiblyOutput( struct domain * theDomain , int override )
         }
     }
 /*
-   n0 = (int)( t*Nsnp/t_fin );
-   if( LogOut ) n0 = (int)( Nsnp*log(t/t_min)/log(t_fin/t_min) );
-   if( (theDomain->nsnp < n0 && Nsnp>0) || override ){
+    n0 = (int)( t*Nsnp/t_fin );
+    if( LogOut ) n0 = (int)( Nsnp*log(t/t_min)/log(t_fin/t_min) );
+    if( (theDomain->nsnp < n0 && Nsnp>0) || override ){
       theDomain->nsnp = n0;
       char filename[256];
       if(!override) sprintf( filename , "snapshot_%04d" , n0 );
       else sprintf( filename , "snapshot" );
       // snapshot( theDomain , filename );
-   }
+    }
 */
 }
 

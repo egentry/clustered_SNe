@@ -19,6 +19,11 @@ public:
                                             char * argv [] ){return 0;}
 
     virtual void setup_grid( struct domain * theDomain );
+    virtual void possibly_extend_grid( struct domain * theDomain);
+    virtual void extend_grid( struct domain * theDomain,
+                              const double extend_fraction=0.25);
+
+    virtual bool trust_LogZoning_flag(){return true;}
 
 private:
     virtual void initial( double * prim , double r ) = 0;

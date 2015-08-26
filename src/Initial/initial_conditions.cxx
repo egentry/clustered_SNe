@@ -1,6 +1,8 @@
 
 #include <iostream>
 #include <string>
+#include <cmath> // std::abs
+
 
 #include "../Hydro/euler.H" // prim2cons, cons2prim
 #include "../boundary.H"
@@ -140,20 +142,22 @@ void Initial_Conditions::setup_grid( struct domain * theDomain )
 
     int i;
 
-    double dx = 1./static_cast<double>(Num_R);
+    double dx = 1.0/static_cast<double>(Num_R);
     double x0 = 0;
     double R0 = theDomain->theParList.LogRadius;
     for( i=0 ; i<Nr ; ++i )
     {
-        double xp = x0 + (i+1.)*dx;
+        double xp = x0 + (i+1.0)*dx;
         double rp;
         if( LogZoning == 0 )
         {
             rp = Rmin + xp*(Rmax-Rmin);
-        }else if( LogZoning == 1 )
+        }
+        else if( LogZoning == 1 )
         {
             rp = Rmin*pow(Rmax/Rmin,xp);
-        }else
+        }
+        else
         {
             rp = R0*pow(Rmax/R0,xp) + Rmin-R0 + (R0-Rmin)*xp;
         }
@@ -162,4 +166,171 @@ void Initial_Conditions::setup_grid( struct domain * theDomain )
     calc_dr( theDomain );
 
     this->setup_cells( theDomain );
+};
+
+void Initial_Conditions::possibly_extend_grid( struct domain * theDomain )
+{
+
+    // ============================================= //
+    //
+    //  Checks if more cells need to be added to the grid
+    //
+    //  Inputs:
+    //     - theDomain - the standard domain struct used throughout
+    //     - extend_fraction - Optional, default = 0.25
+    //                       - If we currently have N cell,s
+    //                       - this will create and additional:
+    //                         N * extend_fraction of cells;
+    //
+    //  Returns:
+    //    void
+    //
+    //  Side effects:
+    //     - Inherits side effects of extend_grid
+    //
+    //  Notes:
+    //    - Assumes a uniform background density
+    //    - Uses shock-finding to determine if grid should be extended
+    //    - This will throw off energy conservation calculations in analysis
+    // ============================================= //
+
+    const unsigned int Nr = theDomain->Nr;
+    const double background_density = theDomain->theCells[Nr-2].prim[RHO];
+
+    const double density_tolerance = 1e-3;
+
+    int i_shock = 0;
+    double R_shock = 0;
+    const double R_max = theDomain->theCells[Nr-2].riph;
+    for (int i = 1 ; i < Nr ; ++i )
+    {
+        struct cell * c = &(theDomain->theCells[i]);
+        if ( ((c->prim[RHO] - background_density) / background_density) 
+                > density_tolerance )
+        {
+            i_shock = i;
+            R_shock = c->riph;
+        }
+    }
+
+    const double radius_threshold = .9;
+    if ( (R_shock / R_max) > radius_threshold )
+    {
+        this->extend_grid( theDomain );
+    }
+}
+
+void Initial_Conditions::extend_grid( struct domain * theDomain, 
+                                        const double extend_fraction )
+{
+    // ============================================= //
+    //
+    //  Adds an additional 'extend_fraction' more cells 
+    //  to the outside of the grid
+    //
+    //  Inputs:
+    //     - theDomain - the standard domain struct used throughout
+    //     - extend_fraction - Optional, default = 0.25
+    //                       - If we currently have N cell,s
+    //                       - this will create and additional:
+    //                         N * extend_fraction of cells;
+    //
+    //  Returns:
+    //    void
+    //
+    //  Side effects:
+    //     - changes domain size; adds new cells
+    //     - overwrites what was previously an outer guard cell
+    //
+    //  Notes:
+    //    - Simply copies the primitives of the last valid cell.
+    //    - Assumes the parameter LogZoning flag is still valid
+    // ============================================= //
+
+    std::cout << "Extending grid" << std::endl;
+
+    const unsigned int Nr_old = theDomain->Nr;
+    theDomain->Nr *= 1.25;
+    const unsigned int Nr_new = theDomain->Nr;
+
+    theDomain->theCells = (struct cell *) realloc( theDomain->theCells , 
+                                                   Nr_new*sizeof(struct cell) );
+
+    int LogZoning;
+    if ( this->trust_LogZoning_flag() == true)
+    {
+        LogZoning = theDomain->theParList.LogZoning;
+    }
+    else
+    {
+        const double tolerance = 1e-4;
+
+        const double r_3 = theDomain->theCells[Nr_old-2].riph;
+        const double r_2 = theDomain->theCells[Nr_old-3].riph;
+        const double r_1 = theDomain->theCells[Nr_old-4].riph;
+
+
+        const double dr_32 = r_3 - r_2;
+        const double dr_21 = r_2 - r_1;
+
+        if ( (std::abs(dr_32 - dr_21) / dr_21) < tolerance )
+        {
+            LogZoning = 0;
+        }
+        else if ( (std::abs((dr_32/r_3) - (dr_21/r_2)) / (dr_21/r_2))
+                        < tolerance )
+        {
+            LogZoning = 1;
+        }
+        else
+        {
+            std::cerr << "Warning: extend_grid couldn't determine"
+                      << " linear/log spacing; defaulting to linear"
+                      << std::endl;
+            LogZoning = 0;
+        }
+    }
+
+
+    for( int i = Nr_old-2 ; i < Nr_new ; ++i  )
+    {
+        struct cell * c = &(theDomain->theCells[i]);
+        const double rm =  theDomain->theCells[i-1].riph;
+        const double dr_previous = rm - theDomain->theCells[i-2].riph;
+
+        if( LogZoning == 0 )
+        {
+            c->riph = rm + dr_previous;
+        }
+        else 
+        {
+            c->riph = rm / (1 - (dr_previous / rm));
+        }
+    }
+
+    calc_dr( theDomain );
+
+    struct cell * c_old = &(theDomain->theCells[Nr_old-2]);
+    for( int i = Nr_old-2 ; i < Nr_new ; ++i )
+    {
+        struct cell * c = &(theDomain->theCells[i]);
+        c->wiph = c_old->wiph;
+
+        for (int q=0 ; q < NUM_Q ; ++q)
+        {
+            c->prim[q] = c_old->prim[q];
+        }
+
+        const double rp = c->riph;
+        const double rm = rp - c->dr;
+        const double dV = get_dV( rp , rm );
+        prim2cons( c->prim , c->cons , dV );
+        cons2prim( c->cons , c->prim , dV );
+        c->P_old  = c->prim[PPP];
+        c->dV_old = dV;
+    }    
+
+
+    boundary( theDomain );
+
 };

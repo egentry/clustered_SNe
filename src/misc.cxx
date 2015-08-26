@@ -184,7 +184,7 @@ void adjust_RK_cons( struct domain * theDomain , double RK )
     }
 }
 
-void move_cells( struct domain * theDomain , double RK , double dt)
+void move_cells( struct domain * theDomain , double dt)
 {
 
     // ============================================= //
@@ -622,7 +622,7 @@ void AMR( struct domain * theDomain )
         {
             // printf("FORGE! iL = %d\n",iL);         
         }
-        printf("FORGE! iL = %d\n",iL);
+        // printf("FORGE! iL = %d\n",iL);
 
         theDomain->Nr += 1;
         Nr = theDomain->Nr;
@@ -648,10 +648,10 @@ void AMR( struct domain * theDomain )
 
         for( int q=0 ; q<NUM_Q ; ++q )
         {
-        c->cons[q]    *= .5;
-        c->RKcons[q]  *= .5;
-        cp->cons[q]   *= .5;
-        cp->RKcons[q] *= .5;
+            c->cons[q]    *= .5;
+            c->RKcons[q]  *= .5;
+            cp->cons[q]   *= .5;
+            cp->RKcons[q] *= .5;
         }
 
         double dV = get_dV( r0 , rm );

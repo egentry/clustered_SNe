@@ -18,6 +18,8 @@ public:
     int parse_command_line_args ( struct domain * theDomain , int argc , 
                                                               char * argv [] );
     void setup_grid( struct domain * theDomain );
+    bool trust_LogZoning_flag(){return false;}
+
 
 private:
 

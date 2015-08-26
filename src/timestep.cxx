@@ -4,9 +4,12 @@
 #include "boundary.H" // boundary
 #include "misc.H" // calc_dr, calc_prim, radial_flux, add_source, etc
 #include "timestep.H"
+#include "Initial/initial_conditions.H"
+
 
 void substep( struct domain * theDomain , double RK , 
-              double dt , int first_step , int last_step )
+              double dt , int first_step , int last_step ,
+              Initial_Conditions * ICs )
 {
 
     // ============================================= //
@@ -44,7 +47,7 @@ void substep( struct domain * theDomain , double RK ,
     radial_flux( theDomain , dt );
     add_source( theDomain , dt );
 
-    if( first_step ) move_cells( theDomain , RK , dt );
+    if( first_step ) move_cells( theDomain , dt );
     calc_dr( theDomain );
 
     fix_negative_energies( theDomain );
@@ -54,13 +57,16 @@ void substep( struct domain * theDomain , double RK ,
     if( last_step )
     {
         AMR( theDomain );
+        ICs->possibly_extend_grid( theDomain );
+
     }
     boundary( theDomain );
 
 }
 
 
-void timestep( struct domain * theDomain , double dt )
+void timestep( struct domain * theDomain , double dt,
+              Initial_Conditions * ICs )
 {
     // ============================================= //
     //
@@ -99,12 +105,12 @@ void timestep( struct domain * theDomain , double dt )
     //        http://www.ams.org/journals/mcom/1998-67-221/S0025-5718-98-00913-2/S0025-5718-98-00913-2.pdf
     if ( theDomain->theParList.RK2 )
     {
-        substep( theDomain , 0.0 ,     dt , 1 , 0 );
-        substep( theDomain , 0.5 , 0.5*dt , 0 , 1 );      
+        substep( theDomain , 0.0 ,     dt , 1 , 0 , ICs );
+        substep( theDomain , 0.5 , 0.5*dt , 0 , 1 , ICs );      
     }
     else
     {
-        substep( theDomain , 0.0 ,     dt , 1 , 1 );
+        substep( theDomain , 0.0 ,     dt , 1 , 1 , ICs );
     }
 
     theDomain->t += dt;   

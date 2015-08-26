@@ -62,7 +62,7 @@ int main( int argc , char * argv[] )
         double dt = getmindt( &theDomain );
         check_dt( &theDomain , &dt );
         possiblyOutput( &theDomain , 0 );
-        timestep( &theDomain , dt );
+        timestep( &theDomain , dt , ICs );
 
     }
 

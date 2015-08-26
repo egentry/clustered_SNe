@@ -11,7 +11,7 @@ extern "C" {
 double getmindt( struct domain * theDomain );
 void set_wcell( struct domain * theDomain );
 void adjust_RK_cons( struct domain * theDomain , double RK );
-void move_cells( struct domain * theDomain , double RK , double dt);
+void move_cells( struct domain * theDomain , double dt);
 void calc_dr( struct domain * theDomain );
 void fix_negative_energies( struct domain * theDomain );
 void calc_prim( struct domain * theDomain );
