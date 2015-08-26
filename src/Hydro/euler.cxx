@@ -68,7 +68,7 @@ void cons2prim( double * cons , double * prim , double dV , bool verbose)
         printf("dV = %e \n", dV);
         rho=RHO_FLOOR; 
 
-        assert(0);
+        assert(rho>RHO_FLOOR);
     }
     #endif
     if( Pp < PRE_FLOOR )

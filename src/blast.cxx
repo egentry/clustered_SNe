@@ -14,16 +14,16 @@
 #include <assert.h>
 
 #include "structure.H"
+#include "boundary.H"
 #include "constants.H"
+#include "geometry.H" // calc_dV
+#include "misc.H" // calc_prim
 
 #include "blast.H"
 
 using namespace boost;
 using namespace boost::filesystem;
 
-double get_dV( double , double );
-void calc_prim( struct domain * );
-void boundary( struct domain * );
 int add_single_blast( struct domain * theDomain , const double E_blast )
 {
 
@@ -53,7 +53,7 @@ int add_single_blast( struct domain * theDomain , const double E_blast )
 
     const int n_guard_cell = 1;
 
-    const double M_blast = 3 * M_sun;
+    const double M_blast = 18 * M_sun;
 
     // code is not yet set for spreading SNe over multiple cells
     // would need to determine how to split the energy correctly
@@ -68,7 +68,7 @@ int add_single_blast( struct domain * theDomain , const double E_blast )
     // for now assume that the metallicity of the ejecta is the same
     // as the background metallicity
     // later we'll want to actually inject metals
-    c->cons[ZZZ] += M_blast * previous_metallicity;
+    c->cons[ZZZ] += M_blast * .5;
 
 
     // now we need to background within substep()
@@ -187,8 +187,11 @@ int get_SNe( const double cluster_mass, std::vector<double>&SNe_times,
     boost::filesystem::path tracks_path("lib/tracks/Z0140v00.txt");
     tracks_path = slug_path / tracks_path;
 
+    std::cout << "cluster mass: " << cluster_mass << std::endl;
+    std::cout << "entering loop" << std::endl;
     // while( SNe_times.size() != 2)
     // {
+        SNe_times.resize(0);
         slug_PDF imf(imf_path.string().c_str(), rng, true); 
         std::vector<double> star_masses; 
         imf.drawPopulation(cluster_mass, star_masses);
