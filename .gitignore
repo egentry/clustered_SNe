@@ -5,6 +5,7 @@ tmp*
 *.tar.gz
 *.dat
 *.log
+*.batch.*
 saved_runs/
 comparison/
 papers/
