@@ -1,17 +1,17 @@
 
+#include <cmath>
 #include <math.h>
 #include <assert.h>
 
 #include "structure.H"
 #include "misc.H" // prim2cons, cons2prim, 
 #include "riemann.H"
-#include "Hydro/euler.H" // flux, getUstar, get_eta
+#include "Hydro/euler.H" // flux, getUstar
 #include "geometry.H" // get_dV
 
 enum{_HLL_,_HLLC_};
 
 int riemann_solver = 0;
-int rt_flag = 0;
 
 static double PRE_FLOOR = 0.0;
 
@@ -19,7 +19,6 @@ static double PRE_FLOOR = 0.0;
 void setRiemannParams( struct domain * theDomain )
 {
     riemann_solver = theDomain->theParList.Riemann_Solver;
-    rt_flag = theDomain->theParList.rt_flag;
     PRE_FLOOR = theDomain->theParList.Pressure_Floor;
 }
 
@@ -95,11 +94,11 @@ void riemann( struct cell * cL , struct cell * cR,
             Flux[q] = Fl[q] - w*Ul[q];
 
             #ifndef NDEBUG
-            if(!isfinite(Flux[q]) && q!=AAA)
+            if( !std::isfinite(Flux[q]) )
             {
                 printf("------ERROR in riemann()------- \n");
                 printf("Bad flux in part 0 of riemann() \n");
-                assert(0);
+                assert( std::isfinite(Flux[q]) );
             }
             #endif
         }
@@ -113,11 +112,11 @@ void riemann( struct cell * cL , struct cell * cR,
         {
             Flux[q] = Fr[q] - w*Ur[q];
             #ifndef NDEBUG
-            if(!isfinite(Flux[q]) && q!=AAA)
+            if( !std::isfinite(Flux[q]) )
             {
                 printf("------ERROR in riemann()------- \n");
                 printf("Bad flux in part 1 of riemann() \n");
-                assert(0);
+                assert( std::isfinite(Flux[q]) );
             }
             #endif
         }
@@ -143,11 +142,11 @@ void riemann( struct cell * cL , struct cell * cR,
 
                 Flux[q] = Fstar - w*Ustar;
                 #ifndef NDEBUG
-                if(!isfinite(Flux[q]) && q!=AAA)
+                if( !std::isfinite(Flux[q]) )
                 {
                     printf("------ERROR in riemann()------- \n");
                     printf("Bad flux in part 2 of riemann() \n");
-                    assert(0);
+                    assert( std::isfinite(Flux[q]) );
                 }
                 #endif
             }
@@ -167,11 +166,11 @@ void riemann( struct cell * cL , struct cell * cR,
                 {
                     Flux[q] = Fk[q] + Sl*( Ustar[q] - Uk[q] ) - w*Ustar[q];
                     #ifndef NDEBUG
-                    if(!isfinite(Flux[q]) && q!=AAA)
+                    if( !std::isfinite(Flux[q]) )
                     {
                         printf("------ERROR in riemann()------- \n");
                         printf("Bad flux in part 3 of riemann() \n");
-                        assert(0);
+                        assert( std::isfinite(Flux[q]) );
                     }
                     #endif
                 }    
@@ -186,7 +185,7 @@ void riemann( struct cell * cL , struct cell * cR,
                 {
                     Flux[q] = Fk[q] + Sr*( Ustar[q] - Uk[q] ) - w*Ustar[q];
                     #ifndef NDEBUG
-                    if(!isfinite(Flux[q]) && q!=AAA)
+                    if( !std::isfinite(Flux[q]) )
                     {
                         printf("------ERROR in riemann()------- \n");
                         printf("Bad flux in part 4, Flux[%d]=%e \n", q, Flux[q]);
@@ -194,7 +193,7 @@ void riemann( struct cell * cL , struct cell * cR,
                         printf("Sr    = %e \n", Sr);
                         printf("Ustar[%d] = %e \n", q, Ustar[q]);
                         printf("w = %e \n", w);
-                        assert(0);
+                        assert( std::isfinite(Flux[q]) );
                     }
                     #endif
                 } 
@@ -205,39 +204,16 @@ void riemann( struct cell * cL , struct cell * cR,
     #ifndef NDEBUG
     for ( int q=0 ; q<NUM_Q ; ++q)
     {
-        if(!isfinite(Flux[q]) && q!=AAA)
+        if( !std::isfinite(Flux[q]) )
         {
             printf("------ERROR in riemann()------- \n");
             printf("Non-finite Flux[%d]= %e at r = %e \n", q, Flux[q], r);
             printf("cL->dr = %e \n", cL->dr);
             printf("cR->dr = %e \n", cR->dr);
-            assert(0);
+            assert( std::isfinite(Flux[q]) );
         }
     }
     #endif
-
-   if( rt_flag )
-   {
-        double prim[NUM_Q];
-        double consL[NUM_Q];
-        double consR[NUM_Q];
-        prim2cons( cL->prim , consL , 1.0 );
-        prim2cons( cR->prim , consR , 1.0 );
-        double gprim[NUM_Q];
-        double gcons[NUM_Q];
-        for( int q=0 ; q<NUM_Q ; ++q )
-        {
-            prim[q] = .5*(primL[q]+primR[q]);
-            gprim[q] = (cR->prim[q] - cL->prim[q])/(drL+drR);
-            gcons[q] = (consR[q] - consL[q])/(drL+drR);
-        }
-        double eta = get_eta( prim , gprim , r );
-        for( int q=0 ; q<NUM_Q ; ++q )
-        {
-            Flux[q] += -eta*gcons[q];
-        }
-   }
-
 
 
    for( int q=0 ; q<NUM_Q ; ++q )
@@ -262,37 +238,37 @@ void riemann( struct cell * cL , struct cell * cR,
         cons2prim( cR->cons , primR_tmp , dV_R);
         for( int q=0 ; q<NUM_Q ; ++q)
         {
-            if(!isfinite(primL_tmp[q]) && q!=AAA)
+            if( !std::isfinite(primL_tmp[q]) )
             {
                 printf("------ERROR in riemann()------- \n");
                 printf("primL[%d] not finite by end of riemann() \n", q);
                 printf("primL[%d] = %e \n", q, primL_tmp[q]);
-                assert(0);
+                assert( std::isfinite(primL_tmp[q]) );
             }
-            if(!isfinite(primR_tmp[q]) && q!=AAA)
+            if( !std::isfinite(primR_tmp[q]) )
             {
                 printf("------ERROR in riemann()------- \n");
                 printf("primR[%d] not finite by end of riemann() \n", q);
                 printf("primR[%d] = %e \n", q, primR_tmp[q]);
-                assert(0);
+                assert( std::isfinite(primR_tmp[q]) );
             }
         }
 
-        if(primL_tmp[PPP] < PRE_FLOOR)
+        if( primL_tmp[PPP] < PRE_FLOOR )
         {
             printf("------ERROR in riemann()------- \n");
             printf("while preparing to exit \n");
             printf("left prim[%d] = %e \n", PPP, primL_tmp[PPP]);
             printf("expected P > PRE_FLOOR \n");
-            assert(0);
+            assert(primL_tmp[PPP] < PRE_FLOOR);
         }
-        if(primR_tmp[PPP] < PRE_FLOOR)
+        if( primR_tmp[PPP] < PRE_FLOOR )
         {
             printf("------ERROR in riemann()------- \n");
             printf("while preparing to exit \n");
             printf("right prim[%d] = %e \n", PPP, primR_tmp[PPP]);
             printf("expected P > PRE_FLOOR \n");
-            assert(0);
+            assert(primR_tmp[PPP] < PRE_FLOOR);
         }
     #endif
 

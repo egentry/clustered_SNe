@@ -72,7 +72,6 @@ void Cluster_SNe_ICs::initial( double * prim , double r )
     prim[PPP] = Pp;
     prim[VRR] = 0.0;
     prim[ZZZ] = metallicity;
-    prim[AAA] = 0.0;
 
 }
 

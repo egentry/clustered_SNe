@@ -28,7 +28,6 @@ double get_moment_arm( double rp , double rm ){
    //    - I don't see any physical motivation behind this weighting
    //    - This only seems to be used in
    //       - initial()
-   //       - add_source(), but only for source_alpha()
    //       - output() to give a fiducial cell center
    //
    // ============================================= //

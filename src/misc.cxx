@@ -8,7 +8,7 @@ extern "C" {
 #include <cmath> // std::abs
 #include <cfloat> // std::isfinite
 
-#include "geometry.H" // get_dA, get_dV, get_moment_arm
+#include "geometry.H" // get_dA, get_dV
 #include "structure.H"
 #include "misc.H" 
 #include "plm.H"
@@ -166,18 +166,18 @@ void adjust_RK_cons( struct domain * theDomain , double RK )
             printf("rp = %e \n", rp);
             printf("rm = %e \n", rm);
             printf("dr = %e \n", c->dr);
-            assert(0);
+            assert(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor);
         }
         for( int q=0 ; q<NUM_Q ; ++q)
         {
-            if(!std::isfinite(prim_tmp[q]) && q!=AAA)
+            if( !std::isfinite(prim_tmp[q]) )
             {
                printf("------ ERROR in adjust_RK_cons()------- \n");
                printf("prim[%d] = %e in cell %d \n", q, prim_tmp[q], i);
                printf("rp = %e \n", rp);
                printf("rm = %e \n", rm);
                printf("dr = %e \n", c->dr);
-               assert(0);
+               assert( std::isfinite(prim_tmp[q]) );
             }
         }
         #endif
@@ -232,7 +232,7 @@ void move_cells( struct domain * theDomain , double dt)
             printf("rp = %e \n", c->riph);
             printf("rm = %e \n", c->riph - c->dr);
             printf("dr = %e \n", c->dr);
-            assert(0);
+            assert( prim_tmp[PPP] < theDomain->theParList.Pressure_Floor );
          }
         #endif
 
@@ -255,11 +255,11 @@ void move_cells( struct domain * theDomain , double dt)
             printf("rp = %e \n", rp);
             printf("rm = %e \n", rm);
             printf("dr = %e \n", c->dr);
-            assert(0);
+            assert(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor);
         }
         for( int q=0 ; q<NUM_Q ; ++q)
         {
-            if(!std::isfinite(prim_tmp[q]) && q!=AAA)
+            if( !std::isfinite(prim_tmp[q]) )
             {
                 printf("------ ERROR in move_cells()------- \n");
                 printf("non-finite prim[q] \n");
@@ -267,7 +267,7 @@ void move_cells( struct domain * theDomain , double dt)
                 printf("rp = %e \n", rp);
                 printf("rm = %e \n", rm);
                 printf("dr = %e \n", c->dr);
-                assert(0);
+                assert( std::isfinite(prim_tmp[q]) );
             }
         }
         #endif
@@ -385,18 +385,18 @@ void calc_prim( struct domain * theDomain )
             printf("rp = %e \n", rp);
             printf("rm = %e \n", rm);
             printf("dr = %e \n", c->dr);
-            assert(0);
+            assert(c->prim[PPP] < theDomain->theParList.Pressure_Floor);
         }
         for( int q=0 ; q<NUM_Q ; ++q)
         {
-            if(!std::isfinite(c->prim[q]) && q!=AAA)
+            if( !std::isfinite(c->prim[q]) )
             {
                 printf("------ ERROR in calc_prim()------- \n");
                 printf("prim[%d] = %e in cell %d \n", q, c->prim[q], i);
                 printf("rp = %e \n", rp);
                 printf("rm = %e \n", rm);
                 printf("dr = %e \n", c->dr);
-                assert(0);
+                assert( std::isfinite(c->prim[q]) );
             }
         }
         #endif
@@ -457,9 +457,6 @@ void add_source( struct domain * theDomain , double dt )
                 grad[q] = 0.0;
             }
         }
-        double r  = get_moment_arm(rp,rm);
-        source_alpha( c->prim , c->cons , grad , r , dV*dt );
-
 
         // ======== Verify post-conditions ========= //
         #ifndef NDEBUG
@@ -472,18 +469,18 @@ void add_source( struct domain * theDomain , double dt )
             printf("rp = %e \n", rp);
             printf("rm = %e \n", rm);
             printf("dr = %e \n", c->dr);
-            assert(0);
+            assert(c->prim[PPP] < theDomain->theParList.Pressure_Floor);
         }
         for( int q=0 ; q<NUM_Q ; ++q)
         {
-            if(!std::isfinite(c->prim[q]) && q!=AAA)
+            if( !std::isfinite(c->prim[q]) )
             {
                 printf("------ ERROR in add_source()------- \n");
                 printf("prim[%d] = %e in cell %d \n", q, c->prim[q], i);
                 printf("rp = %e \n", rp);
                 printf("rm = %e \n", rm);
                 printf("dr = %e \n", c->dr);
-                assert(0);
+                assert( std::isfinite(c->prim[q]) );
             }
         }
         #endif

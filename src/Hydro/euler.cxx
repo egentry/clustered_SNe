@@ -13,14 +13,12 @@ extern "C" {
 static double GAMMA_LAW = 0.0;
 static double RHO_FLOOR = 0.0;
 static double PRE_FLOOR = 0.0;
-static int    USE_RT    = 1;
 
 void setHydroParams( struct domain * theDomain )
 {
     GAMMA_LAW = theDomain->theParList.Adiabatic_Index;
     RHO_FLOOR = theDomain->theParList.Density_Floor;
     PRE_FLOOR = theDomain->theParList.Pressure_Floor;
-    USE_RT    = theDomain->theParList.rt_flag;
 }
 
 void prim2cons( double * prim , double * cons , double dV )
@@ -125,13 +123,13 @@ void getUstar( double * prim , double * Ustar , double Sk , double Ss )
     for( int q=ZZZ ; q<NUM_Q ; ++q )
     {
         Ustar[q] = prim[q]*Ustar[DDD];
-        if(!isfinite(Ustar[q]) && q!=AAA)
+        if( !isfinite(Ustar[q]) )
         {
             printf("Ustar[%d] = %e in 'getUstar()' \n", q, Ustar[q]);
             printf("prim[%d]  = %e in 'getUstar()' \n", q, prim[q]);
             printf("Sk        = %20.10le in 'getUstar()' \n", Sk);
             printf("Ss        = %20.10le in 'getUstar()' \n", Ss);
-            assert(0);
+            assert( isfinite(Ustar[q]) );
         }
     }
     #endif
@@ -180,50 +178,6 @@ void source( double * prim , double * cons , double * grad ,
     }
 }
 
-void source_alpha( double * prim , double * cons , 
-                   double * grad_prim , double r , double dVdt )
-{
-
-    double A = 2e-5/1.7; //2e-5;//1e-4;
-    double B = 1.2;//0.9;
-    double D = 0.0;
-
-    double gam = GAMMA_LAW;
-    double alpha = prim[AAA];
-
-    double Pp = prim[PPP];
-    double rho = prim[RHO];
-    double P1 = grad_prim[PPP];
-    double rho1 = grad_prim[RHO];
-
-    double g2 = -P1*rho1;
-    if( g2 < 0.0 ) g2 = 0.0;
-    double cs = sqrt(gam*fabs(Pp/rho));
-
-    cons[AAA] += ( (A+B*alpha)*sqrt(g2) - D*rho*alpha*cs/r )*dVdt;
-    if( cons[AAA] < 0. ) cons[AAA] = 0.;
-
-}
-
-double get_eta( double * prim , double * grad_prim , double r )
-{
-
-    double C = 0.06*1.7;//0.03;
-    double gam = GAMMA_LAW;
-
-    double cs = sqrt( gam*fabs(prim[PPP]/prim[RHO]) );
-
-    double alpha = prim[AAA];
-    if( alpha < 0.0 ) alpha = 0.0;
-
-    double u_eddy = cs*sqrt( alpha );
-    double lambda = r*sqrt(alpha);
-
-    double eta = C*u_eddy*lambda;
-
-    return eta;
-
-}
 
 void vel( double * prim1 , double * prim2 , 
           double * Sl , double * Sr , double * Ss )
@@ -329,13 +283,9 @@ double mindt( double * prim , double w , double r , double dr )
     double gam = GAMMA_LAW;
 
     double cs  = sqrt(fabs(gam*Pp/rho));
-    double eta = get_eta( prim , NULL , r );
 
     double maxvr  = cs + fabs( vr - w );
     double dt     = dr/maxvr;
-    double dt_eta = dr*dr/eta;
-
-    if( dt > dt_eta && USE_RT ) dt = dt_eta;
 
     return dt;
 }

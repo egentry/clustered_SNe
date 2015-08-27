@@ -22,7 +22,6 @@ Restart_ICs::Restart_ICs()
     Pp  = NULL;
     vr  = NULL;
     Z   = NULL;
-    A   = NULL;
 
     restart_filename = std::string("init");
     restart_id = std::string("");
@@ -174,7 +173,6 @@ int Restart_ICs::get_table( std::string filename )
    Pp  = (double *) malloc( nL*sizeof(double) );
    vr  = (double *) malloc( nL*sizeof(double) );
    Z   = (double *) malloc( nL*sizeof(double) );
-   A   = (double *) malloc( nL*sizeof(double) );
    FILE * pFile = fopen(filename.c_str(),"r");
    char tmp[1024];
    fscanf(pFile,"%s %s %s %le %s \n",
@@ -185,8 +183,8 @@ int Restart_ICs::get_table( std::string filename )
    int l;
    for( l=0 ; l<nL ; ++l )
    {
-        fscanf(pFile,"%le %le %le %le %le %le %le %le\n",
-               &(rr[l]),&dr,&dV,&(rho[l]),&(Pp[l]),&(vr[l]),&(Z[l]),&(A[l]));
+        fscanf(pFile,"%le %le %le %le %le %le %le\n",
+               &(rr[l]),&dr,&dV,&(rho[l]),&(Pp[l]),&(vr[l]),&(Z[l]));
         // if(l==1)
         // {
         //    printf("r = %le \n", rr[l]);
@@ -196,7 +194,6 @@ int Restart_ICs::get_table( std::string filename )
         //    printf("P = %le \n", Pp[l]);
         //    printf("vr = %le \n", vr[l]);
         //    printf("Z = %le \n", Z[l]);         
-        //    printf("A = %le \n", A[l]);         
         // }
 
    }
@@ -223,7 +220,6 @@ void Restart_ICs::setup_grid( struct domain * theDomain )
         c->prim[PPP]    = Pp[ i];
         c->prim[VRR]    = vr[ i];
         c->prim[ZZZ]    = Z[  i];
-        c->prim[AAA]    = A[  i];
     }
     calc_dr( theDomain );
     set_wcell( theDomain );
@@ -251,7 +247,6 @@ void Restart_ICs::free_table()
     free(Pp);
     free(vr);
     free(Z);
-    free(A);
 }
 
 Restart_ICs::~Restart_ICs()

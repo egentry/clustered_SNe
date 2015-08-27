@@ -2,7 +2,7 @@
 
 //Time Range//
 T_Start			1e0
-T_End			3e13   //3888000
+T_End			3e14   //3888000
 
 //Output Frequency//
 Num_Reports		1000
@@ -26,15 +26,14 @@ PLM			1
 RK2         1
 Riemann_Solver		1	//0=HLL, 1=HLLC
 Mesh_Motion		1	//0=Fixed, 1=By Cell, 2=Riemann Solver
-Density_Floor		1e-40
+Density_Floor		0
 Pressure_Floor		1e-40 //1e6  //1e-8
-With_Cooling 	1
+With_Cooling 	0
 
 //Hydro Parameters
 Adiabatic_Index		1.666666667
-Use_RT			0
 
 //Initial Conditions
-ICs Thornton_parameter_study
+ICs thornton_parameter_study
 
 

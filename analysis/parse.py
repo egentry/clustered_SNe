@@ -66,7 +66,7 @@ class ParseResults(object):
 
 
 cols = ["Radius", "dR", "dV", "Density", 
-        "Pressure", "Velocity", "Z", "Alpha", 
+        "Pressure", "Velocity", "Z", 
         "Temperature", "Energy", "Entropy", 
         "Mass", "M_int", "C_ad", "Crossing_time"]
 cols_in   = cols[:-7]
@@ -145,7 +145,7 @@ def parse_run(data_dir="", id="", last_run=None):
     #### PARSE DATAFILES INTO DATAFRAME
     df = pd.DataFrame()
     for k, checkpoint_filename in enumerate(checkpoint_filenames):
-        array_tmp = np.loadtxt(checkpoint_filename)
+        array_tmp = np.loadtxt(checkpoint_filename, usecols=range(len(cols_in)))
         array_tmp = array_tmp[1:-1] # ignore guard cells
         index     = pd.MultiIndex.from_product([k, np.arange(array_tmp.shape[0])],
                                                names=["k","i"])

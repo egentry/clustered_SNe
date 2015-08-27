@@ -18,5 +18,4 @@ void Shocktube_ICs::initial( double * prim , double r )
     prim[PPP] = Pp;
     prim[VRR] = 0.0;
     prim[ZZZ] = 0.0;
-    prim[AAA] = 0.0;
 }

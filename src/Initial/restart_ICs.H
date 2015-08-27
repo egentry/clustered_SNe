@@ -29,7 +29,6 @@ private:
     double * Pp ;
     double * vr ;
     double * Z  ;
-    double * A  ;
 
     std::string restart_filename;
     std::string restart_id;

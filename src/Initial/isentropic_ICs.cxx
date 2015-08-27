@@ -10,5 +10,4 @@ void Isentropic_ICs::initial( double * prim , double r )
     prim[PPP] = pow(prim[RHO],5./3.);
     prim[VRR] = 0.0;
     prim[ZZZ] = 0.0;
-    prim[AAA] = 0.0;
 }

@@ -110,8 +110,6 @@ int read_par_file( struct domain * theDomain , int argc , char * argv [] ){
                                   &(theList->Mesh_Motion)     );
     err += readvar( par_filename , "Riemann_Solver"  , VAR_INT  ,
                                   &(theList->Riemann_Solver)  );
-    err += readvar( par_filename , "Use_RT"          , VAR_INT  ,
-                                  &(theList->rt_flag)         );
     err += readvar( par_filename , "Use_Logtime"     , VAR_INT  ,
                                   &(theList->Out_LogTime)     );
     err += readvar( par_filename , "Max_Aspect_Short", VAR_DOUB ,

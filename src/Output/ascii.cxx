@@ -28,8 +28,8 @@ void output( struct domain * theDomain , const char * filestart ,
 
     FILE * pFile = fopen( filename , "w" );
     fprintf(pFile,"# time = %le [s] \n", t);
-    // fprintf(pFile,"# r           dr           dV           Density      Pressure     Velocity     Z            Alpha\n");
-    fprintf(pFile,"# r                  dr                 dV                 Density            Pressure           Velocity           Z                  Alpha\n");
+    // fprintf(pFile,"# r           dr           dV           Density      Pressure     Velocity     Z\n");
+    fprintf(pFile,"# r                  dr                 dV                 Density            Pressure           Velocity           Z\n");
 
     int i_min = 0;
     int i_max = Nr;

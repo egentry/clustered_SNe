@@ -1,8 +1,8 @@
 #ifndef _STRUCTURE_H
 #define _STRUCTURE_H
 
-// respectively: density, Pressure, radial velocity, metallicity, AAA (eddy strength)
-enum{RHO,PPP,VRR,ZZZ,AAA};
+// respectively: density, Pressure, radial velocity, metallicity
+enum{RHO,PPP,VRR,ZZZ};
 enum{DDD,TAU,SRR}; // respectively: mass, energy, momentum (radial)
 
 #include <string>
@@ -18,7 +18,7 @@ extern "C" {
 
 #include <vector>
 
-#define NUM_Q 5 // number of evolved variables
+#define NUM_Q 4 // number of evolved variables
 #define NUM_G 2 // number of guard cells (counting both ends)
 
 struct param_list{
@@ -33,7 +33,7 @@ struct param_list{
    double LogRadius;
    int Mesh_Motion, Riemann_Solver;
    double MaxShort, MaxLong;
-   int Absorb_BC, Initial_Regrid, rt_flag;
+   int Absorb_BC, Initial_Regrid;
 
    double CFL;
    int    PLM; // Piece-wise reconstruction: 1 = piecewise linear, 0 = piecewise constant

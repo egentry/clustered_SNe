@@ -39,6 +39,5 @@ void Messy_ICs::initial( double * prim , double r )
     prim[PPP] = rho*Poverrho;
     prim[VRR] = v;
     prim[ZZZ] = Z;
-    prim[AAA] = 0.0;
 
 }
