@@ -1,12 +1,11 @@
 
 #include <string.h>
 #include <assert.h>
-// #include <math.h>
+#include <cmath> // std::abs, std::isfinite
+
 extern "C" {
 #include <grackle.h>
 }
-#include <cmath> // std::abs
-#include <cfloat> // std::isfinite
 
 #include "geometry.H" // get_dA, get_dV
 #include "structure.H"
@@ -427,7 +426,6 @@ void add_source( struct domain * theDomain , double dt )
 
     struct cell * theCells = theDomain->theCells;
     int Nr = theDomain->Nr;
-    double grad[NUM_Q];
 
     for( int i=1 ; i<Nr ; ++i )
     {
@@ -442,21 +440,6 @@ void add_source( struct domain * theDomain , double dt )
         source( c->prim , c->cons , c->grad , rp , rm , dV , dt , 
                 theDomain->cooling_units , theDomain->theParList.With_Cooling );
 
-        int inside = i>0 && i<Nr-1;
-        for( int q=0 ; q<NUM_Q ; ++q )
-        {
-            if( inside )
-            {
-                struct cell * cp = theCells+i+1;
-                struct cell * cm = theCells+i-1;
-                double dR = .5*cp->dr + c->dr + .5*cm->dr;
-                grad[q] = (cp->prim[q]-cm->prim[q])/dR;
-            }
-            else
-            {
-                grad[q] = 0.0;
-            }
-        }
 
         // ======== Verify post-conditions ========= //
         #ifndef NDEBUG

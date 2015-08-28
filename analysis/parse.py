@@ -50,18 +50,111 @@ class RunSummary(object):
         self.E_kin = E_kin
 
 
+
+class Overview(object):
+    """Basic overview of a given ./SNe run
+
+
+    Attributes
+    ----------
+    id : str 
+    metallicity : Optional[float]
+    background_density : Optional[float]
+    background_temperature : Optional[float]
+    with_cooling : Optional[bool]
+
+
+
+    """
+    def __init__(self, filename):
+        """Create an Overview object using an "overview.dat" style filename (see Output/ascii.c)
+
+        Parameters
+        ----------
+        filename - should be a valid "overview.dat" style filename (see Output/ascii.c)
+
+        Notes
+        -----
+        We can currently parse the following attributes:
+            Metallicity : float
+                [ mass fraction ]
+            Background Density : float
+                [ g cm^-3 ]
+            Background Temperature : float
+                [ K ]
+            With Cooling : bool
+            Number of SNe : int
+            Cluster Mass : float
+                [g]
+
+        """
+        super(Overview, self).__init__()
+        
+        self.id = os.path.basename(filename).split("_")[0]  
+        self.dirname = os.path.dirname(filename)
+        # Add trailing slash (if dirname isn't empty)
+        self.dirname = os.path.join(self.dirname, "")
+        
+         # default, since earlier runs won't have this saved
+        self.num_SNe = 0
+        self.cluster_mass = 0
+
+
+        f = open(filename, "r")
+        for line in f:
+            if "Metallicity" in line:
+                self.metallicity = float(line.split()[1])
+            elif "Background Density" in line:
+                self.background_density = float(line.split()[2])
+            elif "Background Temperature" in line:
+                self.background_temperature = float(line.split()[2])
+            elif "With cooling" in line:
+                self.with_cooling = bool(int(line.split()[2]))
+            elif "Number of SNe" in line:
+                self.num_SNe = int(line.split()[-1])
+            elif "Cluster Mass" in line:
+                self.cluster_mass = float(line.split()[-1]) * M_solar
+        f.close()
+
+        SNe_filename = filename.replace("overview", "SNe") 
+        if os.path.exists(SNe_filename):
+            SNe = np.loadtxt(SNe_filename)
+            if (SNe.shape[0] != self.num_SNe):
+                raise ValueError("Number of SNe in datafile " +
+                                 "doesn't match number listed in overview file")
+            self.SNe_times          = SNe[:,0]
+            self.SNe_initial_mass   = SNe[:,1]
+            self.SNe_ejecta_mass    = SNe[:,2]
+            self.SNe_ejecta_mass_Z  = SNe[:,3]
+        else:
+            self.SNe_times          = np.array([0.])
+            self.SNe_initial_mass   = np.array([0.])
+            self.SNe_ejecta_mass    = np.array([0.])
+            self.SNe_ejecta_mass_Z  = np.array([0.])
+
+        sorted_indices = np.argsort(self.SNe_times)
+        self.SNe_times          = self.SNe_times[         sorted_indices]
+        self.SNe_initial_mass   = self.SNe_initial_mass[  sorted_indices]
+        self.SNe_ejecta_mass    = self.SNe_ejecta_mass[   sorted_indices]
+        self.SNe_ejecta_mass_Z  = self.SNe_ejecta_mass_Z[ sorted_indices]
+
+        return
+
+    def __str__(self):
+        string  = "id \t\t\t = {0}".format(self.id) + "\n"
+        string += "metallicity \t\t = {0} ".format(self.metallicity) + "\n"
+        string += "background density \t = {0} [g cm^-3]".format(self.background_density) + "\n"
+        string += "background temperature \t = {0:e} [K]".format(self.background_temperature)
+        return string
+
+
 class ParseResults(object):
     """ 
-        Basically just a struct to hold the results from parse_run()
+        This should be taken out when I have more time
     """
-    def __init__(self, checkpoint_filenames, metallicity,
-                 background_density, background_temperature):
+    def __init__(self, checkpoint_filenames):
         super(ParseResults, self).__init__()
         self.checkpoint_filenames   = checkpoint_filenames 
-        self.metallicity            = metallicity
-        self.background_density     = background_density 
-        self.background_temperature = background_temperature
-        self.cluster_mass           = 0 
         return
 
 
@@ -75,6 +168,8 @@ cols_in   = cols[:-7]
 
 
 def parse_run(data_dir="", id="", last_run=None):
+    #this whole thing is a mess, and needs to be refactored
+
     checkpoint_filenames = glob.glob(os.path.join(data_dir,id + "*checkpoint_*.dat"))
     checkpoint_filenames = sorted(checkpoint_filenames)
     num_checkpoints = len(checkpoint_filenames)
@@ -93,37 +188,9 @@ def parse_run(data_dir="", id="", last_run=None):
         times[k] = float(line.split()[3])
         f.close()
 
-    overview_filename = os.path.join(data_dir, id + "overview.dat")
-    if os.path.exists(overview_filename):
-        f = open(overview_filename, "r")
-        for line in f:
-            if "Metallicity" in line:
-                metallicity = float(line.split()[1])
-            elif "Background Density" in line:
-                background_density = float(line.split()[2])
-            elif "Background Temperature" in line:
-                background_temperature = float(line.split()[2])
-            elif "With cooling" in line:
-                with_cooling = bool(int(line.split()[2]))
-            elif "Number of SNe" in line:
-                num_SNe = int(line.split()[-1])
-            elif "Cluster Mass" in line:
-                cluster_mass = float(line.split()[-1])
-        f.close()
-    else:
-        metallicity = metallicity_solar
-        background_density = m_proton
-        background_temperature = 1e4
-        print("Using defaults")
+    overview = Overview(os.path.join(data_dir, id + "overview.dat"))
 
-    SNe_times_filename = os.path.join(data_dir, id + "SNe_times.dat")
-    if os.path.exists(SNe_times_filename):
-        SNe_times = np.loadtxt(SNe_times_filename)
-    else:
-        SNe_times = np.array([0.])
-    SNe_times.sort()
-
-    mu = calculate_mean_molecular_weight(metallicity)
+    mu = calculate_mean_molecular_weight(overview.metallicity)
 
     E_int    = np.empty(num_checkpoints)
     E_kin    = np.empty(num_checkpoints)
@@ -184,7 +251,7 @@ def parse_run(data_dir="", id="", last_run=None):
         zones[k]    = df_tmp.shape[0]
         
         # over_dense = df_tmp.Density != background_density
-        over_dense = df_tmp.Density > background_density * 1.0001
+        over_dense = df_tmp.Density > overview.background_density * 1.0001
         if np.any(over_dense):
             R_shock[k] = np.max(df_tmp.Radius[over_dense])
         else:    
@@ -228,8 +295,7 @@ def parse_run(data_dir="", id="", last_run=None):
     last_run.momentum   = momentum
     last_run.Luminosity = Luminosity
 
-    last_run.SNe_times  = SNe_times
-    last_run.cluster_mass = cluster_mass * M_solar
+    last_run.overview = overview
     
     # filter for when initial transients have settled
     # assume that the settling time scales with the total time
@@ -243,10 +309,7 @@ def parse_run(data_dir="", id="", last_run=None):
     last_run.t_0        = times[Luminosity == max_lum][0]
     last_run.t_f        = 13 * last_run.t_0 # to match with t_f given by Thornton
 
-    parse_results = ParseResults(checkpoint_filenames, 
-                                 metallicity,
-                                 background_density,
-                                 background_temperature)
+    parse_results = ParseResults(checkpoint_filenames)
     return parse_results
 
 # parse_run(data_dir="../src", id="")

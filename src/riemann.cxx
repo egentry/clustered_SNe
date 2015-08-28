@@ -1,6 +1,5 @@
 
 #include <cmath>
-#include <math.h>
 #include <assert.h>
 
 #include "structure.H"

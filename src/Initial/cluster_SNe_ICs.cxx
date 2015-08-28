@@ -254,11 +254,9 @@ int Cluster_SNe_ICs::parse_command_line_args (  struct domain * theDomain ,
     if ( error>0 ) return(error);
 
     // maybe there's a better spot for this?
-    assert( theDomain->SNe_times.size() == 0 );
-    error = get_SNe(theDomain->cluster_mass,
-                    theDomain->SNe_times,
-                    theDomain->metallicity,
-                    theDomain->seed);
+    theDomain->SNe = get_SNe(theDomain->cluster_mass,
+                             theDomain->metallicity,
+                             theDomain->seed);
     if ( error>0 ) return(error);
 
     return 0;

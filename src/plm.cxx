@@ -1,13 +1,14 @@
 
+#include <cmath>
 #include "structure.H"
 
-double minmod( double a , double b , double c )
+double minmod( const double a , const double b , const double c )
 {
     double m = a;
-    if( a*b < 0.0 ) m = 0.0;
-    if( fabs(b) < fabs(m) ) m = b;
-    if( b*c < 0.0 ) m = 0.0;
-    if( fabs(c) < fabs(m) ) m = c;
+    if( a*b < 0.0 )                 m = 0.0;
+    if( std::abs(b) < std::abs(m) ) m = b;
+    if( b*c < 0.0 )                 m = 0.0;
+    if( std::abs(c) < std::abs(m) ) m = c;
     return m;
 }
 

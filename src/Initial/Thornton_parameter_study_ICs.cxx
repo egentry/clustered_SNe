@@ -218,10 +218,6 @@ int Thornton_Parameter_Study_ICs::parse_command_line_args( struct domain * theDo
     //
     // ============================================= //
 
-    // set only one supernova
-    // maybe there's a better spot for this?
-    assert( theDomain->SNe_times.size() == 0 );
-    theDomain->SNe_times.push_back(0.);
 
     completed_runs = 0;
     if ( argc > 2 )
@@ -234,6 +230,15 @@ int Thornton_Parameter_Study_ICs::parse_command_line_args( struct domain * theDo
     int error = 0;
     error = this->setup_parameter_study( theDomain );
     if ( error>0 ) return(error);
+
+    // set only one supernova
+    // maybe there's a better spot for this?
+    supernova tmp;
+    tmp.lifetime = 0.0;
+    tmp.mass = 0;
+    tmp.mass_ejecta = 3 * M_sun;
+    tmp.mass_ejecta_Z = tmp.mass_ejecta * theDomain->metallicity;
+    theDomain->SNe.push_back(tmp);
 
     return 0;
 }

@@ -1,5 +1,5 @@
 
-#include <math.h>
+#include <cmath>
 #include <assert.h>
 #include <stdlib.h>
 extern "C" {
@@ -123,13 +123,13 @@ void getUstar( double * prim , double * Ustar , double Sk , double Ss )
     for( int q=ZZZ ; q<NUM_Q ; ++q )
     {
         Ustar[q] = prim[q]*Ustar[DDD];
-        if( !isfinite(Ustar[q]) )
+        if( !std::isfinite(Ustar[q]) )
         {
             printf("Ustar[%d] = %e in 'getUstar()' \n", q, Ustar[q]);
             printf("prim[%d]  = %e in 'getUstar()' \n", q, prim[q]);
             printf("Sk        = %20.10le in 'getUstar()' \n", Sk);
             printf("Ss        = %20.10le in 'getUstar()' \n", Ss);
-            assert( isfinite(Ustar[q]) );
+            assert( std::isfinite(Ustar[q]) );
         }
     }
     #endif
@@ -168,8 +168,8 @@ void source( double * prim , double * cons , double * grad ,
 
     // includes 2nd order contribution:
     cons[SRR] += 8*M_PI*grad[PPP]
-                  *(     (pow(rp,3.) - pow(rm,3.))/3. 
-                     + r*(pow(rp,2.) - pow(rm,2.))/2. ); 
+                  *(     (std::pow(rp,3.) - std::pow(rm,3.))/3. 
+                     + r*(std::pow(rp,2.) - std::pow(rm,2.))/2. ); 
 
 
     if( With_Cooling == 1)
@@ -213,13 +213,13 @@ void vel( double * prim1 , double * prim2 ,
     double rho1 = prim1[RHO];
     double vn1  = prim1[VRR];
 
-    double cs1  = sqrt(fabs(gam*P1/rho1));
+    double cs1  = std::sqrt(std::abs(gam*P1/rho1));
 
     double P2   = prim2[PPP];
     double rho2 = prim2[RHO];
     double vn2  = prim2[VRR];
 
-    double cs2  = sqrt(fabs(gam*P2/rho2));
+    double cs2  = std::sqrt(std::abs(gam*P2/rho2));
 
     *Ss = ( P2 - P1 + rho1*vn1*(-cs1) - rho2*vn2*cs2 )/( rho1*(-cs1) - rho2*cs2 );
 
@@ -244,7 +244,7 @@ void vel( double * prim1 , double * prim2 ,
         printf("rho1 = %e \n", rho1);
         printf("P2   = %e \n", P2);
         printf("rho2 = %e \n", rho2);
-        assert(0);
+        assert( *Sr != *Sl );
     }
     #endif
   
@@ -282,9 +282,9 @@ double mindt( double * prim , double w , double r , double dr )
     double vr  = prim[VRR];
     double gam = GAMMA_LAW;
 
-    double cs  = sqrt(fabs(gam*Pp/rho));
+    double cs  = std::sqrt(std::abs(gam*Pp/rho));
 
-    double maxvr  = cs + fabs( vr - w );
+    double maxvr  = cs + std::abs( vr - w );
     double dt     = dr/maxvr;
 
     return dt;

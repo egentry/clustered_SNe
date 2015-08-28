@@ -4,7 +4,7 @@
 
 #include "structure.H"
 
-double minmod( double a , double b , double c );
+double minmod( const double a , const double b , const double c );
 void plm( struct domain * theDomain );
 
 

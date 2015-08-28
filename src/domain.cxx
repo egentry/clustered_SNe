@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <string>
+#include <cmath>
 
 #include <uuid/uuid.h>
 extern "C" {
@@ -65,16 +66,17 @@ int setupDomain( struct domain * theDomain ,
 
     // everything below should probably go in a separate function?
 
-    assert( std::is_sorted( theDomain->SNe_times.rbegin(),
-                           theDomain->SNe_times.rend()   ) );
+    assert( std::is_sorted( theDomain->SNe.rbegin(),
+                            theDomain->SNe.rend(),
+                            sort_by_lifetime) );
 
-    // SNe_times should have been set within the initial conditions
+    // SNe should have been set within the initial conditions
     // probably within parse_command_line_args?
-    if ( theDomain->SNe_times.size() > 0 )
+    if ( theDomain->SNe.size() > 0 )
     {
 
-        double t_first_SN = theDomain->SNe_times.back();
-        double t_last_SN  = theDomain->SNe_times.front();
+        double t_first_SN = theDomain->SNe.back().lifetime;
+        double t_last_SN  = theDomain->SNe.front().lifetime;
 
         theDomain->t      += t_first_SN;
         theDomain->t_init += t_first_SN;
@@ -135,7 +137,8 @@ void possiblyOutput( struct domain * theDomain , int override )
     int n0;
 
     n0 = static_cast<int> ( (t-t_min)*Nrpt / (t_fin-t_min) ) ;
-    if( LogOut ) n0 = static_cast <int> ( Nrpt*log(t/t_min)/log(t_fin/t_min) );
+    if( LogOut ) n0 = static_cast <int> ( Nrpt*std::log(t/t_min)
+                                              /std::log(t_fin/t_min) );
     n0 += nchk_0;
     if( theDomain->nrpt < n0 || override )
     {
@@ -144,7 +147,8 @@ void possiblyOutput( struct domain * theDomain , int override )
     }
 
     n0 = static_cast<int> ( (t-t_min)*Nchk / (t_fin-t_min) );
-    if( LogOut ) n0 = static_cast<int> ( Nchk*log(t/t_min)/log(t_fin/t_min) );
+    if( LogOut ) n0 = static_cast<int> ( Nchk*std::log(t/t_min)
+                                             /std::log(t_fin/t_min) );
     n0 += nchk_0;
     if( (theDomain->nchk < n0 && Nchk>0) || override )
     {

@@ -108,18 +108,28 @@ int overview( struct domain * theDomain )
     fprintf(oFile, "seed:                   %d \n",
              theDomain->seed);
 
-    if ( theDomain->SNe_times.size() > 0 )
+    if ( theDomain->SNe.size() > 0 )
     {
-        fprintf(oFile, "Number of SNe:       %lu \n", theDomain->SNe_times.size());
+        fprintf(oFile, "Number of SNe:       %lu \n", theDomain->SNe.size());
 
-        char SNe_times_filename[256] = "";
-        strcat(SNe_times_filename, theDomain->output_prefix.c_str());
-        strcat(SNe_times_filename, "SNe_times.dat");
-        FILE * SNe_times_oFile = fopen(SNe_times_filename,"w");
-        fprintf(SNe_times_oFile, "# SNe times [s]: \n");
-        for (auto SNe_time : theDomain->SNe_times)
-            fprintf(SNe_times_oFile, "%e \n", SNe_time);
-        fclose(SNe_times_oFile);
+        char SNe_filename[256] = "";
+        strcat(SNe_filename, theDomain->output_prefix.c_str());
+        strcat(SNe_filename, "SNe.dat");
+        FILE * SNe_oFile = fopen(SNe_filename,"w");
+        fprintf(SNe_oFile, "# SNe times [s]     ");
+        fprintf(SNe_oFile, " initial mass [g]    ");
+        fprintf(SNe_oFile, " ejecta mass [g]    ");
+        fprintf(SNe_oFile, " ejecta mass (Z) [g] \n");
+        for (auto SN : theDomain->SNe)
+        {
+            fprintf(SNe_oFile, "%e         ", SN.lifetime);
+            fprintf(SNe_oFile, "%e         ", SN.mass);
+            fprintf(SNe_oFile, "%e         ", SN.mass_ejecta);
+            fprintf(SNe_oFile, "%e         ", SN.mass_ejecta_Z);
+            fprintf(SNe_oFile, "\n");
+        }
+
+        fclose(SNe_oFile);
     }
 
     time_t current_time = time(NULL);

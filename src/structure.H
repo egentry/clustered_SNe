@@ -7,13 +7,11 @@ enum{DDD,TAU,SRR}; // respectively: mass, energy, momentum (radial)
 
 #include <string>
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <string.h>
 #include <time.h>
 extern "C" {
-#include <grackle.h>
+#include <grackle.h> // cooling_units
 }
 
 #include <vector>
@@ -81,7 +79,7 @@ struct domain{
    double background_density;       
    double background_temperature;   
 
-   std::vector<double> SNe_times;
+   std::vector<struct supernova>  SNe;
 
    double cluster_mass; // [solar masses]
    int seed;
@@ -101,6 +99,15 @@ struct cell{
    // for use in checking dE_adiabatic (in fix_negative_energies):
    double P_old; 
    double dV_old; 
+};
+
+
+struct supernova
+{
+    double mass;           // [g]
+    double mass_ejecta;    // [g]
+    double mass_ejecta_Z;  // [g]
+    double lifetime;       // [s]
 };
 
 

@@ -24,7 +24,147 @@
 using namespace boost;
 using namespace boost::filesystem;
 
-int add_single_blast( struct domain * theDomain , const double E_blast )
+double get_ejecta_mass( const double M_initial )
+{
+    // ============================================= //
+    //
+    //  Given an initial mass, find the ejecta mass (total)
+    //  using the data of Heger & Woosley (2007)
+    // 
+    //  Inputs:
+    //     - M_initial    - initial stellar mass [M_sol]
+    //
+    //  Outputs:
+    //     - M_ejecta     - ejected mass [M_sol]
+    //
+    //  Side effects:
+    //     - None
+    //
+    //  Notes:
+    //     - This assumes that there *is* a supernova
+    //     - (see Fig 8 of http://arxiv.org/pdf/1503.07522v1.pdf)
+    //
+    // ============================================= //
+
+    const unsigned int grid_size = 32;
+    const double M_initials[] = {  12.0,  13.0, 14.0,
+                                            15.0,  16.0, 17.0,
+                                            18.0,  19.0, 20.0,
+                                            21.0,  22.0, 23.0,
+                                            24.0,  25.0, 26.0,
+                                            27.0,  28.0, 29.0,
+                                            30.0,  31.0, 32.0,
+                                            33.0,  35.0, 40.0,
+                                            45.0,  50.0, 55.0,
+                                            60.0,  70.0, 80.0,
+                                           100.0, 120.0 };
+
+    const double M_ejectas[] = {   9.389336,  10.244748, 10.973754,
+                                            11.837161, 12.628000, 13.283933,
+                                            13.973949, 14.867287, 15.229942,
+                                            15.757695, 15.604063, 16.343219,
+                                            16.144743, 15.389504, 14.995688,
+                                            15.197527, 15.178074, 14.443274,
+                                            14.193992, 14.117690, 13.952423,
+                                            13.509647, 13.313397, 13.354588,
+                                            15.109093, 10.222817,  8.271961,
+                                             5.883033,  4.969768,  4.579023,
+                                             4.227612,  4.386078 };
+    if ( M_initial < M_initials[0] )
+    {
+        return M_ejectas[0];
+    }
+
+    for (unsigned int i=0 ; i<grid_size ; ++i)
+    {
+        if( M_initial < M_initials[i] )
+        {
+            // linearly interpolate
+            return M_ejectas[i-1] 
+                + (M_ejectas[i] - M_ejectas[i-1])  
+                    * (M_initial     - M_initials[i-1]) 
+                    / (M_initials[i] - M_initials[i-1]);
+        }
+    }
+
+    return M_ejectas[grid_size-1];
+
+}
+
+double get_ejecta_mass_Z( const double M_initial )
+{
+    // ============================================= //
+    //
+    //  Given an initial mass, find the ejecta mass (mass)
+    //  using the data of Heger & Woosley (2007)
+    // 
+    //  Inputs:
+    //     - M_initial    - initial stellar mass [M_sol]
+    //
+    //  Outputs:
+    //     - M_ejecta_Z   - ejected mass of metals [M_sol]
+    //
+    //  Side effects:
+    //     - None
+    //
+    //  Notes:
+    //     - This assumes that there *is* a supernova
+    //     - (see Fig 8 of http://arxiv.org/pdf/1503.07522v1.pdf)
+    //
+    // ============================================= //
+
+
+
+    const unsigned int grid_size = 32;
+    const double M_initials[] = {  12.0,  13.0, 14.0,
+                                            15.0,  16.0, 17.0,
+                                            18.0,  19.0, 20.0,
+                                            21.0,  22.0, 23.0,
+                                            24.0,  25.0, 26.0,
+                                            27.0,  28.0, 29.0,
+                                            30.0,  31.0, 32.0,
+                                            33.0,  35.0, 40.0,
+                                            45.0,  50.0, 55.0,
+                                            60.0,  70.0, 80.0,
+                                           100.0, 120.0 };
+
+    const double M_ejecta_Zs[] = {  0.712336,  0.520048, 0.740254,
+                                             1.026461,  1.282800, 1.549433,
+                                             1.724449,  2.314587, 2.590042,
+                                             2.916695,  3.095063, 3.709219,
+                                             3.934743,  3.864504, 4.228688,
+                                             4.699527,  5.152074, 5.776274,
+                                             6.193992,  6.813690, 7.216423,
+                                             7.386647,  8.174397, 9.856588,
+                                            11.739093, 10.172817, 8.211961,
+                                             5.813033,  4.829768, 4.409023,
+                                             4.037612,  4.216078};
+
+
+    if ( M_initial < M_initials[0] )
+    {
+        return M_ejecta_Zs[0];
+    }
+
+    for (unsigned int i=0 ; i<grid_size ; ++i)
+    {
+        if( M_initial < M_initials[i] )
+        {
+            // linearly interpolate
+            return M_ejecta_Zs[i-1] 
+                + (M_ejecta_Zs[i] - M_ejecta_Zs[i-1])  
+                    * (M_initial     - M_initials[i-1]) 
+                    / (M_initials[i] - M_initials[i-1]);
+        } 
+    }
+
+    return M_ejecta_Zs[grid_size-1];
+
+}
+
+int add_single_blast( struct domain * theDomain , const double M_blast ,
+                                                  const double M_blast_Z,
+                                                  const double E_blast )
 {
 
     // ============================================= //
@@ -34,6 +174,8 @@ int add_single_blast( struct domain * theDomain , const double E_blast )
     // 
     //  Inputs:
     //     - theDomain    - the standard domain struct used throughout
+    //     - M_blast      - total mass ejected [g]
+    //     - M_blast_Z    - mass of metals ejected [g] 
     //     - E_blast      - the energy to be injected [ergs]
     //                    - default = 1e51 ergs
     //
@@ -53,14 +195,10 @@ int add_single_blast( struct domain * theDomain , const double E_blast )
 
     const int n_guard_cell = 1;
 
-    const double M_blast = 18 * M_sun;
-
     // code is not yet set for spreading SNe over multiple cells
     // would need to determine how to split the energy correctly
 
     struct cell * c = &(theDomain->theCells[n_guard_cell]);
-
-    double previous_metallicity = c->cons[ZZZ] / c->cons[DDD];
 
     c->cons[DDD] += M_blast;
     c->cons[TAU] += E_blast;
@@ -68,7 +206,7 @@ int add_single_blast( struct domain * theDomain , const double E_blast )
     // for now assume that the metallicity of the ejecta is the same
     // as the background metallicity
     // later we'll want to actually inject metals
-    c->cons[ZZZ] += M_blast * .5;
+    c->cons[ZZZ] += M_blast_Z;
 
 
     // now we need to background within substep()
@@ -107,27 +245,27 @@ int add_blasts( struct domain * theDomain )
     //
     // ============================================= //
 
-    assert( std::is_sorted( theDomain->SNe_times.rbegin(),
-                            theDomain->SNe_times.rend()   ) );
+    assert( std::is_sorted( theDomain->SNe.rbegin(),
+                            theDomain->SNe.rend(),
+                            sort_by_lifetime) );
 
     unsigned int num_SNe = 0;
-
-    while ( (theDomain->SNe_times.size() > 0) && 
-            (theDomain->SNe_times.back() < theDomain->t) )
+    int error = 0;
+    while ( (theDomain->SNe.size() > 0) && 
+            (theDomain->SNe.back().lifetime < theDomain->t) )
     {
-        // double SNe_time = theDomain->SNe_times.back();
-        theDomain->SNe_times.pop_back();
+        supernova tmp = theDomain->SNe.back();
+        error += add_single_blast( theDomain, 
+                                   tmp.mass_ejecta, tmp.mass_ejecta_Z);
 
+        theDomain->SNe.pop_back();
         ++num_SNe;
     }
 
-    int error = 0;
-    for (int i = 0; i<num_SNe; ++i)
+    if ( num_SNe > 0 )
     {
-        error += add_single_blast( theDomain );
-    }
-    if (num_SNe > 0)
         std::cout << num_SNe << " SN(e) just went off" << std::endl;
+    }
 
     if ( error > 0 )
     {
@@ -141,9 +279,9 @@ int add_blasts( struct domain * theDomain )
 }
 
 
-int get_SNe( const double cluster_mass, std::vector<double>&SNe_times,
-                      const double metallicity,
-                      const unsigned int seed)
+std::vector<supernova> get_SNe( const double cluster_mass,
+                                const double metallicity,
+                                const unsigned int seed)
 {
     // ============================================= //
     //
@@ -155,23 +293,24 @@ int get_SNe( const double cluster_mass, std::vector<double>&SNe_times,
     //
     //  Inputs:
     //     - cluster_mass   - cluster mass in solar masses
-    //     - SNe_times      - vector to contain 
     //     - metallicity    - metallicity mass fraction (e.g. solar = 0.02)
     //                      - Default = 0.02
     //     - seed           - seeds the stochasticity;
     //
     //  Outputs:
-    //     - error          - 0 for successful execution
-    //                      - 1 for failure (should cause this run to quietly stop)
+    //     - SNe            - contains relevant information of the blasts
     //
     //  Side effects:
-    //     - overwrites SNe_times completely
+    //     - None
     //
     //  Notes:
+    //     - Assumes a Kroupa IMF
+    //     - Uses metallicity dependent stellar evolution tracks
+    //     - Assumes a SNe if and only if a star is over 8 solar masses
+    //          - not all of these stars will explode in actuality
+    //     - Assumes solar metallicity progenitors for ejecta mass
     //
     // ============================================= //
-
-    SNe_times.resize(0);
 
     typedef boost::random::mt19937 rng_type; 
     rng_type *rng;
@@ -187,38 +326,36 @@ int get_SNe( const double cluster_mass, std::vector<double>&SNe_times,
     boost::filesystem::path tracks_path("lib/tracks/Z0140v00.txt");
     tracks_path = slug_path / tracks_path;
 
-    std::cout << "cluster mass: " << cluster_mass << std::endl;
-    std::cout << "entering loop" << std::endl;
-    // while( SNe_times.size() != 2)
-    // {
-        SNe_times.resize(0);
-        slug_PDF imf(imf_path.string().c_str(), rng, true); 
-        std::vector<double> star_masses; 
-        imf.drawPopulation(cluster_mass, star_masses);
+    std::vector<double> star_masses; 
+    slug_PDF imf(imf_path.string().c_str(), rng, true); 
+    imf.drawPopulation(cluster_mass, star_masses);
 
-        slug_tracks tracks(tracks_path.string().c_str(), metallicity); 
-        for (auto mass: star_masses)
-        {
-            if ( mass > 8.0 ) // must be 8 solar masses to be consistent with slug
-            {
-                SNe_times.push_back(tracks.star_lifetime(mass)); // [yr]
-            }
-        }
-    // }
-    // sort in reverse order, so we can pop off SNe as they happen
-    std::sort(SNe_times.rbegin(), SNe_times.rend());
-
-    for (double& SNe_time : SNe_times )
+    slug_tracks tracks(tracks_path.string().c_str(), metallicity); 
+    std::vector<supernova> SNe;
+    for (auto mass: star_masses)
     {
-        SNe_time *= yr; // convert to [s]
+        if ( mass > 8.0 ) // must be 8 solar masses to be consistent with slug
+        {
+            supernova tmp;
+            tmp.mass          = mass * M_sun;                    // [g]
+            tmp.lifetime      = tracks.star_lifetime(mass) * yr; // [s]
+            tmp.mass_ejecta   = get_ejecta_mass(  mass) * M_sun; // [g]
+            tmp.mass_ejecta_Z = get_ejecta_mass_Z(mass) * M_sun; // [g]
+            SNe.push_back(tmp);
+        }
     }
 
-    std::cout << "Num SNe: " << SNe_times.size() << std::endl;
+    // sort in reverse order, so we can pop off SNe as they happen
+    std::sort(SNe.rbegin(), SNe.rend(), sort_by_lifetime);
+
+    std::cout << "Num SNe: " << SNe.size() << std::endl;
     std::cout << "Cluster mass: " << cluster_mass << std::endl;
 
-    std::cout << "SNe times: " << std::endl;
-    for (auto t : SNe_times)
-        std::cout << t << "[s]" << std::endl;
-
-    return 0;
+    return SNe;
 }
+
+bool sort_by_lifetime( const supernova &a, const supernova &b)
+{
+    return (a.lifetime < b.lifetime);
+}
+

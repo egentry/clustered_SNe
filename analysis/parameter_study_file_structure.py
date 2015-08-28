@@ -13,82 +13,16 @@ if __package__ is None:
                                         os.pardir))
 
 from SNe.analysis.constants import m_proton
+from SNe.analysis.parse import Overview
 
-class Overview(object):
-    """Overview of a given ./SNe run
-
-
-    Attributes
-    ----------
-    id : str 
-    metallicity : Optional[float]
-    background_density : Optional[float]
-    background_temperature : Optional[float]
-    with_cooling : Optional[bool]
-
-
-
+class ThorntonParameterStudyOverview(Overview):
+    """For a given ./SNe run, which was created using the settings of 
+    Thornton et al., this adds some functionality about where the
+    data should ultimately reside.
     """
     def __init__(self, filename):
-        """Create an Overview object using an "overview.dat" style filename (see Output/ascii.c)
+        super(Overview, self).__init__(filename)
 
-        Parameters
-        ----------
-        filename - should be a valid "overview.dat" style filename (see Output/ascii.c)
-
-        Notes
-        -----
-        We can currently parse the following attributes:
-            Metallicity : float
-                [ mass fraction ]
-            Background Density : float
-                [ g cm^-3 ]
-            Background Temperature : float
-                [ K ]
-            With Cooling : bool
-
-        """
-        super(Overview, self).__init__()
-        
-        self.id = os.path.basename(filename).split("_")[0]  
-        self.dirname = os.path.dirname(filename)
-        # Add trailing slash (if dirname isn't empty)
-        self.dirname = os.path.join(self.dirname, "")
-        
-        self.num_SNe = 0 # default, since earlier runs won't have this saved
-
-        # this parsing is redundant with parts from parse_run in parse.py
-        # they should probably be consolidated
-        f = open(filename, "r")
-        for line in f:
-            if "Metallicity" in line:
-                self.metallicity = float(line.split()[1])
-            elif "Background Density" in line:
-                self.background_density = float(line.split()[2])
-            elif "Background Temperature" in line:
-                self.background_temperature = float(line.split()[2])
-            elif "With cooling" in line:
-                self.with_cooling = bool(int(line.split()[2]))
-            elif "Number of SNe" in line:
-                self.num_SNe = int(line.split()[-1])
-        f.close()
-
-        SNe_times_filename = filename.replace("overview", "SNe_times") 
-        if os.path.exists(SNe_times_filename):
-            self.SNe_times = np.loadtxt(SNe_times_filename)
-        else:
-            self.SNe_times = np.array([0.])
-        self.SNe_times.sort()
-
-
-        return
-
-    def __str__(self):
-        string  = "id \t\t\t = {0}".format(self.id) + "\n"
-        string += "metallicity \t\t = {0} ".format(self.metallicity) + "\n"
-        string += "background density \t = {0} [g cm^-3]".format(self.background_density) + "\n"
-        string += "background temperature \t = {0:e} [K]".format(self.background_temperature)
-        return string
 
     def make_dirname(self):
         """Create a dirname where the data for this Overview should live
@@ -122,6 +56,9 @@ class Overview(object):
                                                self.with_cooling,
                                                base_dirname = "")
         return dirname
+
+
+
 
 
 def make_dirname_from_properties(background_density, metallicity, 
@@ -259,6 +196,8 @@ def move_files(source_dirname=os.path.join(os.pardir, "src"),
             shutil.move(file, dirname)
 
 # move_files(source_dirname="../src", target_dirname="..")
+add_id_to_batch_outputs(dirname="../src", batch_name="cluster")
+
 
 
 

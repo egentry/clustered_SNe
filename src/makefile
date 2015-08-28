@@ -8,11 +8,9 @@ LIB = -lm
 
 ifeq ($(shell uname),Linux)
 # General linux options
-CC = gcc
 CXX = g++
 
-C_FLAGS =  -Wall -g
-CXX_FLAGS = -Wall -g -std=c++11
+CXX_FLAGS = -Wall -g -std=c++11 -fPIC 
 
 INC += 
 LIB += -lstdc++
@@ -47,11 +45,9 @@ endif
 
 ifeq ($(findstring campusrocks2, $(HOSTNAME)),campusrocks2)
 # Campus cluster options
-# 	Overwrite general linux options
-CC = gcc
+# 	(Overwrite general linux options)
 CXX = g++
 
-C_FLAGS =  -Wall -g
 CXX_FLAGS = -Wall -g -std=c++11 -fPIC
 
 INC += 
@@ -93,10 +89,8 @@ endif
 
 ifeq ($(shell uname),Darwin)
 # Mac options
-CC = cc
 CXX = c++
 
-C_FLAGS =  -Wall -g
 CXX_FLAGS = -Wall -g -std=c++11 -fPIC
 
 
@@ -203,4 +197,4 @@ move_headers:
 
 clean:
 	rm -f *.o $(EXE) $(LIB_NAME) ../bin/$(EXE)
-	rm -f Hydro/*.o Output/*.o
+	rm -f Hydro/*.o Output/*.o Initial/*.o
