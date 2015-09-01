@@ -660,7 +660,7 @@ void AMR( struct domain * theDomain )
                 printf("dV_orig/2  = %e \n", dV_orig/2);
                 printf("dV         = %e \n", dV);
                 printf("fractional error : %e \n", (dV_orig/2 - dV) / dV);
-                // assert(0);
+                assert(0);
             }
             if ( std::abs((c->prim[q] - prim_tmp[q]) / prim_tmp[q]) > tol)
             {

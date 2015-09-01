@@ -78,8 +78,8 @@ int setupDomain( struct domain * theDomain ,
         double t_first_SN = theDomain->SNe.back().lifetime;
         double t_last_SN  = theDomain->SNe.front().lifetime;
 
-        theDomain->t      += t_first_SN;
-        theDomain->t_init += t_first_SN;
+        // theDomain->t      += t_first_SN;
+        // theDomain->t_init += t_first_SN;
         theDomain->t_fin  += t_last_SN;
 
     }

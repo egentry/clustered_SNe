@@ -8,6 +8,10 @@
 
 
 
+void add_winds( struct domain * theDomain, const double dt );
+void add_winds_constant( struct domain * theDomain , const double dt, 
+                  const double wind_velocity = 1e3 * 1000 * 100 );
+
 int add_single_blast( struct domain * theDomain , const double M_blast,
                                                   const double M_blast_Z,
                                                   const double E_blast = 1e51);

@@ -24,6 +24,87 @@
 using namespace boost;
 using namespace boost::filesystem;
 
+void add_winds( struct domain * theDomain , const double dt)
+{
+    // ============================================= //
+    //
+    //  Add a wind to account for pre-supernova mass loss
+    // 
+    //  Inputs: 
+    //     - theDomain      - the standard domain struct used throughout
+    //     - dt             - dt of the current timestep
+    //
+    //  Outputs:
+    //     - None
+    //
+    //  Side effects:
+    //     - Adds mass, metals, momentum, energy to the cons
+    //
+    //  Notes:
+    //      - Overall mass loss should have a relatively small effect,
+    //        but for the most massive SNe, pre-SNe mass loss 
+    //        (e.g. during Wolf Rayet phase) can change the SNR dynamics
+    //
+    // ============================================= //
+
+    add_winds_constant( theDomain, dt );
+
+
+}
+
+void add_winds_constant( struct domain * theDomain , const double dt ,
+                         const double wind_velocity )
+{
+    // ============================================= //
+    //
+    //  Simply assume a constant mass-loss rate,
+    //   at a constant wind velocity, 
+    //   with the metallicity being the raw metallicity of the star
+    // 
+    //  Inputs: 
+    //     - theDomain      - the standard domain struct used throughout
+    //     - dt             - dt of the current timestep
+    //     - wind_velocity  - injection velocity
+    //                      -  default: 1000 km/s
+    //
+    //  Outputs:
+    //     - None
+    //
+    //  Side effects:
+    //     - Adds mass, metals, momentum, energy to the cons
+    //
+    //  Notes:
+    //      - Overall mass loss should have a relatively small effect,
+    //        but for the most massive SNe, pre-SNe mass loss 
+    //        (e.g. during Wolf Rayet phase) can change the SNR dynamics
+    //      - Only adds mechanical energy
+    //          - I should probably add thermal energy?
+    //
+    // ============================================= //
+
+
+    const int n_guard_cell = 1;
+    struct cell * blast_cell = &(theDomain->theCells[n_guard_cell]);
+
+
+    for ( unsigned int i=0 ; i <theDomain->SNe.size() ; ++i )
+    {
+        supernova SN = theDomain->SNe[i];
+        const double mass_loss = (dt / SN.lifetime) 
+                                * (SN.mass - SN.mass_ejecta);
+
+        blast_cell->cons[DDD] += mass_loss;
+        blast_cell->cons[SRR] += mass_loss * wind_velocity;
+        blast_cell->cons[TAU] += mass_loss * .5 * std::pow(wind_velocity, 2); 
+        blast_cell->cons[ZZZ] += mass_loss * theDomain->metallicity;
+
+    }
+
+
+    return;
+
+}
+
 double get_ejecta_mass( const double M_initial )
 {
     // ============================================= //
@@ -72,7 +153,7 @@ double get_ejecta_mass( const double M_initial )
                                              4.227612,  4.386078 };
     if ( M_initial < M_initials[0] )
     {
-        return M_ejectas[0];
+        return M_initial - 1.5; // extrapolate Fig 3 of Woosley + Heger (2007)
     }
 
     for (unsigned int i=0 ; i<grid_size ; ++i)
