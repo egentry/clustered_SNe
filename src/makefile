@@ -89,7 +89,7 @@ endif
 
 ifeq ($(shell uname),Darwin)
 # Mac options
-CXX = c++
+CXX = clang++
 
 CXX_FLAGS = -Wall -g -std=c++11 -fPIC
 
