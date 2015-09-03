@@ -18,6 +18,7 @@
 #include "constants.H"
 #include "geometry.H" // calc_dV
 #include "misc.H" // calc_prim
+#include "Output/ascii.H" // count_lines_in_file
 
 #include "blast.H"
 
@@ -48,6 +49,11 @@ void add_winds( struct domain * theDomain , const double dt)
     // ============================================= //
 
     add_winds_constant( theDomain, dt );
+
+    // now we need to background within substep()
+    // since we changed the cons, but not the prims
+    calc_prim( theDomain );
+    boundary( theDomain );
 
 
 }
@@ -431,6 +437,44 @@ std::vector<supernova> get_SNe( const double cluster_mass,
 
     std::cout << "Num SNe: " << SNe.size() << std::endl;
     std::cout << "Cluster mass: " << cluster_mass << std::endl;
+
+    return SNe;
+}
+
+std::vector<supernova> read_SNe( const std::string filename)
+{
+
+    std::vector<supernova> SNe;
+    supernova SN_tmp;
+
+    int nL = count_lines_in_file(filename) - 1;
+    if ( nL < 0 ) return SNe;
+
+    double SN_time;
+    double SN_mass;
+    double SN_mass_ejecta;
+    double SN_mass_ejecta_Z;
+
+
+    FILE * pFile = fopen(filename.c_str(),"r");
+    char tmp[1024];
+    fgets(tmp, sizeof(tmp), pFile); // header line
+
+    for( int l=0 ; l<nL ; ++l )
+    {
+        fscanf(pFile,"%le %le %le %le\n",
+                &SN_time, &SN_mass, &SN_mass_ejecta, &SN_mass_ejecta_Z);
+
+        SN_tmp.mass             = SN_mass;
+        SN_tmp.mass_ejecta      = SN_mass_ejecta;
+        SN_tmp.mass_ejecta_Z    = SN_mass_ejecta_Z;
+        SN_tmp.lifetime         = SN_time;
+
+        SNe.push_back(SN_tmp);
+    }
+    fclose(pFile);
+
+    std::sort(SNe.rbegin(), SNe.rend(), sort_by_lifetime);
 
     return SNe;
 }

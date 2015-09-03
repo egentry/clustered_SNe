@@ -2,6 +2,7 @@
 #ifndef _INITIAL_CONDITIONS_H_
 #define _INITIAL_CONDITIONS_H_
 
+#include <vector>
 #include <string>
 
 #include "../structure.H"
@@ -20,10 +21,12 @@ public:
 
     virtual void setup_grid( struct domain * theDomain );
     virtual void possibly_extend_grid( struct domain * theDomain);
-    virtual void extend_grid( struct domain * theDomain,
+    virtual void extend_grid( struct domain * theDomain ,
                               const double extend_fraction=0.25);
 
     virtual bool trust_LogZoning_flag(){return true;}
+
+    virtual void set_times( struct domain * theDomain );
 
 private:
     virtual void initial( double * prim , double r ) = 0;

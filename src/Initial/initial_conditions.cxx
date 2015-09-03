@@ -334,3 +334,30 @@ void Initial_Conditions::extend_grid( struct domain * theDomain,
     boundary( theDomain );
 
 };
+
+void Initial_Conditions::set_times( struct domain * theDomain )
+{
+    // Maybe this should be set within ICparams?
+
+    if ( theDomain->SNe.size() > 0 )
+    {
+
+        double t_first_SN = theDomain->SNe.back().lifetime;
+        double t_last_SN  = theDomain->SNe.front().lifetime;
+
+        theDomain->t      += t_first_SN;
+        theDomain->t_init += t_first_SN;
+        theDomain->t_fin  += t_last_SN;
+
+    }
+    else
+    {
+        // std::cerr << "Error: No SNe in this run. Exiting." << std::endl;
+        // no supernovae. For now, just kill the process
+        // but maybe figure out a better way to respond?
+        // return 1; 
+    }
+
+}
+
+

@@ -9,6 +9,8 @@
 #include "../boundary.H"
 #include "../Hydro/euler.H" // prim2cons, cons2prim, mindt
 #include "../geometry.H"
+#include "../blast.H"
+#include "../Output/ascii.H"
 
 
 #include <boost/filesystem.hpp>
@@ -43,7 +45,8 @@ int Restart_ICs::setICparams( struct domain * theDomain ){
     theDomain->t      = time_restart;
     theDomain->t_init = time_restart;
     theDomain->t_fin  = time_restart + delta_time;
-    theDomain->nchk_0 = checkpoints_finished + 1;
+    theDomain->nchk_0 = checkpoints_finished ;
+    theDomain->nchk   = checkpoints_finished ;
 
     if (restart_filename.find("checkpoint_") != std::string::npos )
     {
@@ -57,6 +60,22 @@ int Restart_ICs::setICparams( struct domain * theDomain ){
     std::cout << "time restart: " << time_restart << std::endl;
     std::cout << "checkpoints_finished: " << checkpoints_finished << std::endl;
     std::cout << "output_prefix: " << theDomain->output_prefix << std::endl;
+
+    std::string SNe_filename (restart_filename);
+
+    std::vector<supernova> SNe = read_SNe(theDomain->output_prefix + "SNe.dat");
+    assert( std::is_sorted( SNe.rbegin(),
+                            SNe.rend(),
+                            sort_by_lifetime) );
+
+    while ( (SNe.size() > 0) && 
+            (SNe.back().lifetime < theDomain->t) )
+    {
+        SNe.pop_back();
+    }
+    theDomain->SNe = SNe;
+
+
     return 0;
 }
 
@@ -86,24 +105,7 @@ int Restart_ICs::parse_command_line_args (  struct domain * theDomain ,
 }
 
 
-int Restart_ICs::countlines( std::string filename )
-{
-    FILE *pFile = fopen(filename.c_str(), "r");
-    if ( pFile == NULL )
-    {
-        std::cerr << "Error: Restart file (\"" << filename 
-                  << "\" doesn't exist." << std::endl;
-        return 0;
-    }
-    int lines=0;
-    char c;
-    while ((c = fgetc(pFile)) != EOF)
-    {
-        if (c == '\n') ++lines;
-    }
-    fclose(pFile);
-    return lines;
-}
+
 
 std::string Restart_ICs::get_restart_filename( const std::string partial_ID )
 {
@@ -162,29 +164,28 @@ std::string Restart_ICs::get_restart_filename( const std::string partial_ID )
 }
 
 
-int Restart_ICs::get_table( std::string filename )
+int Restart_ICs::get_table( const std::string filename )
 {
-   int nL = this->countlines(filename) - 2;
-   if ( nL < 0 ) return nL;
-   rr  = (double *) malloc( nL*sizeof(double) );
-   double dr;
-   double dV;
-   rho = (double *) malloc( nL*sizeof(double) );
-   Pp  = (double *) malloc( nL*sizeof(double) );
-   vr  = (double *) malloc( nL*sizeof(double) );
-   Z   = (double *) malloc( nL*sizeof(double) );
-   FILE * pFile = fopen(filename.c_str(),"r");
-   char tmp[1024];
-   fscanf(pFile,"%s %s %s %le %s \n",
-          tmp, tmp, tmp, &time_restart, tmp);
-   
-   fgets(tmp, sizeof(tmp), pFile); // header line
+    int nL = count_lines_in_file(filename) - 2;
+    if ( nL < 0 ) return nL;
+    rr  = (double *) malloc( nL*sizeof(double) );
+    double dr;
+    double dV;
+    rho = (double *) malloc( nL*sizeof(double) );
+    Pp  = (double *) malloc( nL*sizeof(double) );
+    vr  = (double *) malloc( nL*sizeof(double) );
+    Z   = (double *) malloc( nL*sizeof(double) );
+    FILE * pFile = fopen(filename.c_str(),"r");
+    char tmp[1024];
+    fscanf(pFile,"%s %s %s %le %s \n",
+    tmp, tmp, tmp, &time_restart, tmp);
 
-   int l;
-   for( l=0 ; l<nL ; ++l )
-   {
+    fgets(tmp, sizeof(tmp), pFile); // header line
+
+    for( int l=0 ; l<nL ; ++l )
+    {
         fscanf(pFile,"%le %le %le %le %le %le %le\n",
-               &(rr[l]),&dr,&dV,&(rho[l]),&(Pp[l]),&(vr[l]),&(Z[l]));
+                &(rr[l]),&dr,&dV,&(rho[l]),&(Pp[l]),&(vr[l]),&(Z[l]));
         // if(l==1)
         // {
         //    printf("r = %le \n", rr[l]);
@@ -196,10 +197,12 @@ int Restart_ICs::get_table( std::string filename )
         //    printf("Z = %le \n", Z[l]);         
         // }
 
-   }
-   fclose(pFile);
-   return nL;
+    }
+    fclose(pFile);
+    return nL;
 }
+
+
 
 void Restart_ICs::setup_grid( struct domain * theDomain )
 {
@@ -238,6 +241,31 @@ void Restart_ICs::setup_grid( struct domain * theDomain )
 
     boundary( theDomain );
 }
+
+void Restart_ICs::set_times( struct domain * theDomain )
+{
+    // do basically the same thing as the base class,
+    // except don't change t or t_init
+
+    // Maybe this should be set within ICparams?
+
+    if ( theDomain->SNe.size() > 0 )
+    {
+
+        double t_last_SN  = theDomain->SNe.front().lifetime;
+
+        theDomain->t_fin  += t_last_SN;
+
+    }
+    else
+    {
+        // std::cerr << "Error: No SNe in this run. Exiting." << std::endl;
+        // no supernovae. For now, just kill the process
+        // but maybe figure out a better way to respond?
+        // return 1; 
+    }
+}
+
 
 
 void Restart_ICs::free_table()
