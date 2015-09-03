@@ -20,6 +20,7 @@ public:
     void setup_grid( struct domain * theDomain );
     bool trust_LogZoning_flag(){return false;}
 
+    void set_times( struct domain * theDomain );
 
 private:
 
@@ -36,10 +37,7 @@ private:
     double time_restart;
     unsigned int checkpoints_finished;
 
-    int countlines( std::string filename );
-
-    int get_table( std::string filename );
-
+    int get_table( const std::string filename );
     std::string get_restart_filename( const std::string partial_ID );
 
     void free_table();
