@@ -14,21 +14,24 @@ static double GAMMA_LAW = 0.0;
 static double RHO_FLOOR = 0.0;
 static double PRE_FLOOR = 0.0;
 
-void setHydroParams( struct domain * theDomain )
+void setHydroParams( const struct domain * theDomain )
 {
     GAMMA_LAW = theDomain->theParList.Adiabatic_Index;
     RHO_FLOOR = theDomain->theParList.Density_Floor;
     PRE_FLOOR = theDomain->theParList.Pressure_Floor;
 }
 
-void prim2cons( double * prim , double * cons , double dV )
+void prim2cons( const double * prim , double * cons , const double dV )
 {
-    double rho = prim[RHO];
-    double Pp  = prim[PPP];
-    double vr  = prim[VRR];
-    double v2 = vr*vr;
-    double gam = GAMMA_LAW;
-    double rhoe = Pp/(gam-1.);
+    // prim2cons shouldn't overwrite the cons array of any cell,
+    // besides when setting up initial conditions.
+
+    const double rho  = prim[RHO];
+    const double P    = prim[PPP];
+    const double vr   = prim[VRR];
+    const double v2   = vr*vr;
+    const double gam  = GAMMA_LAW;
+    const double rhoe = P/(gam-1.);
 
     cons[DDD] = rho*dV;
     cons[SRR] = rho*vr*dV;
@@ -40,22 +43,27 @@ void prim2cons( double * prim , double * cons , double dV )
     }
 }
 
-void cons2prim( double * cons , double * prim , double dV , bool verbose)
+void cons2prim( const double * cons , double * prim , 
+                const double dV , const bool verbose)
 {
+    // prim2cons shouldn't overwrite the cons array of any cell,
+    // besides when setting up initial conditions.
+    // Any of the RHO_FLOOR, PRE_FLOOR adjustments below
+    // shouldn't actually change the cons values 
 
     // // E    :    total energy / unit volume
     // // e    : internal energy / unit mass
     // // rhoe : internal energy / unit volume
-    // // Pp   : pressure (why the second 'p'?)
+    // // P    : pressure
     double rho = cons[DDD]/dV;
-    double Sr  = cons[SRR]/dV;
-    double E   = cons[TAU]/dV;
+    const double Sr  = cons[SRR]/dV;
+    const double E   = cons[TAU]/dV;
 
-    double vr = Sr/rho;
-    double v2 = vr*vr;
-    double rhoe = E - .5*rho*v2;
-    double gam = GAMMA_LAW;
-    double Pp = (gam-1.)*rhoe;
+    const double vr   = Sr/rho;
+    const double v2   = vr*vr;
+    const double rhoe = E - .5*rho*v2;
+    const double gam  = GAMMA_LAW;
+    double P    = (gam-1.)*rhoe;
 
     #ifndef NDEBUG
     if( rho<RHO_FLOOR ) 
@@ -69,25 +77,25 @@ void cons2prim( double * cons , double * prim , double dV , bool verbose)
         assert(rho>RHO_FLOOR);
     }
     #endif
-    if( Pp < PRE_FLOOR )
+    if( P < PRE_FLOOR )
     {
         if (verbose)
         {
             printf("------ ERROR in cons2prim()------- \n");
             printf("pressure should be above pressure floor! \n");
-            printf("pressure       = %e \n", Pp);
+            printf("pressure       = %e \n", P);
             printf("pressure floor = %e \n", PRE_FLOOR);
             printf("dV  = %e \n", dV);
             printf("rho = %e \n", rho);
             printf("vr  = %e \n", vr);
         }
-        // assert(Pp > 0);
+        // assert(P  > 0);
 
-        Pp = PRE_FLOOR;
+        P = PRE_FLOOR;
     } 
 
     prim[RHO] = rho;
-    prim[PPP] = Pp;
+    prim[PPP] = P;
     prim[VRR] = vr;
 
     for( int q=ZZZ ; q<NUM_Q ; ++q )
@@ -97,21 +105,22 @@ void cons2prim( double * cons , double * prim , double dV , bool verbose)
 
 }
 
-void getUstar( double * prim , double * Ustar , double Sk , double Ss )
+void getUstar( const double * prim ,  double * Ustar ,
+               const double Sk , const double Ss )
 {
 
-    double rho  = prim[RHO];
-    double vr   = prim[VRR];
-    double Pp   = prim[PPP];
-    double v2   = vr*vr;
+    const double rho  = prim[RHO];
+    const double vr   = prim[VRR];
+    const double P    = prim[PPP];
+    const double v2   = vr*vr;
 
-    double gam  = GAMMA_LAW;
+    const double gam  = GAMMA_LAW;
 
-    double rhoe = Pp/(gam-1.);
+    const double rhoe = P/(gam-1.);
 
-    double rhostar =  rho*(Sk - vr)/(Sk - Ss);
-    double Pstar   =   Pp*(Ss - vr)/(Sk - Ss);
-    double Us      = rhoe*(Sk - vr)/(Sk - Ss);
+    const double rhostar =  rho*(Sk - vr)/(Sk - Ss);
+    const double Pstar   =    P*(Ss - vr)/(Sk - Ss);
+    const double Us      = rhoe*(Sk - vr)/(Sk - Ss);
 
     Ustar[DDD] = rhostar;
     Ustar[SRR] = rhostar*Ss;
@@ -136,18 +145,18 @@ void getUstar( double * prim , double * Ustar , double Sk , double Ss )
 
 }
 
-void flux( double * prim , double * flux )
+void flux( const double * prim , double * flux )
 {
-    double rho = prim[RHO];
-    double Pp  = prim[PPP];
-    double vr  = prim[VRR];
-    double v2  = vr*vr;
-    double gam = GAMMA_LAW;
-    double rhoe = Pp/(gam-1.);
+    const double rho  = prim[RHO];
+    const double P    = prim[PPP];
+    const double vr   = prim[VRR];
+    const double v2   = vr*vr;
+    const double gam  = GAMMA_LAW;
+    const double rhoe = P/(gam-1.);
 
     flux[DDD] = rho*vr;
-    flux[SRR] = rho*vr*vr + Pp;
-    flux[TAU] = (.5*rho*v2 + rhoe + Pp)*vr;
+    flux[SRR] = rho*vr*vr + P;
+    flux[TAU] = (.5*rho*v2 + rhoe + P)*vr;
 
     for( int q=ZZZ ; q<NUM_Q ; ++q )
     {
@@ -155,16 +164,17 @@ void flux( double * prim , double * flux )
     }
 }
 
-void source( double * prim , double * cons , double * grad , 
-             double rp , double rm , double dV , double dt , 
-             code_units cooling_units, int With_Cooling)
+void source( const double * prim , double * cons , const double * grad , 
+             const double rp , const double rm ,
+             const double dV , const double dt , 
+             code_units cooling_units, const int With_Cooling)
 {
-    double Pp  = prim[PPP];
-    double r  = .5*(rp+rm);
-    double r2 = (rp*rp+rm*rm+rp*rm)/3.;
-    cons[SRR] += 2.*Pp*(r/r2)*dV*dt; // this is just the 1st order contribution
+    const double P   = prim[PPP];
+    const double r   = .5*(rp+rm);
+    const double r2  = (rp*rp+rm*rm+rp*rm)/3.;
+    cons[SRR] += 2.*P*(r/r2)*dV*dt; // this is just the 1st order contribution
     // r / r2 is effectively (rp^2 - rm^2) / (rp^3 - rm^3) = d(surface area) / dV
-    // so we're doing cons[SRR] += Pp * (4*pi*(rp^2 - rm^2)) * dt
+    // so we're doing cons[SRR] += P * (4*pi*(rp^2 - rm^2)) * dt
 
     // includes 2nd order contribution:
     cons[SRR] += 8*M_PI*grad[PPP]
@@ -179,7 +189,7 @@ void source( double * prim , double * cons , double * grad ,
 }
 
 
-void vel( double * prim1 , double * prim2 , 
+void vel( const double * prim1 , const double * prim2 , 
           double * Sl , double * Sr , double * Ss )
 {
 
@@ -207,19 +217,19 @@ void vel( double * prim1 , double * prim2 ,
     //
     // ============================================= // 
 
-    double gam  = GAMMA_LAW;
+    const double gam  = GAMMA_LAW;
 
-    double P1   = prim1[PPP];
-    double rho1 = prim1[RHO];
-    double vn1  = prim1[VRR];
+    const double P1   = prim1[PPP];
+    const double rho1 = prim1[RHO];
+    const double vn1  = prim1[VRR];
 
-    double cs1  = std::sqrt(std::abs(gam*P1/rho1));
+    const double cs1  = std::sqrt(std::abs(gam*P1/rho1));
 
-    double P2   = prim2[PPP];
-    double rho2 = prim2[RHO];
-    double vn2  = prim2[VRR];
+    const double P2   = prim2[PPP];
+    const double rho2 = prim2[RHO];
+    const double vn2  = prim2[VRR];
 
-    double cs2  = std::sqrt(std::abs(gam*P2/rho2));
+    const double cs2  = std::sqrt(std::abs(gam*P2/rho2));
 
     *Ss = ( P2 - P1 + rho1*vn1*(-cs1) - rho2*vn2*cs2 )/( rho1*(-cs1) - rho2*cs2 );
 
@@ -250,7 +260,8 @@ void vel( double * prim1 , double * prim2 ,
   
 }
 
-double mindt( double * prim , double w , double r , double dr )
+double mindt( const double * prim , const double w , 
+              const double r , const double dr )
 {
 
     // ============================================= //
@@ -277,15 +288,15 @@ double mindt( double * prim , double w , double r , double dr )
     //
     // ============================================= // 
 
-    double rho = prim[RHO];
-    double Pp  = prim[PPP];
-    double vr  = prim[VRR];
-    double gam = GAMMA_LAW;
+    const double rho = prim[RHO];
+    const double P   = prim[PPP];
+    const double vr  = prim[VRR];
+    const double gam = GAMMA_LAW;
 
-    double cs  = std::sqrt(std::abs(gam*Pp/rho));
+    const double cs  = std::sqrt(std::abs(gam*P/rho));
 
-    double maxvr  = cs + std::abs( vr - w );
-    double dt     = dr/maxvr;
+    const double maxvr  = cs + std::abs( vr - w );
+    const double dt     = dr/maxvr;
 
     return dt;
 }

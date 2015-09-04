@@ -6,9 +6,9 @@ extern "C" {
 #include <grackle.h>
 }
 
-double calc_cooling( double * prim ,  double * cons , 
-                     double dt , code_units my_units );
+double calc_cooling( const double * prim ,  const double * cons , 
+                     const double dt , code_units my_units );
 
-code_units setup_cooling( struct domain * theDomain );                
+code_units setup_cooling( const struct domain * theDomain );                
 
 #endif 

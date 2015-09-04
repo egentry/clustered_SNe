@@ -12,22 +12,20 @@ extern "C" {
 #include "cooling.H"
 #include "structure.H" 
 
-double calc_cooling( double * prim ,  double * cons , 
-                     double dt , code_units my_units )
+double calc_cooling( const double * prim ,  const double * cons , 
+                     const double dt , code_units my_units )
 {
-
-    int i;
 
     grackle_verbose=1;
 
-    double z_redshift = 0.;
-    double a_value = 1. / (1. + z_redshift);
+    const double z_redshift = 0.;
+    const double a_value = 1. / (1. + z_redshift);
 
 
-    int field_size = 1; // we'll be removing guard cells + zone boundaries
-    int grid_rank  = 1;
+    const int field_size = 1; // we'll be removing guard cells + zone boundaries
+    const int grid_rank  = 1;
     int grid_dimension[3], grid_start[3], grid_end[3];
-    for (i=0; i<3; ++i)
+    for (int i=0; i<3; ++i)
     {
         // set defaults -- for 1d only change element [0] later
         grid_dimension[i]   = 1;
@@ -51,11 +49,11 @@ double calc_cooling( double * prim ,  double * cons ,
     z_velocity      = new gr_float[field_size];
     metal_density   = new gr_float[field_size];
 
-    double density_initial = prim[RHO];
-    double energy_initial  = (1. / (grackle_data.Gamma - 1.)) * prim[PPP] / prim[RHO];
+    const double density_initial = prim[RHO];
+    const double energy_initial  = (1. / (grackle_data.Gamma - 1.)) * prim[PPP] / prim[RHO];
 
     //copy old information into gr_float arrays
-    for(i=0; i<field_size; ++i)
+    for(int i=0; i<field_size; ++i)
     {
         density[i]          = density_initial / my_units.density_units;
         energy[i]           = energy_initial;     // internal energy PER UNIT MASS
@@ -84,7 +82,7 @@ double calc_cooling( double * prim ,  double * cons ,
 
     // printf("done setting solving chemistry \n");
 
-    double dE = (energy[0] - energy_initial) * density_initial; // energy per unit volume
+    const double dE = (energy[0] - energy_initial) * density_initial; // energy per unit volume
 
     // printf("use_grackle: %d \n", grackle_data.use_grackle);
     delete density;
@@ -97,7 +95,7 @@ double calc_cooling( double * prim ,  double * cons ,
 
 };    
 
-code_units setup_cooling( struct domain * theDomain )
+code_units setup_cooling( const struct domain * theDomain )
 {
 
     printf("setting up cooling \n");
@@ -135,8 +133,8 @@ code_units setup_cooling( struct domain * theDomain )
     my_units.time_units           = 1.0;
     my_units.velocity_units       = my_units.length_units / my_units.time_units;
     my_units.a_units              = 1.0;
-    double z_redshift = 0.;
-    double a_value = 1. / (1. + z_redshift);
+    const double z_redshift = 0.;
+    const double a_value = 1. / (1. + z_redshift);
 
     if (initialize_chemistry_data(&my_units, a_value) == 0)
     {
