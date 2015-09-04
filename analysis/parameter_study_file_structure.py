@@ -15,56 +15,12 @@ if __package__ is None:
 from SNe.analysis.constants import m_proton
 from SNe.analysis.parse import Overview
 
-class ThorntonParameterStudyOverview(Overview):
-    """For a given ./SNe run, which was created using the settings of 
-    Thornton et al., this adds some functionality about where the
-    data should ultimately reside.
-    """
-    def __init__(self, filename):
-        super(Overview, self).__init__(filename)
-
-
-    def make_dirname(self):
-        """Create a dirname where the data for this Overview should live
-
-
-        Expects
-        --------
-        The following attributes should be set:
-            dirname 
-            metallicity
-            background_density
-            background_temperature
-            with_cooling
-
-
-        Returns
-        -------
-        dirname : str
-            dirname is not required to exist
-
-
-        Side effects
-        ------------
-        None
-
-        """
-
-        dirname = make_dirname_from_properties(self.background_density, 
-                                               self.metallicity, 
-                                               self.background_temperature,
-                                               self.with_cooling,
-                                               base_dirname = "")
-        return dirname
-
-
-
 
 
 def make_dirname_from_properties(background_density, metallicity, 
                                  background_temperature, with_cooling,
                                  base_dirname=os.pardir):
-    """Create a dirname where the data for this Overview should live
+    """Create a dirname where the data should live
 
 
     Parameters
@@ -103,7 +59,7 @@ def make_dirname_from_properties(background_density, metallicity,
 
     return dirname
 
-def add_id_to_batch_outputs(dirname=os.pardir, batch_name="Thornton_parameter_study"):
+def add_id_to_batch_outputs(dirname=os.pardir, batch_name=""):
     """Prepends an id to the batch output (and error) filenames, if an id exists
 
 
@@ -115,7 +71,9 @@ def add_id_to_batch_outputs(dirname=os.pardir, batch_name="Thornton_parameter_st
     batch_name : Optional[str]
         The batch script would be named "<batch_name>.batch",
         so the output and error streams would have been captured as
-        "<batch_name>.batch.(o|e)*"
+        "<batch_name>*.batch.(o|e)*"
+
+        (If batch name is an empty string, all batch files will be processed)
 
 
     Side effects
@@ -130,7 +88,7 @@ def add_id_to_batch_outputs(dirname=os.pardir, batch_name="Thornton_parameter_st
 
     """
 
-    batch_outputs = glob.glob(os.path.join(dirname, batch_name + ".batch.o*"))
+    batch_outputs = glob.glob(os.path.join(dirname, batch_name + "*.batch.o*"))
     for batch_output in batch_outputs:
         f = open(batch_output, "r")
         for line in f:
@@ -187,7 +145,11 @@ def move_files(source_dirname=os.path.join(os.pardir, "src"),
         overviews[i] = Overview(overview_filename)
 
     for overview in overviews:
-        dirname = overview.make_dirname()
+        dirname = make_dirname_from_properties(overview.background_density,
+                                               overview.metallicity,
+                                               overview.background_temperature,
+                                               overview.with_cooling,
+                                               base_dirname = "")
         dirname = os.path.join(target_dirname, dirname)
         if not os.path.isdir(dirname):
             os.makedirs(dirname)
@@ -195,8 +157,8 @@ def move_files(source_dirname=os.path.join(os.pardir, "src"),
         for file in files:
             shutil.move(file, dirname)
 
-# move_files(source_dirname="../src", target_dirname="..")
-add_id_to_batch_outputs(dirname="../src", batch_name="cluster")
+add_id_to_batch_outputs(dirname="../src")
+# move_files(source_dirname="../tmp", target_dirname="..")
 
 
 

@@ -118,10 +118,11 @@ class Overview(object):
 
         SNe_filename = filename.replace("overview", "SNe") 
         if os.path.exists(SNe_filename):
-            SNe = np.loadtxt(SNe_filename)
+            SNe = np.loadtxt(SNe_filename, ndmin=2)
             if (SNe.shape[0] != self.num_SNe):
                 raise ValueError("Number of SNe in datafile " +
-                                 "doesn't match number listed in overview file")
+                                 "doesn't match number listed in overview file" +
+                                 " for file: " + filename)
             self.SNe_times          = SNe[:,0]
             self.SNe_initial_mass   = SNe[:,1]
             self.SNe_ejecta_mass    = SNe[:,2]
