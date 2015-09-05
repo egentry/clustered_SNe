@@ -231,15 +231,18 @@ int Thornton_Parameter_Study_ICs::parse_command_line_args( struct domain * theDo
     error = this->setup_parameter_study( theDomain );
     if ( error>0 ) return(error);
 
-    // set only one supernova
-    // maybe there's a better spot for this?
-    supernova tmp;
-    tmp.lifetime = 0.0;
-    tmp.mass = 0;
-    tmp.mass_ejecta = 3 * M_sun;
-    tmp.mass_ejecta_Z = tmp.mass_ejecta * theDomain->metallicity;
-    theDomain->SNe.push_back(tmp);
-
     return 0;
 }
 
+void Thornton_Parameter_Study_ICs::add_SNe( struct domain * theDomain,
+                                            const Mass_Loss * mass_loss )
+{
+    // set only one supernova
+    supernova tmp;
+    tmp.lifetime = 0.0;
+    tmp.mass = 0;
+    tmp.mass_ejecta   = 3 * M_sun;
+    tmp.mass_ejecta_Z = tmp.mass_ejecta * theDomain->metallicity;
+    tmp.mass_winds = 0;
+    theDomain->SNe.push_back(tmp);
+}

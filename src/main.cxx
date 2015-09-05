@@ -7,6 +7,7 @@
 #include "readpar.H" // read_par_file()
 #include "domain.H" // check_dt, possiblyOutput, setupDomain, freeDomain
 #include "misc.H" // getmindt, set_wcell
+#include "mass_loss.H" // Mass_Loss, add_mass_loss
 #include "profiler.H" // start_clock, generate_log
 #include "timestep.H"
 #include "Output/ascii.H" // overview
@@ -29,6 +30,9 @@ int main( int argc , char * argv[] )
     Initial_Conditions * ICs;
     ICs = select_initial_conditions(theDomain.theParList.ICs);
 
+    Mass_Loss * mass_loss;
+    mass_loss = select_mass_loss(theDomain.theParList.mass_loss);
+
     error = ICs->parse_command_line_args( &theDomain , argc , argv );
     if( error==1 ) 
     {
@@ -36,7 +40,9 @@ int main( int argc , char * argv[] )
         return 0;
     }
 
-    error = setupDomain( &theDomain , ICs );
+    ICs->add_SNe( &theDomain , mass_loss );
+
+    error = setupDomain( &theDomain , ICs , mass_loss );
     if( error==1 ) 
     {
         std::cerr << "Error in setupDomain" << std::endl;
@@ -62,7 +68,7 @@ int main( int argc , char * argv[] )
         check_dt( &theDomain , &dt );
         possiblyOutput( &theDomain , 0 );
         timestep( &theDomain , dt , ICs );
-        add_winds( &theDomain , dt );
+        mass_loss->add_mass_loss( &theDomain , dt );
 
     }
 

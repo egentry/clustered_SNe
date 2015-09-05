@@ -39,7 +39,7 @@ void output( struct domain * theDomain , const char * filestart ,
     int i,q;
     for( i=i_min ; i<i_max ; ++i )
     {
-        struct cell * c = theCells+i;
+        struct cell * c = &(theCells[i]);
         double rp = c->riph;
         double dr = c->dr; 
         double rm = rp-dr;
@@ -109,6 +109,9 @@ int overview( struct domain * theDomain )
              theDomain->cluster_mass);
     fprintf(oFile, "seed:                   %d \n",
              theDomain->seed);
+    fprintf(oFile, "mass_loss:              %s \n",
+             theDomain->mass_loss.c_str());
+
 
     if ( theDomain->SNe.size() > 0 )
     {
@@ -121,13 +124,15 @@ int overview( struct domain * theDomain )
         fprintf(SNe_oFile, "# SNe times [s]     ");
         fprintf(SNe_oFile, " initial mass [g]    ");
         fprintf(SNe_oFile, " ejecta mass [g]    ");
-        fprintf(SNe_oFile, " ejecta mass (Z) [g] \n");
+        fprintf(SNe_oFile, " ejecta mass (Z) [g] ");
+        fprintf(SNe_oFile, " wind mass [g] \n");
         for (auto SN : theDomain->SNe)
         {
-            fprintf(SNe_oFile, "%e         ", SN.lifetime);
-            fprintf(SNe_oFile, "%e         ", SN.mass);
-            fprintf(SNe_oFile, "%e         ", SN.mass_ejecta);
-            fprintf(SNe_oFile, "%e         ", SN.mass_ejecta_Z);
+            fprintf(SNe_oFile, "%e                   ", SN.lifetime);
+            fprintf(SNe_oFile, "%e                   ", SN.mass);
+            fprintf(SNe_oFile, "%e                   ", SN.mass_ejecta);
+            fprintf(SNe_oFile, "%e                   ", SN.mass_ejecta_Z);
+            fprintf(SNe_oFile, "%e                   ", SN.mass_winds);
             fprintf(SNe_oFile, "\n");
         }
 

@@ -61,9 +61,19 @@ int Restart_ICs::setICparams( struct domain * theDomain ){
     std::cout << "checkpoints_finished: " << checkpoints_finished << std::endl;
     std::cout << "output_prefix: " << theDomain->output_prefix << std::endl;
 
+
+
+
+    return 0;
+}
+
+void Restart_ICs::add_SNe( struct domain * theDomain ,
+                           const Mass_Loss * mass_loss )
+{
     std::string SNe_filename (restart_filename);
 
     std::vector<supernova> SNe = read_SNe(theDomain->output_prefix + "SNe.dat");
+    
     assert( std::is_sorted( SNe.rbegin(),
                             SNe.rend(),
                             sort_by_lifetime) );
@@ -74,9 +84,6 @@ int Restart_ICs::setICparams( struct domain * theDomain ){
         SNe.pop_back();
     }
     theDomain->SNe = SNe;
-
-
-    return 0;
 }
 
 void Restart_ICs::initial( double * prim , double r )

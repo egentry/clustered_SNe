@@ -11,49 +11,56 @@ enum{VAR_INT,VAR_DOUB,VAR_STR};
 int readvar( std::string filename , const char * varname , int vartype , 
              void * ptr ){
 
-   FILE * inFile = fopen( filename.c_str() , "r" );
-   if (inFile==NULL)
-   {
-      std::cerr << "Input file \"" << filename << "\" not found." << std::endl;
-      return 1;
-   }
+    FILE * inFile = fopen( filename.c_str() , "r" );
+    if (inFile==NULL)
+    {
+        std::cerr << "Input file \"" << filename << "\" not found." << std::endl;
+        return 1;
+    }
 
-   char s[512];
-   char nm[512];
-   char s1[512];
-   int found = 0;
-   
-   while( (fgets(s,512,inFile) != NULL) && found==0 ){
-      sscanf(s,"%s ",nm);
-      if( strcmp(nm,varname)==0 ){
-         strcpy(s1,s);
-         found=1;
-      }
-   }
-   
-   fclose( inFile );
-   if( found==0 ){
-       std::cerr << "Variable not found by readvar: " << varname << std::endl;
-      return 1;
-   } 
+    char s[512];
+    char nm[512];
+    char s1[512];
+    int found = 0;
 
-   char * s2 = s1+strlen(nm)+strspn(s1+strlen(nm),"\t :=>_");
+    while( (fgets(s,512,inFile) != NULL) && found==0 )
+    {
+        sscanf(s,"%s ",nm);
+        if( strcmp(nm,varname)==0 ){
+            strcpy(s1,s);
+            found=1;
+        }
+    }
 
-   double temp;
-   char stringval[256];
+    fclose( inFile );
+    if( found==0 )
+    {
+        std::cerr << "Variable not found by readvar: " << varname << std::endl;
+        return 1;
+    } 
 
-   sscanf(s2,"%lf",&temp);
-   sscanf(s2,"%256s",stringval);
+    char * s2 = s1+strlen(nm)+strspn(s1+strlen(nm),"\t :=>_");
 
-   if( vartype == VAR_INT ){
-      *((int *)   ptr) = (int)temp;
-   }else if( vartype == VAR_DOUB ){
-      *((double *)ptr) = (double)temp;
-   }else{
-      strcpy( (char *) ptr , stringval );
-   }
+    double temp;
+    char stringval[256];
 
-   return 0;
+    sscanf(s2,"%lf",&temp);
+    sscanf(s2,"%256s",stringval);
+
+    if( vartype == VAR_INT )
+    {
+        *((int *)   ptr) = (int)temp;
+    }
+    else if( vartype == VAR_DOUB )
+    {
+        *((double *)ptr) = (double)temp;
+    }
+    else
+    {
+        strcpy( (char *) ptr , stringval );
+    }
+
+    return 0;
 }
 
 int read_par_file( struct domain * theDomain , int argc , char * argv [] ){
@@ -118,8 +125,11 @@ int read_par_file( struct domain * theDomain , int argc , char * argv [] ){
                                   &(theList->MaxLong)         );
     err += readvar( par_filename , "ICs" , VAR_STR ,
                                   tmp_str                     );
-
     theList->ICs = std::string(tmp_str);
+    err += readvar( par_filename , "mass_loss" , VAR_STR ,
+                                  tmp_str                     );
+    theList->mass_loss = std::string(tmp_str);
+
 
     if( err > 0 )
     {

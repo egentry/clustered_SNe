@@ -136,27 +136,40 @@ DEFINES += -DSLUG_DIR=\"$(SLUG_DIR)\"
 ############# SYSTEM SPECIFIC ########################################
 
 
-OBJ = main.o profiler.o readpar.o domain.o \
-      geometry.o misc.o timestep.o riemann.o boundary.o plm.o \
-      cooling.o blast.o \
-      Initial/initial_conditions.o \
-      Initial/restart_ICs.o Initial/chevalier_ICs.o \
-      Initial/cluster_SNe_ICs.o Initial/ejecta_ICs.o \
-      Initial/isentropic_ICs.o Initial/messy_ICs.o \
-      Initial/shocktube_ICs.o Initial/Thornton_parameter_study_ICs.o \
-      Initial/uniform_ICs.o \
-      Output/ascii.o Hydro/euler.o
+OBJ = 	main.o \
+		blast.o boundary.o cooling.o domain.o \
+		geometry.o mass_loss.o misc.o plm.o profiler.o readpar.o \
+		timestep.o riemann.o \
+		Hydro/euler.o \
+		Initial/chevalier_ICs.o \
+		Initial/cluster_SNe_ICs.o \
+		Initial/ejecta_ICs.o \
+		Initial/initial_conditions.o \
+		Initial/isentropic_ICs.o \
+		Initial/messy_ICs.o \
+		Initial/restart_ICs.o \
+		Initial/shocktube_ICs.o \
+		Initial/Thornton_parameter_study_ICs.o \
+		Initial/uniform_ICs.o \
+		Output/ascii.o 
 
-HEADERS = 	blast.H boundary.H constants.H cooling.H domain.H \
-			geometry.H misc.H plm.H profiler.H readpar.H \
-			structure.H timestep.H \
-	      	Output/ascii.H Hydro/euler.H \
+
+HEADERS = 	structure.H \
+			blast.H boundary.H constants.H cooling.H domain.H \
+			geometry.H mass_loss.H misc.H plm.H profiler.H readpar.H \
+			timestep.H riemann.H \
+	      	Hydro/euler.H \
+			Initial/chevalier_ICs.H \
+			Initial/cluster_SNe_ICs.H \
+			Initial/ejecta_ICs.H \
+			Initial/initial_conditions.H \
+			Initial/isentropic_ICs.H \
+			Initial/messy_ICs.H \
+			Initial/restart_ICs.H \
+			Initial/shocktube_ICs.H \
 			Initial/Thornton_parameter_study_ICs.H \
-			Initial/chevalier_ICs.H Initial/cluster_SNe_ICs.H \
-			Initial/ejecta_ICs.H Initial/initial_conditions.H \
-			Initial/isentropic_ICs.H Initial/messy_ICs.H \
-			Initial/restart_ICs.H Initial/shocktube_ICs.H \
-			Initial/uniform_ICs.H
+			Initial/uniform_ICs.H \
+	      	Output/ascii.H 
 
 
 ############# RULES ########################################

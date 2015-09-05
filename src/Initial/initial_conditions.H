@@ -7,7 +7,7 @@
 
 #include "../structure.H"
 
-#include "initial_conditions.H"
+#include "../mass_loss.H" // Mass_Loss
 
 
 class Initial_Conditions 
@@ -27,6 +27,8 @@ public:
     virtual bool trust_LogZoning_flag(){return true;}
 
     virtual void set_times( struct domain * theDomain );
+    virtual void add_SNe( struct domain * theDomain ,
+                          const Mass_Loss * mass_loss ){};
 
 private:
     virtual void initial( double * prim , double r ) = 0;

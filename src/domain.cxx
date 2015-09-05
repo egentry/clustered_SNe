@@ -25,7 +25,8 @@ extern "C" {
 
 
 int setupDomain( struct domain * theDomain , 
-                 Initial_Conditions * ICs )
+                 Initial_Conditions * ICs , 
+                 Mass_Loss * mass_loss )
 {
 
     int error;

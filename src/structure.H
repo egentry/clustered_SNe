@@ -41,6 +41,7 @@ struct param_list{
    double Adiabatic_Index;
 
    std::string ICs;
+   std::string mass_loss;
 
 };
 
@@ -83,6 +84,7 @@ struct domain{
 
    double cluster_mass; // [solar masses]
    int seed;
+   std::string mass_loss;
 
 
 };
@@ -107,6 +109,7 @@ struct supernova
     double mass;           // [g]
     double mass_ejecta;    // [g]
     double mass_ejecta_Z;  // [g]
+    double mass_winds;     // [g]
     double lifetime;       // [s]
 };
 

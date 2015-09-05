@@ -253,12 +253,16 @@ int Cluster_SNe_ICs::parse_command_line_args (  struct domain * theDomain ,
     error = this->setup_parameter_study( theDomain );
     if ( error>0 ) return(error);
 
-    // maybe there's a better spot for this?
-    theDomain->SNe = get_SNe(theDomain->cluster_mass,
-                             theDomain->metallicity,
-                             theDomain->seed);
-    if ( error>0 ) return(error);
-
     return 0;
 }
 
+
+void Cluster_SNe_ICs::add_SNe( struct domain * theDomain,
+                               const Mass_Loss * mass_loss )
+{
+    // maybe there's a better spot for this?
+    theDomain->SNe = get_SNe(theDomain->cluster_mass,
+                             theDomain->metallicity,
+                             theDomain->seed,
+                             mass_loss);
+}

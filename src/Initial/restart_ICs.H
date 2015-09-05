@@ -22,6 +22,9 @@ public:
 
     void set_times( struct domain * theDomain );
 
+    void add_SNe( struct domain * theDomain,
+                  const Mass_Loss * mass_loss );
+
 private:
 
     int NL; // number of lines to be read in

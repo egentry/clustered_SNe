@@ -6,7 +6,8 @@
 #include "Initial/initial_conditions.H"
 
 int  setupDomain( struct domain * theDomain , 
-                  Initial_Conditions * ICs );
+                  Initial_Conditions * ICs ,
+                  Mass_Loss * mass_loss );
 void freeDomain( struct domain * theDomain );
 void check_dt( struct domain * theDomain , double * dt );
 void possiblyOutput( struct domain * theDomain , int override );

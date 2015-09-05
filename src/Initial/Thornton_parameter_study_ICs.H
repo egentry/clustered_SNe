@@ -18,6 +18,9 @@ public:
                                     int argc , 
                                     char * argv [] );
 
+    void add_SNe( struct domain * theDomain ,
+                  const Mass_Loss * mass_loss );
+
 private:
 
     int setup_parameter_study( struct domain * theDomain );
