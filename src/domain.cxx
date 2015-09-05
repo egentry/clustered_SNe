@@ -36,6 +36,7 @@ int setupDomain( struct domain * theDomain ,
         theDomain->cooling_units = setup_cooling(theDomain);
     }
 
+    theDomain->mass_loss = mass_loss->get_name();
 
     theDomain->t       = theDomain->theParList.t_min;
     theDomain->t_init  = theDomain->theParList.t_min;

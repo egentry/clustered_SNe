@@ -109,13 +109,13 @@ int overview( struct domain * theDomain )
              theDomain->cluster_mass);
     fprintf(oFile, "seed:                   %d \n",
              theDomain->seed);
-    fprintf(oFile, "mass_loss:              %s \n",
+    fprintf(oFile, "mass loss:              %s \n",
              theDomain->mass_loss.c_str());
 
 
     if ( theDomain->SNe.size() > 0 )
     {
-        fprintf(oFile, "Number of SNe:       %lu \n", theDomain->SNe.size());
+        fprintf(oFile, "Number of SNe:          %lu \n", theDomain->SNe.size());
 
         char SNe_filename[256] = "";
         strcat(SNe_filename, theDomain->output_prefix.c_str());
@@ -128,11 +128,11 @@ int overview( struct domain * theDomain )
         fprintf(SNe_oFile, " wind mass [g] \n");
         for (auto SN : theDomain->SNe)
         {
-            fprintf(SNe_oFile, "%e                   ", SN.lifetime);
-            fprintf(SNe_oFile, "%e                   ", SN.mass);
-            fprintf(SNe_oFile, "%e                   ", SN.mass_ejecta);
-            fprintf(SNe_oFile, "%e                   ", SN.mass_ejecta_Z);
-            fprintf(SNe_oFile, "%e                   ", SN.mass_winds);
+            fprintf(SNe_oFile, "%e         ", SN.lifetime);
+            fprintf(SNe_oFile, "%e         ", SN.mass);
+            fprintf(SNe_oFile, "%e         ", SN.mass_ejecta);
+            fprintf(SNe_oFile, "%e         ", SN.mass_ejecta_Z);
+            fprintf(SNe_oFile, "%e         ", SN.mass_winds);
             fprintf(SNe_oFile, "\n");
         }
 
