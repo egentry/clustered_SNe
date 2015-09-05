@@ -68,17 +68,22 @@ void cons2prim( const double * cons , double * prim ,
     #ifndef NDEBUG
     if( rho<RHO_FLOOR ) 
     {
+        // any changes here just affect flux calculations,
+        // NOT the actual mass
+
         printf("------ ERROR in cons2prim() -- RHO_FLOOR ------- \n");
         printf("rho = %e \n", rho );
         printf("Expected rho > %e \n", RHO_FLOOR);
         printf("dV = %e \n", dV);
         rho=RHO_FLOOR; 
 
-        assert(rho>RHO_FLOOR);
+        // assert(rho>RHO_FLOOR);
     }
     #endif
     if( P < PRE_FLOOR )
     {
+        // any changes here just affect flux calculations,
+        // NOT the actual internal energy
         if (verbose)
         {
             printf("------ ERROR in cons2prim()------- \n");
