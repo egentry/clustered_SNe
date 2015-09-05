@@ -174,14 +174,13 @@ void source( const double * prim , double * cons , const double * grad ,
              const double dV , const double dt , 
              code_units cooling_units, const int With_Cooling)
 {
-    const double P   = prim[PPP];
-    const double r   = .5*(rp+rm);
-    const double r2  = (rp*rp+rm*rm+rp*rm)/3.;
-    cons[SRR] += 2.*P*(r/r2)*dV*dt; // this is just the 1st order contribution
-    // r / r2 is effectively (rp^2 - rm^2) / (rp^3 - rm^3) = d(surface area) / dV
-    // so we're doing cons[SRR] += P * (4*pi*(rp^2 - rm^2)) * dt
+    const double P = prim[PPP];
+    const double r = .5 * (rp + rm);
 
-    // includes 2nd order contribution:
+    // 1st order contribution
+    cons[SRR] += 4 * M_PI * P * (std::pow(rp, 2.) - std::pow(rm, 2.)) * dt;
+ 
+    // 2nd order contribution:
     cons[SRR] += 8*M_PI*grad[PPP]
                   *(     (std::pow(rp,3.) - std::pow(rm,3.))/3. 
                      + r*(std::pow(rp,2.) - std::pow(rm,2.))/2. ); 
