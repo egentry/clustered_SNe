@@ -4,9 +4,9 @@
 
 #include "structure.H"
 
-void setRiemannParams( struct domain * theDomain );
+void setRiemannParams( const struct domain * theDomain );
 void riemann( struct cell * cL , struct cell * cR, 
-              double r , double dA , double dt );
+              const double r , const double dA , const double dt );
 
 
 #endif

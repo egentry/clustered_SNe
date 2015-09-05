@@ -9,7 +9,7 @@
 void substep( struct domain * theDomain , double RK , 
               double dt , int first_step , int last_step,
               Initial_Conditions * ICs );
-void timestep( struct domain * theDomain , double dt,
+void timestep( struct domain * theDomain , const double dt,
               Initial_Conditions * ICs );
 
 

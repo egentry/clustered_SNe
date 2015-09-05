@@ -17,7 +17,7 @@ extern "C" {
 #include <vector>
 
 #define NUM_Q 4 // number of evolved variables
-#define NUM_G 2 // number of guard cells (counting both ends)
+#define NUM_G 1 // number of guard cells per end
 
 struct param_list{
 

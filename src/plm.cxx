@@ -16,25 +16,25 @@ void plm( struct domain * theDomain )
 {
 
     struct cell * theCells = theDomain->theCells;
-    int Nr  = theDomain->Nr;
-    int PLM = theDomain->theParList.PLM;
+    const int Nr  = theDomain->Nr;
+    const int PLM = theDomain->theParList.PLM;
     for( int i=0 ; i<Nr ; ++i )
     {
         int im = i-1;
         int ip = i+1;
         if( i==0 ) im = 0;
         if( i==Nr-1 ) ip = Nr-1;
-        struct cell * c  = theCells+i;
-        struct cell * cL = theCells+im;
-        struct cell * cR = theCells+ip;
-        double drL = cL->dr;
-        double drC = c->dr;
-        double drR = cR->dr;
+              struct cell * c  = &(theCells[i]);
+        const struct cell * cL = &(theCells[im]);
+        const struct cell * cR = &(theCells[ip]);
+        const double drL = cL->dr;
+        const double drC = c->dr;
+        const double drR = cR->dr;
         for( int q=0 ; q<NUM_Q ; ++q )
         {
-            double pL = cL->prim[q];
-            double pC = c->prim[q];
-            double pR = cR->prim[q];
+            const double pL = cL->prim[q];
+            const double pC = c->prim[q];
+            const double pR = cR->prim[q];
             double sL = pC - pL;
             sL /= .5*( drC + drL );
             double sR = pR - pC;

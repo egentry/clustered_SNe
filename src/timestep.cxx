@@ -65,7 +65,7 @@ void substep( struct domain * theDomain , double RK ,
 }
 
 
-void timestep( struct domain * theDomain , double dt,
+void timestep( struct domain * theDomain , const double dt,
               Initial_Conditions * ICs )
 {
     // ============================================= //
@@ -94,7 +94,7 @@ void timestep( struct domain * theDomain , double dt,
 
     for( i=0 ; i<Nr ; ++i )
     {
-        struct cell * c = theCells+i;
+        struct cell * c = &(theCells[i]);
         memcpy( c->RKcons , c->cons , NUM_Q*sizeof(double) );
     }
 

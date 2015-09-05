@@ -10,12 +10,12 @@
 
 enum{_HLL_,_HLLC_};
 
-int riemann_solver = 0;
+static int riemann_solver = 0;
 
 static double PRE_FLOOR = 0.0;
 
 
-void setRiemannParams( struct domain * theDomain )
+void setRiemannParams( const struct domain * theDomain )
 {
     riemann_solver = theDomain->theParList.Riemann_Solver;
     PRE_FLOOR = theDomain->theParList.Pressure_Floor;
@@ -23,15 +23,15 @@ void setRiemannParams( struct domain * theDomain )
 
 
 void riemann( struct cell * cL , struct cell * cR, 
-              double r , double dA , double dt )
+              const double r , const double dA , const double dt )
 {
 
-    double dAdt = dA * dt;
+    const double dAdt = dA * dt;
     double primL[NUM_Q];
     double primR[NUM_Q];
 
-    double drL = .5*cL->dr;
-    double drR = .5*cR->dr;
+    const double drL = .5*cL->dr;
+    const double drR = .5*cR->dr;
 
     for( int q=0 ; q<NUM_Q ; ++q )
     {
@@ -52,7 +52,7 @@ void riemann( struct cell * cL , struct cell * cR,
         printf("drR = %e \n", drR);
         printf("cL->grad[PPP] = %e \n", cL->grad[PPP]);
 
-        assert(0);
+        assert(primL[PPP] > PRE_FLOOR);
     }
 
     if (primR[PPP] < PRE_FLOOR)
@@ -66,7 +66,7 @@ void riemann( struct cell * cL , struct cell * cR,
         printf("drR = %e \n", drR);
         printf("cR->grad[PPP] = %e \n", cR->grad[PPP]);
 
-        assert(0);
+        assert(primR[PPP] > PRE_FLOOR);
     }
     #endif
 
@@ -83,7 +83,7 @@ void riemann( struct cell * cL , struct cell * cR,
 
     double Flux[NUM_Q];
 
-    double w = cL->wiph;
+    const double w = cL->wiph;
 
     if( w < Sl ){
         flux( primL , Fl );
@@ -124,10 +124,8 @@ void riemann( struct cell * cL , struct cell * cR,
     {
         if( riemann_solver == _HLL_ )
         {
-            double Fstar;
-            double Ustar;
-            double aL =  Sr;
-            double aR = -Sl;
+            const double aL =  Sr;
+            const double aR = -Sl;
 
             prim2cons( primL , Ul , 1.0 );
             prim2cons( primR , Ur , 1.0 );
@@ -136,8 +134,10 @@ void riemann( struct cell * cL , struct cell * cR,
 
             for( int q=0 ; q<NUM_Q ; ++q )
             {
-                Fstar = ( aL*Fl[q] + aR*Fr[q] + aL*aR*( Ul[q] - Ur[q] ) )/( aL + aR );
-                Ustar = ( aR*Ul[q] + aL*Ur[q] + Fl[q] - Fr[q] )/( aL + aR );
+                const double Fstar = ( aL*Fl[q] + aR*Fr[q] + 
+                                       aL*aR*(Ul[q] - Ur[q]) ) / (aL + aR);
+                const double Ustar = ( aR*Ul[q] + aL*Ur[q] +
+                                       Fl[q]    - Fr[q]      ) / (aL + aR);
 
                 Flux[q] = Fstar - w*Ustar;
                 #ifndef NDEBUG
@@ -227,13 +227,13 @@ void riemann( struct cell * cL , struct cell * cR,
         double primL_tmp[NUM_Q];
         double primR_tmp[NUM_Q];
 
-        double rp_L = cL->riph;
-        double rm_L = rp_L - cL->dr;
-        double dV_L = get_dV( rp_L , rm_L );
+        const double rp_L = cL->riph;
+        const double rm_L = rp_L - cL->dr;
+        const double dV_L = get_dV( rp_L , rm_L );
         cons2prim( cL->cons , primL_tmp , dV_L );  // using dV = 1 gives the cons per unit volume -- counteracts dV = 1 above
-        double rp_R = cR->riph;
-        double rm_R = rp_R - cR->dr;
-        double dV_R = get_dV( rp_R , rm_R );
+        const double rp_R = cR->riph;
+        const double rm_R = rp_R - cR->dr;
+        const double dV_R = get_dV( rp_R , rm_R );
         cons2prim( cR->cons , primR_tmp , dV_R);
         for( int q=0 ; q<NUM_Q ; ++q)
         {

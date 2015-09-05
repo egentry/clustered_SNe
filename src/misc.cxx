@@ -15,7 +15,7 @@ extern "C" {
 #include "Hydro/euler.H" // prim2cons, cons2prim, mindt
 
 
-double getmindt( struct domain * theDomain )
+double getmindt( const struct domain * theDomain )
 {
 
     // ============================================= //
@@ -35,20 +35,21 @@ double getmindt( struct domain * theDomain )
     //
     // ============================================= //
 
-    struct cell * theCells = theDomain->theCells;
-    int Nr = theDomain->Nr;
+    const struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
 
     double dt = 1e100;
-    for( int i=1 ; i<Nr-1 ; ++i )
+    for( int i=Ng ; i<Nr-Ng ; ++i )
     {
-        int im = i-1;
-        struct cell * c = theCells+i;
-        double dr = c->dr;
-        double r = c->riph-.5*dr;
-        double wm = theCells[im].wiph;
-        double wp = c->wiph;
-        double w = .5*(wm+wp);
-        double dt_temp = mindt( c->prim , w , r , dr );
+        const int im = i-1;
+        const struct cell * c = &(theCells[i]);
+        const double dr = c->dr;
+        const double r = c->riph-.5*dr;
+        const double wm = theCells[im].wiph;
+        const double wp = c->wiph;
+        const double w = .5*(wm+wp);
+        const double dt_temp = mindt( c->prim , w , r , dr );
         if( dt > dt_temp ) dt = dt_temp;
     }
     dt *= theDomain->theParList.CFL; 
@@ -81,19 +82,20 @@ void set_wcell( struct domain * theDomain )
     // ============================================= //
 
     struct cell * theCells = theDomain->theCells;
-    int mesh_motion = theDomain->theParList.Mesh_Motion;
-    int Nr = theDomain->Nr;
+    const int mesh_motion = theDomain->theParList.Mesh_Motion;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
 
-    for( int i=0 ; i<Nr-1 ; ++i )
+    for( int i=Ng ; i<Nr-Ng ; ++i )
     {
-        struct cell * cL = theCells+i;  
+        struct cell * cL = &(theCells[i]);  
         double w = 0.0;
         if( mesh_motion )
         {
             // if Lagrangian, average the cell-centered velocities to find the edge velocity in between
-            struct cell * cR = theCells+i+1;
-            double wL = cL->prim[VRR];
-            double wR = cR->prim[VRR];
+            const struct cell * cR = &(theCells[i+1]);
+            const double wL = cL->prim[VRR];
+            const double wR = cR->prim[VRR];
             w = .5*(wL + wR); 
             // why this special case for the outside edge of the innermost cell?
             // if( i==0 ) w = wR*(cR->riph - .5*cR->dr)/(cL->riph);//0.0;//2./3.*wR;
@@ -101,9 +103,12 @@ void set_wcell( struct domain * theDomain )
         }
         cL->wiph = w;
     }
+    // Boundary condition: innermost cell doesn't move
+    theCells[0].wiph = 0;
+
 }
 
-void adjust_RK_cons( struct domain * theDomain , double RK )
+void adjust_RK_cons( struct domain * theDomain , const double RK )
 {
 
     // ============================================= //
@@ -138,11 +143,11 @@ void adjust_RK_cons( struct domain * theDomain , double RK )
     // ============================================= //
 
     struct cell * theCells = theDomain->theCells;
-    int Nr = theDomain->Nr;
+    const int Nr = theDomain->Nr;
 
     for( int i=0 ; i<Nr ; ++i )
     {
-        struct cell * c = theCells+i;
+        struct cell * c = &(theCells[i]);
         for( int q=0 ; q<NUM_Q ; ++q )
         {
             c->cons[q] = (1.-RK)*c->cons[q] + RK*c->RKcons[q];
@@ -151,9 +156,9 @@ void adjust_RK_cons( struct domain * theDomain , double RK )
         // ======== Verify post-conditions ========= //
         #ifndef NDEBUG
         double prim_tmp[NUM_Q];
-        double rp = c->riph;
-        double rm = rp-c->dr;
-        double dV = get_dV( rp , rm );
+        const double rp = c->riph;
+        const double rm = rp-c->dr;
+        const double dV = get_dV( rp , rm );
         cons2prim( c->cons , prim_tmp , dV );
 
         if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor)
@@ -183,7 +188,7 @@ void adjust_RK_cons( struct domain * theDomain , double RK )
     }
 }
 
-void move_cells( struct domain * theDomain , double dt)
+void move_cells( struct domain * theDomain , const double dt)
 {
 
     // ============================================= //
@@ -203,16 +208,16 @@ void move_cells( struct domain * theDomain , double dt)
     //  Notes:
     //    - Only updated once per timestep (on "first_step")
     //    - riph is defined as the velocity as the *outer* boundary of cell
-    //    - w is poorly defined for last cell
-    //      (set in boundary()?)
+    //    - Assumed that the boundary cell w's are properly set
+    //      in set_wcell
     //
     // ============================================= //
 
     struct cell * theCells = theDomain->theCells;
-    int Nr = theDomain->Nr;
-    for( int i=1 ; i<Nr ; ++i )
+    const int Nr = theDomain->Nr;
+    for( int i=0 ; i<Nr ; ++i )
     {
-        struct cell * c = theCells+i;
+        struct cell * c = &(theCells[i]);
 
         // ======== Verify pre-conditions ========= //
         #ifndef NDEBUG
@@ -277,14 +282,14 @@ void calc_dr( struct domain * theDomain )
 {
 
     struct cell * theCells = theDomain->theCells;
-    int Nr = theDomain->Nr;
+    const int Nr = theDomain->Nr;
 
     for( int i=1 ; i<Nr ; ++i )
     {
         int im = i-1;
-        double rm = theCells[im].riph;
-        double rp = theCells[i ].riph;
-        double dr = rp-rm;
+        const double rm = theCells[im].riph;
+        const double rp = theCells[i ].riph;
+        const double dr = rp-rm;
         theCells[i].dr = dr;
     }
     // Boundary condition: innermost cell extends to r=0
@@ -302,26 +307,27 @@ void fix_negative_energies( struct domain * theDomain )
     //    - if the adiabatic internal energy differs from the numeric internal energy by too much
     //       then we use the adiabatic energy rather than the numeric energy
 
-    double tolerance = .5; // relative tolerance allowed on energy error before switching to adiabatic
+    const double tolerance = .5; // relative tolerance allowed on energy error before switching to adiabatic
 
     struct cell * theCells = theDomain->theCells;
-    int Nr = theDomain->Nr;
-    double gamma = theDomain->theParList.Adiabatic_Index;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
+    const double gamma = theDomain->theParList.Adiabatic_Index;
 
-    for( int i=0 ; i<Nr-1 ; ++i ) // don't extend to outermost zone; that already doesn't conserve energy adiabatically
+    for( int i=Ng ; i<Nr-Ng ; ++i ) // don't extend to outermost zone; that already doesn't conserve energy adiabatically
     {  
-        struct cell * c = theCells+i;
+        struct cell * c = &(theCells[i]);
 
-        double rp = c->riph;
-        double rm = rp-c->dr;
-        double dV = get_dV( rp , rm );
+        const double rp = c->riph;
+        const double rm = rp-c->dr;
+        const double dV = get_dV( rp , rm );
 
-        double P_adiabatic = c->P_old * pow(dV / c->dV_old, -1*gamma);
-        double E_adiabatic = P_adiabatic * dV / (gamma - 1);
+        const double P_adiabatic = c->P_old * pow(dV / c->dV_old, -1*gamma);
+        const double E_adiabatic = P_adiabatic * dV / (gamma - 1);
 
-        double Mass = c->cons[DDD];
-        double vr   = c->cons[SRR] / Mass;
-        double E_numeric = c->cons[TAU] - .5*Mass*vr*vr;
+        const double Mass = c->cons[DDD];
+        const double vr   = c->cons[SRR] / Mass;
+        const double E_numeric = c->cons[TAU] - .5*Mass*vr*vr;
 
         if ( (((E_adiabatic - E_numeric) / E_adiabatic) > tolerance) 
                 || (E_numeric < 0) ) 
@@ -362,14 +368,14 @@ void calc_prim( struct domain * theDomain )
 {
 
     struct cell * theCells = theDomain->theCells;
-    int Nr = theDomain->Nr;
+    const int Nr = theDomain->Nr;
 
     for( int i=0 ; i<Nr ; ++i )
     {
-        struct cell * c = theCells+i;
-        double rp = c->riph;
-        double rm = rp-c->dr;
-        double dV = get_dV( rp , rm );
+        struct cell * c = &(theCells[i]);
+        const double rp = c->riph;
+        const double rm = rp-c->dr;
+        const double dV = get_dV( rp , rm );
         cons2prim( c->cons , c->prim , dV );
 
 
@@ -403,36 +409,39 @@ void calc_prim( struct domain * theDomain )
 }
 
 
-void radial_flux( struct domain * theDomain , double dt )
+void radial_flux( struct domain * theDomain , const double dt )
 {
 
     struct cell * theCells = theDomain->theCells;
-    int Nr = theDomain->Nr;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
+
     plm( theDomain );
-    for( int i=1 ; i<Nr-1 ; ++i )
+    for( int i=Ng ; i<Nr-Ng ; ++i )
     {
-        struct cell * cL = theCells+i;
-        struct cell * cR = theCells+i+1;
-        double r = cL->riph;
-        double dA = get_dA(r); 
+        struct cell * cL = &(theCells[i]);
+        struct cell * cR = &(theCells[i+1]);
+        const double r = cL->riph;
+        const double dA = get_dA(r); 
         riemann( cL , cR , r , dA , dt );
     }
 
 }
 
 
-void add_source( struct domain * theDomain , double dt )
+void add_source( struct domain * theDomain , const double dt )
 {
 
     struct cell * theCells = theDomain->theCells;
-    int Nr = theDomain->Nr;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
 
-    for( int i=1 ; i<Nr ; ++i )
+    for( int i=Ng ; i<Nr ; ++i )
     {
-        struct cell * c = theCells+i;
-        double rp = c->riph;
+        struct cell * c = &(theCells[i]);
+        const double rp = c->riph;
         double rm = rp-c->dr;
-        double dV = get_dV(rp,rm);
+        const double dV = get_dV(rp,rm);
         if (i==1)
         {
             rm = 0; // boundary condition -- don't change dV to match this rm
@@ -472,45 +481,42 @@ void add_source( struct domain * theDomain , double dt )
 }
 
 
-void longandshort( struct domain * theDomain , 
+void longandshort( const struct domain * theDomain , 
                    double * L , double * S , 
                    int * iL , int * iS )
 { 
 
-    struct cell * theCells = theDomain->theCells;
-    int    Nr    = theDomain->Nr;
-    double rmax  = theCells[Nr-1].riph;
-    double rmin  = theCells[0].riph;
-    int    Nr0   = theDomain->theParList.Num_R;
-    double dr0   = rmax/(double)Nr0;
-    double dx0   = log(rmax/rmin)/Nr0;
-    int logscale = theDomain->theParList.LogZoning;
+    const struct cell * theCells = theDomain->theCells;
+    const int    Nr    = theDomain->Nr;
+    const int    Ng    = theDomain->Ng;
+    const double rmax  = theCells[Nr-1].riph;
+    const double rmin  = theCells[0].riph;
+    const int    Nr0   = theDomain->theParList.Num_R;
+    const double dr0   = rmax / static_cast <double> (Nr0);
+    const double dx0   = log(rmax/rmin)/Nr0;
+    const int logscale = theDomain->theParList.LogZoning;
 
     double Long  = 0.0; 
     double Short = 0.0; 
     int iLong    = -1;
     int iShort   = -1;
 
-    // int Ng   = theDomain->Ng;
 
-    int imin = 1;
-    int imax = Nr-1;
-
-    for( int i=imin ; i<imax ; ++i )
+    for( int i=Ng ; i<Nr-Ng ; ++i )
     {
         double l,s;
-        struct cell * c = theCells+i;
+        const struct cell * c = &(theCells[i]);
         if( logscale )
         {
-            double dy = c->dr;
-            double dx = c->riph*dx0;
+            const double dy = c->dr;
+            const double dx = c->riph*dx0;
             l = dy/dx;
             s = dx/dy;
         }
         else
         {
-            double dy = c->dr;
-            double dx = dr0;
+            const double dy = c->dr;
+            const double dx = dr0;
             l = dy/dx;
             s = dx/dy;
         }
@@ -535,11 +541,12 @@ void AMR( struct domain * theDomain )
     longandshort( theDomain , &L , &S , &iL , &iS );
 
     // Thresholds for applying AMR
-    double MaxShort = theDomain->theParList.MaxShort;
-    double MaxLong  = theDomain->theParList.MaxLong;
+    const double MaxShort = theDomain->theParList.MaxShort;
+    const double MaxLong  = theDomain->theParList.MaxLong;
 
     struct cell * theCells = theDomain->theCells;
     int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
 
     if( S>MaxShort )
     {
@@ -549,12 +556,9 @@ void AMR( struct domain * theDomain )
         }
         // printf("KILL!  iS = %d\n",iS);
 
-        int imin = 1;
-        // int imin = Ng;
-
         int iSp = iS+1;
         int iSm = iS-1;
-        if ( iS>imin )
+        if ( iS>Ng )
         {
             //Possibly shift iS backwards by 1 
             double drL = theCells[iSm].dr;
@@ -567,8 +571,8 @@ void AMR( struct domain * theDomain )
             }
         }
 
-        struct cell * c  = theCells+iS;
-        struct cell * cp = theCells+iSp;
+        struct cell * c  = &(theCells[iS]);
+        const struct cell * cp = &(theCells[iSp]);
 
         //Remove Zone at iS+1
         c->dr   += cp->dr;
@@ -578,9 +582,9 @@ void AMR( struct domain * theDomain )
             c->cons[q]   += cp->cons[q];
             c->RKcons[q] += cp->RKcons[q];
         }
-        double rp = c->riph;
-        double rm = rp - c->dr;
-        double dV = get_dV( rp , rm );
+        const double rp = c->riph;
+        const double rm = rp - c->dr;
+        const double dV = get_dV( rp , rm );
         cons2prim( c->cons , c->prim , dV );
         c->P_old  = c->prim[PPP];
         c->dV_old = dV;
@@ -611,8 +615,8 @@ void AMR( struct domain * theDomain )
         int blocksize = Nr-iL-1;
         memmove( theCells+iL+1 , theCells+iL , blocksize*sizeof(struct cell) );
 
-        struct cell * c  = theCells+iL;
-        struct cell * cp = theCells+iL+1;
+        struct cell * c  = &(theCells[iL]);
+        struct cell * cp = &(theCells[iL+1]);
 
         double rp = c->riph;
         double rm = rp - c->dr;
