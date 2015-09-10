@@ -20,8 +20,8 @@ void output( struct domain * theDomain , const char * filestart ,
              const double t )
 {
 
-    struct cell * theCells = theDomain->theCells;
-    int Nr = theDomain->Nr;
+    const struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
 
     char filename[256] = "";
     strcat(filename, theDomain->output_prefix.c_str());
@@ -33,19 +33,18 @@ void output( struct domain * theDomain , const char * filestart ,
     // fprintf(pFile,"# r           dr           dV           Density      Pressure     Velocity     Z\n");
     fprintf(pFile,"# r                  dr                 dV                 Density            Pressure           Velocity           Z\n");
 
-    int i_min = 0;
-    int i_max = Nr;
+    const int i_min = 0;
+    const int i_max = Nr;
 
-    int i,q;
-    for( i=i_min ; i<i_max ; ++i )
+    for( int i=i_min ; i<i_max ; ++i )
     {
-        struct cell * c = &(theCells[i]);
-        double rp = c->riph;
-        double dr = c->dr; 
-        double rm = rp-dr;
-        double dV = get_dV( rp , rm );
+        const struct cell * c = &(theCells[i]);
+        const double rp = c->riph;
+        const double dr = c->dr; 
+        const double rm = rp-dr;
+        const double dV = get_dV( rp , rm );
         fprintf(pFile,"%18.10e %18.10e %18.10e ",rp,dr,dV);
-        for( q=0 ; q<NUM_Q ; ++q )
+        for( int q=0 ; q<NUM_Q ; ++q )
         {
             fprintf(pFile,"%18.10e ",c->prim[q]);
         }

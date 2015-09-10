@@ -1,7 +1,7 @@
 
 #include <iostream>
 #include <stdio.h>
-#include <math.h>
+#include <cmath>
 #include <assert.h>
 
 #include <algorithm>

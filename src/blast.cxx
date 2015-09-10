@@ -228,7 +228,7 @@ std::vector<supernova> read_SNe( const std::string filename)
     std::vector<supernova> SNe;
     supernova SN_tmp;
 
-    int nL = count_lines_in_file(filename) - 1;
+    const int nL = count_lines_in_file(filename) - 1;
     if ( nL < 0 ) return SNe;
 
     double SN_time;

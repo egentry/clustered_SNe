@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <cmath>
 
 #include "structure.H"
 #include "mass_loss.H"
@@ -330,7 +331,7 @@ std::string No_Mass_Loss::get_name( ) const
 
 double No_Mass_Loss::get_wind_mass( const double M_initial ) const
 {
-    return 0;
+    return 0.0;
 }
 
 double No_Mass_Loss::get_ejecta_mass( const double M_initial ) const
@@ -365,7 +366,7 @@ std::string Disappear_Mass_Loss::get_name( ) const
 
 double Disappear_Mass_Loss::get_wind_mass( const double M_initial ) const
 {
-    return 0;
+    return 0.0;
 }
 
 

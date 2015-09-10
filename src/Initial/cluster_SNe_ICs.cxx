@@ -1,6 +1,6 @@
 
 #include <stdio.h>
-#include <math.h>
+#include <cmath>
 #include <assert.h>
 
 #include <algorithm>
@@ -61,15 +61,13 @@ int Cluster_SNe_ICs::setICparams( struct domain * theDomain )
 
 void Cluster_SNe_ICs::initial( double * prim , double r )
 {
-    double rho,Pp;
-
     // initial background conditions
-    rho = background_density;
+    const double rho = background_density;
     const double T_0 = background_temperature;  // [K]
-    Pp  = (rho / (mu * m_proton)) * k_boltzmann * T_0;
+    const double P   = (rho / (mu * m_proton)) * k_boltzmann * T_0;
 
     prim[RHO] = rho;
-    prim[PPP] = Pp;
+    prim[PPP] = P;
     prim[VRR] = 0.0;
     prim[ZZZ] = metallicity;
 
@@ -192,9 +190,9 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
     // Sets the end time appropriately,
     // having done a 2d power law fit to t_f(n_0, Z)
     // using the results of Thornton (Table 3)
-    double t_f = 5.52e5 * yr 
-         * pow(theDomain->background_density / m_proton,   -.53)
-         * pow(theDomain->metallicity / metallicity_solar, -.16);
+    const double t_f = 5.52e5 * yr 
+            * pow(theDomain->background_density / m_proton,   -.53)
+            * pow(theDomain->metallicity / metallicity_solar, -.16);
 
     theDomain->theParList.t_max = 5 * t_f * 5;
     printf("t_max = %le \n", t_f);
