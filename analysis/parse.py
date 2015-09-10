@@ -98,6 +98,7 @@ class Overview(object):
          # default, since earlier runs won't have this saved
         self.num_SNe = 0
         self.cluster_mass = 0
+        self.mass_loss = "none"
 
 
         f = open(filename, "r")
@@ -114,6 +115,10 @@ class Overview(object):
                 self.num_SNe = int(line.split()[-1])
             elif "Cluster Mass" in line:
                 self.cluster_mass = float(line.split()[-1]) * M_solar
+            elif "seed" in line:
+                self.seed = int(line.split()[-1])
+            elif "mass loss" in line: 
+                self.mass_loss = line.split()[-1]
         f.close()
 
         SNe_filename = filename.replace("overview", "SNe") 
@@ -127,11 +132,13 @@ class Overview(object):
             self.SNe_initial_mass   = SNe[:,1]
             self.SNe_ejecta_mass    = SNe[:,2]
             self.SNe_ejecta_mass_Z  = SNe[:,3]
+            self.SNe_wind_mass      = SNe[:,4]
         else:
             self.SNe_times          = np.array([0.])
             self.SNe_initial_mass   = np.array([0.])
             self.SNe_ejecta_mass    = np.array([0.])
             self.SNe_ejecta_mass_Z  = np.array([0.])
+            self.SNe_wind_mass      = np.array([0.])
 
         sorted_indices = np.argsort(self.SNe_times)
         self.SNe_times          = self.SNe_times[         sorted_indices]
