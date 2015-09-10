@@ -10,3 +10,5 @@ saved_runs/
 comparison/
 papers/
 init
+*DS_Store*
+*.fuse*
