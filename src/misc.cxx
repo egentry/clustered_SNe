@@ -12,7 +12,7 @@ extern "C" {
 #include "misc.H" 
 #include "plm.H"
 #include "riemann.H"
-#include "Hydro/euler.H" // prim2cons, cons2prim, mindt
+#include "Hydro/euler.H" // prim2cons, cons2prim, mindt, E_int_from_*
 
 
 double getmindt( const struct domain * theDomain )
@@ -299,7 +299,7 @@ void calc_dr( struct domain * theDomain )
 
 void fix_negative_energies( struct domain * theDomain )
 {
-    // Only TOTAL energy is conserved
+    // Only TOTAL energy is tracked in our riemann solver
     //    - this can lead to a problem if kinetic energy exceeds total energy
     //    - in order to compensate, internal energy (and pressure) will become negative
     // To fix this problem:
@@ -319,43 +319,48 @@ void fix_negative_energies( struct domain * theDomain )
         struct cell * c = &(theCells[i]);
 
         const double rp = c->riph;
-        const double rm = rp-c->dr;
+        const double rm = rp - c->dr;
         const double dV = get_dV( rp , rm );
 
-        const double P_adiabatic = c->P_old * pow(dV / c->dV_old, -1*gamma);
-        const double E_adiabatic = P_adiabatic * dV / (gamma - 1);
+        const double E_int_adiabatic = c->E_int_old * pow(dV / c->dV_old, 1-gamma);
+        const double E_int_approx = E_int_adiabatic + c->dE_cool;
 
-        const double Mass = c->cons[DDD];
-        const double vr   = c->cons[SRR] / Mass;
-        const double E_numeric = c->cons[TAU] - .5*Mass*vr*vr;
+        const double E_int_numeric = E_int_from_cons( c );
 
-        if ( (((E_adiabatic - E_numeric) / E_adiabatic) > tolerance) 
-                || (E_numeric < 0) ) 
+        if ( (((E_int_approx - E_int_numeric) / std::abs(E_int_approx)) > tolerance) 
+                || (E_int_numeric < 0) ) 
         {
 
+            const double mass  = c->cons[DDD];
+            const double vr    = c->cons[SRR] / mass;
             // overwrite the energy, so that internal energy is strictly positive
             printf("------ Applying energy fix for cell %d  ------- \n", i);
-            printf("time = %e \n", theDomain->t);
-            printf("velocity = %e \n", vr);
-            printf("P_old = %e \n", c->P_old);
-            printf("dV_old = %e \n", c->dV_old);
-            printf("dV     = %e \n", dV);
-            printf("P_adiabatic = %e \n", P_adiabatic);
-            printf("E_adiabatic = %e \n", E_adiabatic);
-            printf("P_numeric = %e \n", E_numeric * (gamma-1) / dV);
-            printf("E_numeric = %e \n", E_numeric);
+            printf("time            = %e \n", theDomain->t);
+            printf("velocity        = %e \n", vr);
+            printf("E_int_old       = %e \n", c->E_int_old);
+            printf("dV_old          = %e \n", c->dV_old);
+            printf("dV              = %e \n", dV);
+            printf("P_approx        = %e \n", E_int_approx * (gamma-1)/dV);
+            printf("E_int_adiabatic = %e \n", E_int_adiabatic);
+            printf("E_int_approx    = %e \n", E_int_approx);
+            printf("E_int_numeric   = %e \n", E_int_numeric);
 
-            c->cons[TAU] = E_adiabatic + .5*Mass*vr*vr;
-
-            c->P_old  = P_adiabatic;
-            c->dV_old = dV;
-
+            if ( E_int_approx > 0 )
+            {
+                c->E_int_old = E_int_approx;
+            }
+            else
+            {
+                c->E_int_old = E_int_adiabatic;
+            }
+            c->cons[TAU] = c->E_int_old + .5*mass*vr*vr;
         } 
         else
         {
-            c->P_old  = E_numeric * (gamma - 1) / dV;
-            c->dV_old = dV;
+            c->E_int_old  = E_int_numeric;
         }
+        
+        c->dV_old = dV;
 
 
     }
@@ -446,7 +451,7 @@ void add_source( struct domain * theDomain , const double dt )
         {
             rm = 0; // boundary condition -- don't change dV to match this rm
         }
-        source( c->prim , c->cons , c->grad , rp , rm , dV , dt , 
+        source( c->prim , c->cons , c->grad , &(c->dE_cool) , rp , rm , dV , dt , 
                 theDomain->cooling_units , theDomain->theParList.With_Cooling );
 
 
@@ -582,12 +587,13 @@ void AMR( struct domain * theDomain )
             c->cons[q]   += cp->cons[q];
             c->RKcons[q] += cp->RKcons[q];
         }
+        const double gamma = theDomain->theParList.Adiabatic_Index;
         const double rp = c->riph;
         const double rm = rp - c->dr;
         const double dV = get_dV( rp , rm );
         cons2prim( c->cons , c->prim , dV );
-        c->P_old  = c->prim[PPP];
-        c->dV_old = dV;
+        c->E_int_old  = c->prim[PPP] * dV / (gamma-1);
+        c->dV_old     = dV;
 
         //Shift Memory
         int blocksize = Nr-iSp-1;
@@ -638,14 +644,17 @@ void AMR( struct domain * theDomain )
             cp->RKcons[q] *= .5;
         }
 
+        const double gamma = theDomain->theParList.Adiabatic_Index;
         double dV = get_dV( r0 , rm );
         cons2prim( c->cons , c->prim , dV , true);
-        c->P_old = c->prim[PPP];
-        c->dV_old = dV;
+        c->E_int_old  = cp->prim[PPP] * dV / (gamma-1);
+        c->dV_old     = dV;
+
         dV = get_dV( rp , r0 );
         cons2prim( cp->cons , cp->prim , dV , true);
-        cp->P_old = cp->prim[PPP];
-        cp->dV_old = dV;
+        cp->E_int_old  = cp->prim[PPP] * dV / (gamma-1);
+        cp->dV_old     = dV;
+
 
 
 

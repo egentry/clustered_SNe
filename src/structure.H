@@ -99,8 +99,9 @@ struct cell{
    double wiph;          // velocity of right edge of cell
    
    // for use in checking dE_adiabatic (in fix_negative_energies):
-   double P_old; 
+   double E_int_old; 
    double dV_old; 
+   double dE_cool; // negative for cooling, positive for heating
 };
 
 

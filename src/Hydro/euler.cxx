@@ -8,6 +8,7 @@ extern "C" {
 
 #include "../structure.H"
 #include "../cooling.H"
+#include "../geometry.H" // get_dV
 #include "euler.H"
 
 static double GAMMA_LAW = 0.0;
@@ -170,6 +171,7 @@ void flux( const double * prim , double * flux )
 }
 
 void source( const double * prim , double * cons , const double * grad , 
+                   double * dE_cool , 
              const double rp , const double rm ,
              const double dV , const double dt , 
              code_units cooling_units, const int With_Cooling)
@@ -188,8 +190,37 @@ void source( const double * prim , double * cons , const double * grad ,
 
     if( With_Cooling == 1)
     {
-        cons[TAU] += calc_cooling(prim, cons, dt, cooling_units) * dV;  
+        *dE_cool   = calc_cooling(prim, cons, dt, cooling_units) * dV;  
+        cons[TAU] += *dE_cool; 
     }
+    else
+    {
+        *dE_cool = 0;
+    }
+}
+
+double E_int_from_cons( const struct cell * c )
+{
+
+    const double mass  = c->cons[DDD];
+    const double vr    = c->cons[SRR] / mass;
+    const double E_int = c->cons[TAU] - .5*mass*vr*vr;
+
+    return E_int;
+}
+
+double E_int_from_prim( const struct cell * c , 
+                        const double gamma )
+{
+
+    const double rp = c->riph;
+    const double rm = rp - c->dr;
+    const double dV = get_dV( rp , rm );
+    const double E_int = c->prim[PPP] * dV / (gamma-1);
+
+    assert(E_int > 0);
+
+    return E_int;
 }
 
 

@@ -7,7 +7,7 @@
 #include "../Hydro/euler.H" // prim2cons, cons2prim
 #include "../boundary.H"
 #include "../geometry.H" // get_moment_arm, get_dV
-#include "../misc.H" // calc_dr
+#include "../misc.H" // calc_dr, E_int_from_*
 
 #include "initial_conditions.H"
 #include "chevalier_ICs.H"
@@ -118,7 +118,7 @@ void Initial_Conditions::setup_cells( struct domain * theDomain )
         double dV = get_dV( rp , rm );
         prim2cons( c->prim , c->cons , dV );
         cons2prim( c->cons , c->prim , dV );
-        c->P_old  = c->prim[PPP];
+        c->E_int_old = E_int_from_cons( c );
         c->dV_old = dV;
     }
 
@@ -326,7 +326,7 @@ void Initial_Conditions::extend_grid( struct domain * theDomain,
         const double dV = get_dV( rp , rm );
         prim2cons( c->prim , c->cons , dV );
         cons2prim( c->cons , c->prim , dV );
-        c->P_old  = c->prim[PPP];
+        c->E_int_old = E_int_from_cons( c );
         c->dV_old = dV;
     }    
 
@@ -345,8 +345,8 @@ void Initial_Conditions::set_times( struct domain * theDomain )
         double t_first_SN = theDomain->SNe.back().lifetime;
         double t_last_SN  = theDomain->SNe.front().lifetime;
 
-        theDomain->t      += t_first_SN;
-        theDomain->t_init += t_first_SN;
+        // theDomain->t      += t_first_SN;
+        // theDomain->t_init += t_first_SN;
         theDomain->t_fin  += t_last_SN;
 
     }
