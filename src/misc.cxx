@@ -343,6 +343,7 @@ void fix_negative_energies( struct domain * theDomain )
             printf("P_approx        = %e \n", E_int_approx * (gamma-1)/dV);
             printf("E_int_adiabatic = %e \n", E_int_adiabatic);
             printf("E_int_approx    = %e \n", E_int_approx);
+            printf("dE_cool         = %e \n", c->dE_cool);
             printf("E_int_numeric   = %e \n", E_int_numeric);
 
             if ( E_int_approx > 0 )
