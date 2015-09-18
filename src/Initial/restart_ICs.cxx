@@ -32,7 +32,9 @@ Restart_ICs::Restart_ICs()
     checkpoints_finished = 0;
 }
 
-int Restart_ICs::setICparams( struct domain * theDomain ){
+int Restart_ICs::setICparams( struct domain * theDomain ,
+                              const Mass_Loss * mass_loss )
+{
     NL = this->get_table( restart_filename ); 
     if ( NL < 0 )
     {
@@ -47,21 +49,18 @@ int Restart_ICs::setICparams( struct domain * theDomain ){
     theDomain->t_fin  = time_restart + delta_time;
     theDomain->nchk_0 = checkpoints_finished ;
     theDomain->nchk   = checkpoints_finished ;
+    theDomain->N_chk += 1; // since we don't do a checkpoint when starting
 
-    if (restart_filename.find("checkpoint_") != std::string::npos )
-    {
-        const std::string restart_basename = fs::basename(restart_filename);
-        const unsigned int id_start = restart_basename.find("checkpoint_");
+    this->set_output_prefix( theDomain );
+    this->add_SNe( theDomain , mass_loss );
+    this->set_times( theDomain );
 
-        theDomain->output_prefix = restart_basename.substr(0,id_start);
-    }
-
+    std::cout << std::endl;
     std::cout << "Restart values:" << std::endl;
     std::cout << "time restart: " << time_restart << std::endl;
     std::cout << "checkpoints_finished: " << checkpoints_finished << std::endl;
     std::cout << "output_prefix: " << theDomain->output_prefix << std::endl;
-
-
+    std::cout << std::endl;
 
 
     return 0;
@@ -78,11 +77,13 @@ void Restart_ICs::add_SNe( struct domain * theDomain ,
                             SNe.rend(),
                             sort_by_lifetime) );
 
+    
     while ( (SNe.size() > 0) && 
             (SNe.back().lifetime < theDomain->t) )
     {
         SNe.pop_back();
     }
+
     theDomain->SNe = SNe;
 }
 
@@ -125,8 +126,6 @@ std::string Restart_ICs::get_restart_filename( const std::string partial_ID )
 
     fs::directory_iterator end_itr;
 
-    // can I just auto this?
-
     for ( fs::directory_iterator dir_itr{current_dir} ;
           dir_itr != end_itr ; 
           ++dir_itr )
@@ -156,17 +155,16 @@ std::string Restart_ICs::get_restart_filename( const std::string partial_ID )
         }
     }
 
-
-   // check that file exists
-   fs::path restart_path(restart_filename);
-   assert(fs::exists(restart_path));
+    // check that file exists
+    fs::path restart_path(restart_filename);
+    assert(fs::exists(restart_path));
 
     if ( highest_checkpoint_seen >= 0 )
     {
         checkpoints_finished = highest_checkpoint_seen;
     }
 
-   return restart_filename;
+    return restart_filename;
 
 }
 
@@ -254,7 +252,9 @@ void Restart_ICs::set_times( struct domain * theDomain )
     // do basically the same thing as the base class,
     // except don't change t or t_init
 
-    // Maybe this should be set within ICparams?
+    assert( std::is_sorted( theDomain->SNe.rbegin(),
+                            theDomain->SNe.rend(),
+                            sort_by_lifetime) );
 
     if ( theDomain->SNe.size() > 0 )
     {
@@ -264,15 +264,26 @@ void Restart_ICs::set_times( struct domain * theDomain )
         theDomain->t_fin  += t_last_SN;
 
     }
-    else
-    {
-        // std::cerr << "Error: No SNe in this run. Exiting." << std::endl;
-        // no supernovae. For now, just kill the process
-        // but maybe figure out a better way to respond?
-        // return 1; 
-    }
+
 }
 
+void Restart_ICs::set_output_prefix( struct domain * theDomain )
+{
+
+    if (restart_filename.find("checkpoint_") != std::string::npos )
+    {
+        const std::string restart_basename = fs::basename(restart_filename);
+        const unsigned int id_start = restart_basename.find("checkpoint_");
+
+        theDomain->output_prefix = restart_basename.substr(0,id_start);
+    }
+    else
+    {
+        std::cerr << "Couldn't find an output prefix using restart_filename: "
+                  << restart_filename << std::endl;
+    }
+
+}
 
 
 void Restart_ICs::free_table()

@@ -2,12 +2,15 @@
 #include <iostream>
 #include <string>
 #include <cmath> // std::abs
+#include <uuid/uuid.h>
+
 
 
 #include "../Hydro/euler.H" // prim2cons, cons2prim
 #include "../boundary.H"
 #include "../geometry.H" // get_moment_arm, get_dV
 #include "../misc.H" // calc_dr, E_int_from_*
+#include "../blast.H"
 
 #include "initial_conditions.H"
 #include "chevalier_ICs.H"
@@ -97,6 +100,16 @@ Initial_Conditions * select_initial_conditions( std::string IC_name )
     }
 
     std::cerr << "Initial condition name didn't match known names" << std::endl;
+
+}
+
+int Initial_Conditions::setICparams( struct domain * theDomain ,
+                                     const Mass_Loss * mass_loss)
+{
+    this->set_output_prefix( theDomain );
+    this->set_times( theDomain );
+
+    return 0;
 
 }
 
@@ -337,7 +350,10 @@ void Initial_Conditions::extend_grid( struct domain * theDomain,
 
 void Initial_Conditions::set_times( struct domain * theDomain )
 {
-    // Maybe this should be set within ICparams?
+
+    assert( std::is_sorted( theDomain->SNe.rbegin(),
+                            theDomain->SNe.rend(),
+                            sort_by_lifetime) );
 
     if ( theDomain->SNe.size() > 0 )
     {
@@ -353,10 +369,22 @@ void Initial_Conditions::set_times( struct domain * theDomain )
     else
     {
         // std::cerr << "Error: No SNe in this run. Exiting." << std::endl;
-        // no supernovae. For now, just kill the process
-        // but maybe figure out a better way to respond?
+        // // no supernovae. For now, just kill the process
+        // // but maybe figure out a better way to respond?
         // return 1; 
     }
+
+}
+
+void Initial_Conditions::set_output_prefix( struct domain * theDomain )
+{
+
+    uuid_t  id_binary;
+    char id_ascii[36];
+    uuid_generate(id_binary);
+    uuid_unparse(id_binary, id_ascii);
+    printf("generated uuid: %s \n", id_ascii);
+    theDomain->output_prefix = std::string(id_ascii).append("_");
 
 }
 

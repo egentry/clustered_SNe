@@ -3,7 +3,6 @@
 #include <string>
 #include <cmath>
 
-#include <uuid/uuid.h>
 extern "C" {
 #include <grackle.h>
 }
@@ -20,8 +19,6 @@ extern "C" {
 #include "Initial/initial_conditions.H"
 #include "Hydro/euler.H"
 #include "Output/ascii.H"
-
-#include <algorithm>
 
 
 int setupDomain( struct domain * theDomain , 
@@ -54,25 +51,10 @@ int setupDomain( struct domain * theDomain ,
     theDomain->nchk   = -1;
     theDomain->nchk_0 =  0;
 
-    uuid_t  id_binary;
-    char id_ascii[36];
-    uuid_generate(id_binary);
-    uuid_unparse(id_binary, id_ascii);
-    printf("generated uuid: %s \n", id_ascii);
-    theDomain->output_prefix = std::string(id_ascii).append("_");
-
-    error = ICs->setICparams( theDomain );
+    error = ICs->setICparams( theDomain , mass_loss );
     if ( error==1 ) return(error);
     setHydroParams( theDomain );
     setRiemannParams( theDomain );
-
-    // everything below should probably go in a separate function?
-
-    assert( std::is_sorted( theDomain->SNe.rbegin(),
-                            theDomain->SNe.rend(),
-                            sort_by_lifetime) );
-
-    ICs->set_times( theDomain );
 
     return 0;
 

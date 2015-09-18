@@ -4,6 +4,7 @@
 
 #include "initial_conditions.H"
 #include "../structure.H"
+#include "../mass_loss.H"
 
 class Cluster_SNe_ICs : public Initial_Conditions
 {
@@ -11,18 +12,21 @@ class Cluster_SNe_ICs : public Initial_Conditions
 public:
     Cluster_SNe_ICs(){E_blast=1e51;}
 
-    int setICparams( struct domain * theDomain );
+    int setICparams( struct domain * theDomain ,
+                     const Mass_Loss * mass_loss );
     void initial( double * prim , double r );
     int parse_command_line_args (   struct domain * theDomain , 
                                     int argc , 
                                     char * argv [] );
 
+
+protected:
     void add_SNe( struct domain * theDomain ,
                   const Mass_Loss * mass_loss );
 
-private:
-
     int setup_parameter_study( struct domain * theDomain );
+
+private:
 
     double mu;     // mean molecular weight -- this is the only time it's used
     double Gamma;  // adiabatic index

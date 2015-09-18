@@ -5,6 +5,7 @@
 #include <string>
 #include "initial_conditions.H"
 #include "../structure.H"
+#include "../mass_loss.H"
 
 class Restart_ICs : public Initial_Conditions
 {
@@ -13,17 +14,21 @@ public:
     Restart_ICs();
     ~Restart_ICs();
 
-    int setICparams( struct domain * theDomain );
+    int setICparams( struct domain * theDomain , 
+                     const Mass_Loss * mass_loss);
     void initial( double * prim , double r );
     int parse_command_line_args ( struct domain * theDomain , int argc , 
                                                               char * argv [] );
     void setup_grid( struct domain * theDomain );
     bool trust_LogZoning_flag(){return false;}
 
-    void set_times( struct domain * theDomain );
 
-    void add_SNe( struct domain * theDomain,
+
+protected:
+    void add_SNe( struct domain * theDomain ,
                   const Mass_Loss * mass_loss );
+    void set_times( struct domain * theDomain );
+    void set_output_prefix( struct domain * theDomain );
 
 private:
 

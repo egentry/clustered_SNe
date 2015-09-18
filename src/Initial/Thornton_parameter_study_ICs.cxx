@@ -12,11 +12,13 @@
 #include "../structure.H"
 #include "../constants.H"
 #include "../blast.H"
+#include "../mass_loss.H"
 #include "initial_conditions.H"
 #include "Thornton_parameter_study_ICs.H"
 
 
-int Thornton_Parameter_Study_ICs::setICparams( struct domain * theDomain )
+int Thornton_Parameter_Study_ICs::setICparams( struct domain * theDomain ,
+                                               const Mass_Loss * mass_loss )
 {
 
     // ============================================= //
@@ -43,7 +45,9 @@ int Thornton_Parameter_Study_ICs::setICparams( struct domain * theDomain )
     //
     // ============================================= //
 
-
+    this->set_output_prefix( theDomain );
+    this->add_SNe( theDomain , mass_loss );
+    this->set_times( theDomain );
 
     Gamma = theDomain->theParList.Adiabatic_Index;
 
