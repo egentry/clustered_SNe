@@ -151,7 +151,7 @@ std::size_t count_lines_in_file( const std::string filename )
 
     if ( !fs::exists(filename) )
     {
-        std::cerr << "Error: File (\"" << filename 
+        std::cerr << "Error: File \"" << filename 
                   << "\" doesn't exist. Can't count lines." << std::endl;
         return 0;
     }

@@ -30,9 +30,6 @@ int main( int argc , char * argv[] )
     Initial_Conditions * ICs;
     ICs = select_initial_conditions(theDomain.theParList.ICs);
 
-    Mass_Loss * mass_loss;
-    mass_loss = select_mass_loss(theDomain.theParList.mass_loss);
-
     error = ICs->parse_command_line_args( &theDomain , argc , argv );
     if( error==1 ) 
     {
@@ -40,7 +37,8 @@ int main( int argc , char * argv[] )
         return 0;
     }
 
-    ICs->add_SNe( &theDomain , mass_loss );
+    Mass_Loss * mass_loss;
+    mass_loss = select_mass_loss(theDomain.theParList.mass_loss);
 
     error = setupDomain( &theDomain , ICs , mass_loss );
     if( error==1 ) 
