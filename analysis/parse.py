@@ -254,12 +254,12 @@ def parse_run(data_dir="", id=""):
         df_tmp["zones"]       = np.arange(array_tmp.shape[0])
         
         E_kin[k]    = calculate_kinetic_energy(df_tmp.Mass.values,
-                                               df_tmp.Velocity.values)
+                                               df_tmp.Velocity.values).sum()
         E_int[k]    = calculate_internal_energy(df_tmp.Mass.values,
                                                 df_tmp.Pressure.values,
-                                                df_tmp.Density.values)
+                                                df_tmp.Density.values).sum()
         momentum[k] = calculate_momentum(df_tmp.Mass.values,
-                                         df_tmp.Velocity.values)
+                                         df_tmp.Velocity.values).sum()
         E_tot[k]    = E_kin[k] + E_int[k]
         M_tot[k]    = df_tmp.M_int[-1]
         Z_tot[k]    = np.sum(df_tmp.Mass * df_tmp.Z)
@@ -273,10 +273,10 @@ def parse_run(data_dir="", id=""):
             R_shock[k] = df_tmp.Radius.iloc[0]
         remnant = df_tmp.Radius <= R_shock[k]
         E_R_kin[k] = calculate_kinetic_energy(df_tmp.Mass[remnant].values,
-                                              df_tmp.Velocity[remnant].values)
+                                              df_tmp.Velocity[remnant].values).sum()
         E_R_int[k] = calculate_internal_energy(df_tmp.Mass[remnant].values, 
                                                df_tmp.Pressure[remnant].values,
-                                               df_tmp.Density[remnant].values)
+                                               df_tmp.Density[remnant].values).sum()
         E_R_tot[k] = E_R_int[k] + E_R_kin[k]
         
         if k is 0:
