@@ -32,17 +32,17 @@ def calculate_mass(density, dV):
 @jit
 def calculate_kinetic_energy(mass, velocity):
     E_kin = (1/2) * mass * velocity**2
-    return E_kin.sum()
+    return E_kin
 
 @jit
 def calculate_internal_energy(mass, pressure, density):
     E_int = mass * (1/(gamma-1)) * pressure / density
-    return E_int.sum()
+    return E_int
 
 @jit
 def calculate_momentum(mass, velocity):
     momentum = mass * velocity
-    return momentum.sum()
+    return momentum
 
 @jit
 def calculate_c_ad(pressure, density):

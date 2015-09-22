@@ -198,6 +198,10 @@ int read_par_file( struct domain * theDomain , int argc , char * argv [] )
     error += read_var( par_filename , 
                     "RK2"              , &(theList->RK2) , 1 );
     error += read_var( par_filename , 
+                    "H_0"              , &(theList->H_0) , 10.0 );
+    error += read_var( par_filename , 
+                    "H_1"              , &(theList->H_1) , 0.0 );
+    error += read_var( par_filename , 
                     "Riemann_Solver"   , &(theList->Riemann_Solver) , 1 );
     error += read_var( par_filename , 
                     "Mesh_Motion"      , &(theList->Mesh_Motion) , 1 );

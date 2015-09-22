@@ -24,6 +24,8 @@ Max_Aspect_Long         10.0     //Aspect Ratio AMR Refinement Criteria
 CFL			0.2
 PLM			1
 RK2         1
+H_0			10.0
+H_1		 	0.0
 Riemann_Solver		1	//0=HLL, 1=HLLC
 Mesh_Motion		1	//0=Fixed, 1=By Cell, 2=Riemann Solver
 Density_Floor		1e-60

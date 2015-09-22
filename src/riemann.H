@@ -5,6 +5,9 @@
 #include "structure.H"
 
 void setRiemannParams( const struct domain * theDomain );
+
+void conduction( struct cell * cL , struct cell * cR, 
+              const double dA , const double dt );
 void riemann( struct cell * cL , struct cell * cR, 
               const double r , const double dA , const double dt );
 

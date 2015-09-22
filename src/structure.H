@@ -3,7 +3,9 @@
 
 // respectively: density, Pressure, radial velocity, metallicity
 enum{RHO,PPP,VRR,ZZZ};
-enum{DDD,TAU,SRR}; // respectively: mass, energy, momentum (radial)
+
+// respectively: mass, energy, momentum (radial)
+enum{DDD,TAU,SRR}; 
 
 #include <string>
 
@@ -36,6 +38,7 @@ struct param_list{
     double  CFL;
     int     PLM; // Piece-wise reconstruction: 1 = piecewise linear, 0 = piecewise constant
     int     RK2; // Integration: 1 = 2nd order Runge-Kutta; 0 = 1st order Eulerian
+    double  H_0, H_1; // artificial conduction constants
 
     int     Riemann_Solver;
     int     Mesh_Motion;
