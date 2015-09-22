@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <cmath>
+#include <string>
 #include <assert.h>
 
 #include <algorithm>
@@ -15,6 +16,12 @@
 #include "initial_conditions.H"
 #include "cluster_SNe_ICs.H"
 
+const std::string Cluster_SNe_ICs::class_name = "cluster_SNe";
+
+Cluster_SNe_ICs::Cluster_SNe_ICs(const double E_blast) 
+    :   Initial_Conditions( class_name ),
+        E_blast(E_blast)
+{}
 
 int Cluster_SNe_ICs::setICparams( struct domain * theDomain ,
                                   const Mass_Loss * mass_loss)
@@ -76,6 +83,7 @@ void Cluster_SNe_ICs::initial( double * prim , double r )
     prim[ZZZ] = metallicity;
 
 }
+
 
 int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
 {
@@ -188,9 +196,6 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
     theDomain->theParList.rmax = 2 * 4 * R_thornton;
     theDomain->theParList.rmin = theDomain->theParList.rmax / 1e4;
 
-    printf("R_min = %le \n", theDomain->theParList.rmin);
-    printf("R_max = %le \n", theDomain->theParList.rmax);
-
     // Sets the end time appropriately,
     // having done a 2d power law fit to t_f(n_0, Z)
     // using the results of Thornton (Table 3)
@@ -199,7 +204,6 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
             * pow(theDomain->metallicity / metallicity_solar, -.16);
 
     theDomain->theParList.t_max = 5 * t_f * 5;
-    printf("t_max = %le \n", t_f);
 
     return 0;
 

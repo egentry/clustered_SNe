@@ -6,6 +6,7 @@ extern "C" {
 #include <grackle.h>
 }
 
+#include "cooling.H"
 #include "structure.H"
 
 double getmindt( const struct domain * theDomain );
@@ -16,7 +17,8 @@ void calc_dr( struct domain * theDomain );
 void fix_negative_energies( struct domain * theDomain );
 void calc_prim( struct domain * theDomain );
 void radial_flux( struct domain * theDomain , const double dt );
-void add_source( struct domain * theDomain , const double dt );
+void add_source( struct domain * theDomain , const double dt ,
+                 Cooling * cooling );
 void longandshort( const struct domain * theDomain , 
                    double * L , double * S , 
                    int * iL , int * iS );

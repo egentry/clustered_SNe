@@ -2,6 +2,8 @@
 #ifndef _THORNTON_PARAMETER_STUDY_ICS_H_
 #define _THORNTON_PARAMETER_STUDY_ICS_H_
 
+#include <string>
+
 #include "initial_conditions.H"
 #include "../structure.H"
 #include "../mass_loss.H"
@@ -12,7 +14,8 @@ class Thornton_Parameter_Study_ICs : public Initial_Conditions
 
 
 public:
-    Thornton_Parameter_Study_ICs(){E_blast=1e51;}
+
+    Thornton_Parameter_Study_ICs(const double E_blast = 1e51);
 
     int setICparams( struct domain * theDomain ,
                      const Mass_Loss * mass_loss );
@@ -21,6 +24,7 @@ public:
                                     int argc , 
                                     char * argv [] );
 
+    static const std::string class_name;
 
 protected:
     void add_SNe( struct domain * theDomain ,
@@ -29,7 +33,6 @@ protected:
     int setup_parameter_study( struct domain * theDomain );
 
 private:
-
 
     double mu;     // mean molecular weight -- this is the only time it's used
     double Gamma;  // adiabatic index

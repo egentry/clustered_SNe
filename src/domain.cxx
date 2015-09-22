@@ -28,13 +28,6 @@ int setupDomain( struct domain * theDomain ,
 
     int error;
 
-    if (theDomain->theParList.With_Cooling == 1)
-    {
-        theDomain->cooling_units = setup_cooling(theDomain);
-    }
-
-    theDomain->mass_loss = mass_loss->get_name();
-
     theDomain->t       = theDomain->theParList.t_min;
     theDomain->t_init  = theDomain->theParList.t_min;
     theDomain->t_fin   = theDomain->theParList.t_max;
@@ -90,15 +83,15 @@ void check_dt( struct domain * theDomain , double * dt ){
 void possiblyOutput( struct domain * theDomain , int override )
 {
 
-    double t     = theDomain->t;
-    double t_min = theDomain->t_init;
-    double t_fin = theDomain->t_fin;
-    int Nrpt     = theDomain->N_rpt;
+    const double t     = theDomain->t;
+    const double t_min = theDomain->t_init;
+    const double t_fin = theDomain->t_fin;
+    const int Nrpt     = theDomain->N_rpt;
     // int Nsnp = theDomain->N_snp;
-    int Nchk     = theDomain->N_chk;
-    int nchk_0   = theDomain->nchk_0;
+    const int Nchk     = theDomain->N_chk;
+    const int nchk_0   = theDomain->nchk_0;
 
-    int LogOut = theDomain->theParList.Out_LogTime;
+    const bool LogOut = theDomain->theParList.Out_LogTime;
     int n0;
 
     n0 = static_cast<int> ( (t-t_min)*Nrpt / (t_fin-t_min) ) ;

@@ -1,9 +1,15 @@
 
 #include <cmath>
+#include <string>
+
 #include "../structure.H"
 #include "initial_conditions.H"
 #include "chevalier_ICs.H"
 
+const std::string Chevalier_ICs::class_name = "chevalier";
+
+Chevalier_ICs::Chevalier_ICs() : Initial_Conditions( class_name )
+{}
 
 int Chevalier_ICs::setICparams( struct domain * theDomain ,
                                 const Mass_Loss * mass_loss )

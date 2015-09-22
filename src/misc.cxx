@@ -435,7 +435,8 @@ void radial_flux( struct domain * theDomain , const double dt )
 }
 
 
-void add_source( struct domain * theDomain , const double dt )
+void add_source( struct domain * theDomain , const double dt , 
+                 Cooling * cooling )
 {
 
     struct cell * theCells = theDomain->theCells;
@@ -452,8 +453,8 @@ void add_source( struct domain * theDomain , const double dt )
         {
             rm = 0; // boundary condition -- don't change dV to match this rm
         }
-        source( c->prim , c->cons , c->grad , &(c->dE_cool) , rp , rm , dV , dt , 
-                theDomain->cooling_units , theDomain->theParList.With_Cooling );
+        source( c->prim , c->cons , c->grad , &(c->dE_cool) , 
+                rp , rm , dV , dt , cooling );
 
 
         // ======== Verify post-conditions ========= //

@@ -5,7 +5,6 @@
 
 // PHYSICAL CONSTANTS SET USING ASTROPY VALUES
 // but when using python, you should also use these values, due to round-off error
-#define G  6.673840e-08
 #define k_boltzmann 1.380649e-16
 #define m_proton  1.672622e-24
 

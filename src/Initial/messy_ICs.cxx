@@ -1,10 +1,15 @@
 
 #include <cmath>
+#include <string>
 
 #include "../structure.H"
 #include "initial_conditions.H"
 #include "messy_ICs.H"
 
+const std::string Messy_ICs::class_name = "messy";
+
+Messy_ICs::Messy_ICs() : Initial_Conditions( class_name )
+{}
 
 void Messy_ICs::initial( double * prim , double r )
 {

@@ -12,6 +12,7 @@ class Mass_Loss
 {
 
 public:
+    Mass_Loss( const std::string name);
 
     virtual void add_mass_loss( struct domain * theDomain ,
                                 const double dt ) const = 0;
@@ -22,8 +23,9 @@ public:
 
     virtual double get_wind_mass( const double M_initial ) const;
 
-    virtual std::string get_name() const = 0;
+    const std::string name;
 
+private:
 
 };
 
@@ -34,6 +36,8 @@ class No_Mass_Loss : public Mass_Loss
 
 public:
 
+    No_Mass_Loss();
+
     void add_mass_loss( struct domain * theDomain ,
                         const double dt ) const {};
 
@@ -42,8 +46,10 @@ public:
 
     double get_wind_mass( const double M_initial ) const ;
 
-    std::string get_name() const ;
+    static const std::string class_name;
 
+
+private:
 
 
 };
@@ -54,12 +60,14 @@ class Uniform_Mass_Loss : public Mass_Loss
 
 public:
 
+    Uniform_Mass_Loss();
+
     void add_mass_loss( struct domain * theDomain , 
                         const double dt ) const;
 
-    std::string get_name() const ;
+    static const std::string class_name;
 
-
+private:
 
 
 };
@@ -69,14 +77,17 @@ class Disappear_Mass_Loss : public Mass_Loss
 
 public:
 
+    Disappear_Mass_Loss();
+
     void add_mass_loss( struct domain * theDomain ,
                         const double dt ) const {};
 
 
     double get_wind_mass( const double M_initial ) const ;
 
-    std::string get_name() const ;
+    static const std::string class_name;
 
+private:
 
 
 };

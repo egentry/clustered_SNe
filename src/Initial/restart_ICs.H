@@ -20,13 +20,14 @@ public:
     int parse_command_line_args ( struct domain * theDomain , int argc , 
                                                               char * argv [] );
     void setup_grid( struct domain * theDomain );
-    bool trust_LogZoning_flag(){return false;}
+    bool trust_LogZoning_flag() const ;
 
-
+    static const std::string class_name;
 
 protected:
     void add_SNe( struct domain * theDomain ,
                   const Mass_Loss * mass_loss );
+
     void set_times( struct domain * theDomain );
     void set_output_prefix( struct domain * theDomain );
 

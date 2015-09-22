@@ -6,6 +6,8 @@ extern "C" {
 #include <grackle.h>
 }
 
+#include "../cooling.H"
+
 void setHydroParams( const struct domain * theDomain );
 void prim2cons( const double * prim , double * cons , const double dV );
 void cons2prim( const double * cons , double * prim , 
@@ -17,7 +19,7 @@ void source( const double * prim , double * cons , const double * grad ,
                    double * dE_cool , 
              const double rp , const double rm , 
              const double dV , const double dt , 
-             code_units cooling_units, const int With_Cooling);
+             Cooling * cooling );
 double E_int_from_cons( const struct cell * c );
 double E_int_from_prim( const struct cell * c , 
                         const double gamma );

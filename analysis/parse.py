@@ -67,11 +67,12 @@ class Overview(object):
 
     """
     def __init__(self, filename):
-        """Create an Overview object using an "overview.dat" style filename (see Output/ascii.c)
+        """Create an Overview object using an "*overview.dat" filename
 
         Parameters
         ----------
-        filename - should be a valid "overview.dat" style filename (see Output/ascii.c)
+        filename : str
+            - should be a valid "overview.dat" style filename (see Output/ascii.cxx)
 
         Notes
         -----
@@ -83,9 +84,12 @@ class Overview(object):
             Background Temperature : float
                 [ K ]
             With Cooling : bool
+            Cooling Type : str
             Number of SNe : int
             Cluster Mass : float
                 [g]
+            seed : int
+            Mass Loss : str
 
         """
         super(Overview, self).__init__()
@@ -98,6 +102,7 @@ class Overview(object):
          # default, since earlier runs won't have this saved
         self.num_SNe = 0
         self.cluster_mass = 0
+        self.cooling_type = "equilibrium"
         self.mass_loss = "none"
 
 
@@ -111,6 +116,8 @@ class Overview(object):
                 self.background_temperature = float(line.split()[2])
             elif "With cooling" in line:
                 self.with_cooling = bool(int(line.split()[2]))
+            elif "Cooling Type" in line:
+                self.cooling_type = line.split()[-1]
             elif "Number of SNe" in line:
                 self.num_SNe = int(line.split()[-1])
             elif "Cluster Mass" in line:

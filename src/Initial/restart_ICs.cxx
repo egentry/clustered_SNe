@@ -10,26 +10,34 @@
 #include "../Hydro/euler.H" // prim2cons, cons2prim, mindt
 #include "../geometry.H"
 #include "../blast.H"
-#include "../Output/ascii.H"
+#include "../Output/ascii.H" // count_lines_in_file, read_SNe
 
 
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
-Restart_ICs::Restart_ICs()
+const std::string Restart_ICs::class_name = "restart";
+
+
+Restart_ICs::Restart_ICs() : Initial_Conditions( class_name )
 {
     NL  = 0;
-    rr  = NULL;
-    rho = NULL;
-    Pp  = NULL;
-    vr  = NULL;
-    Z   = NULL;
+    rr  = nullptr;
+    rho = nullptr;
+    Pp  = nullptr;
+    vr  = nullptr;
+    Z   = nullptr;
 
     restart_filename = std::string("init");
     restart_id = std::string("");
 
     time_restart = 0.0;
     checkpoints_finished = 0;
+}
+
+bool Restart_ICs::trust_LogZoning_flag() const
+{
+    return false;
 }
 
 int Restart_ICs::setICparams( struct domain * theDomain ,
