@@ -1,11 +1,16 @@
 
 #define _USE_MATH_DEFINES // for M_PI
 #include <cmath>
+#include <string>
 
 #include "../structure.H"
 #include "initial_conditions.H"
 #include "ejecta_ICs.H"
 
+const std::string Ejecta_ICs::class_name = "ejecta";
+
+Ejecta_ICs::Ejecta_ICs() : Initial_Conditions( class_name )
+{}
 
 void Ejecta_ICs::initial( double * prim , double r )
 {

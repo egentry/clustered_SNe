@@ -11,6 +11,7 @@ extern "C" {
 #include "ascii.H"
 #include "../structure.H"
 #include "../geometry.H"
+#include "../blast.H" // sort_by_lifetime
 
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
@@ -64,7 +65,9 @@ void output( struct domain * theDomain , const char * filestart ,
 
 }
 
-int overview( struct domain * theDomain )
+int overview( struct domain * theDomain ,
+              Mass_Loss * mass_loss ,
+              Cooling * cooling )
 {
     // prints an overview of key parameters into a datafile
 
@@ -103,13 +106,15 @@ int overview( struct domain * theDomain )
     fprintf(oFile, "Background Temperature: %e \n",
              theDomain->background_temperature);
     fprintf(oFile, "With cooling:           %d \n",
-             theDomain->theParList.With_Cooling);
+             cooling->with_cooling);
+    fprintf(oFile, "Cooling Type:           %s \n",
+             cooling->name.c_str() );
     fprintf(oFile, "Cluster Mass [M_sol]:   %e \n",
              theDomain->cluster_mass);
     fprintf(oFile, "seed:                   %d \n",
              theDomain->seed);
     fprintf(oFile, "mass loss:              %s \n",
-             theDomain->mass_loss.c_str());
+            mass_loss->name.c_str());
 
 
     if ( theDomain->SNe.size() > 0 )
@@ -164,3 +169,48 @@ std::size_t count_lines_in_file( const std::string filename )
 
 return num_lines;
 }
+
+std::vector<supernova> read_SNe( const std::string filename)
+{
+
+    std::vector<supernova> SNe;
+    supernova SN_tmp;
+
+    const int nL = count_lines_in_file(filename) - 1;
+    if ( nL < 0 ) return SNe;
+
+    double SN_time;
+    double SN_mass;
+    double SN_mass_ejecta;
+    double SN_mass_ejecta_Z;
+    double SN_mass_winds;
+
+
+    FILE * pFile = fopen(filename.c_str(),"r");
+    char tmp[1024];
+    fgets(tmp, sizeof(tmp), pFile); // header line
+
+    for( int l=0 ; l<nL ; ++l )
+    {
+        fscanf(pFile,"%le %le %le %le %le\n",
+                &SN_time, &SN_mass, 
+                &SN_mass_ejecta, &SN_mass_ejecta_Z,
+                &SN_mass_winds );
+
+        SN_tmp.mass             = SN_mass;
+        SN_tmp.mass_ejecta      = SN_mass_ejecta;
+        SN_tmp.mass_ejecta_Z    = SN_mass_ejecta_Z;
+        SN_tmp.mass_winds       = SN_mass_winds;
+        SN_tmp.lifetime         = SN_time;
+
+        SNe.push_back(SN_tmp);
+    }
+    fclose(pFile);
+
+    std::sort(SNe.rbegin(), SNe.rend(), sort_by_lifetime);
+
+    return SNe;
+}
+
+
+

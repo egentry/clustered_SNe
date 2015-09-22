@@ -17,6 +17,13 @@
 #include "Thornton_parameter_study_ICs.H"
 
 
+const std::string Thornton_Parameter_Study_ICs::class_name = "disappear";
+
+Thornton_Parameter_Study_ICs::Thornton_Parameter_Study_ICs(const double E_blast) 
+    :   Initial_Conditions( class_name ),
+        E_blast(E_blast)
+{}
+
 int Thornton_Parameter_Study_ICs::setICparams( struct domain * theDomain ,
                                                const Mass_Loss * mass_loss )
 {

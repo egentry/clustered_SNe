@@ -174,7 +174,7 @@ void source( const double * prim , double * cons , const double * grad ,
                    double * dE_cool , 
              const double rp , const double rm ,
              const double dV , const double dt , 
-             code_units cooling_units, const int With_Cooling)
+             Cooling * cooling )
 {
     const double P = prim[PPP];
     const double r = .5 * (rp + rm);
@@ -188,9 +188,9 @@ void source( const double * prim , double * cons , const double * grad ,
                      + r*(std::pow(rp,2.) - std::pow(rm,2.))/2. ); 
 
 
-    if( With_Cooling == 1)
+    if( cooling->with_cooling == true )
     {
-        *dE_cool   = calc_cooling(prim, cons, dt, cooling_units) * dV;  
+        *dE_cool   = cooling->calc_cooling(prim, cons, dt ) * dV;  
         cons[TAU] += *dE_cool; 
     }
     else

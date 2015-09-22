@@ -18,7 +18,6 @@
 #include "constants.H"
 #include "geometry.H" // calc_dV
 #include "misc.H" // calc_prim
-#include "Output/ascii.H" // count_lines_in_file
 #include "mass_loss.H" // Mass_Loss, get_ejecta_mass, etc
 
 #include "blast.H"
@@ -217,52 +216,11 @@ std::vector<supernova> get_SNe( const double cluster_mass ,
     std::sort(SNe.rbegin(), SNe.rend(), sort_by_lifetime);
 
     std::cout << "Num SNe: " << SNe.size() << std::endl;
-    std::cout << "Cluster mass: " << cluster_mass << std::endl;
+    std::cout << "Cluster mass: " << cluster_mass  << " M_sun" << std::endl;
 
     return SNe;
 }
 
-std::vector<supernova> read_SNe( const std::string filename)
-{
-
-    std::vector<supernova> SNe;
-    supernova SN_tmp;
-
-    const int nL = count_lines_in_file(filename) - 1;
-    if ( nL < 0 ) return SNe;
-
-    double SN_time;
-    double SN_mass;
-    double SN_mass_ejecta;
-    double SN_mass_ejecta_Z;
-    double SN_mass_winds;
-
-
-    FILE * pFile = fopen(filename.c_str(),"r");
-    char tmp[1024];
-    fgets(tmp, sizeof(tmp), pFile); // header line
-
-    for( int l=0 ; l<nL ; ++l )
-    {
-        fscanf(pFile,"%le %le %le %le %le\n",
-                &SN_time, &SN_mass, 
-                &SN_mass_ejecta, &SN_mass_ejecta_Z,
-                &SN_mass_winds );
-
-        SN_tmp.mass             = SN_mass;
-        SN_tmp.mass_ejecta      = SN_mass_ejecta;
-        SN_tmp.mass_ejecta_Z    = SN_mass_ejecta_Z;
-        SN_tmp.mass_winds       = SN_mass_winds;
-        SN_tmp.lifetime         = SN_time;
-
-        SNe.push_back(SN_tmp);
-    }
-    fclose(pFile);
-
-    std::sort(SNe.rbegin(), SNe.rend(), sort_by_lifetime);
-
-    return SNe;
-}
 
 bool sort_by_lifetime( const supernova &a, const supernova &b)
 {

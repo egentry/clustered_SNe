@@ -30,77 +30,78 @@ Initial_Conditions * select_initial_conditions( std::string IC_name )
 
     std::cout << "Using ICs: " << IC_name << std::endl;
 
-    std::string IC_name_lowercase = std::string(IC_name);
-    boost::algorithm::to_lower(IC_name_lowercase);
+    boost::algorithm::to_lower(IC_name);
 
-    std::string IC_name_tmp;
 
-    IC_name_tmp = "chevalier";
-    boost::algorithm::to_lower(IC_name_tmp);
-    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
+    if ( IC_name.compare(boost::to_lower_copy(Chevalier_ICs::class_name)) == 0 )
     {
         return new Chevalier_ICs;
     }
 
-    IC_name_tmp = "ejecta";
-    boost::algorithm::to_lower(IC_name_tmp);
-    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
+    if ( IC_name.compare(boost::to_lower_copy(Ejecta_ICs::class_name)) == 0 )
     {
         return new Ejecta_ICs;
     }
 
-    IC_name_tmp = "cluster_SNe";
-    boost::algorithm::to_lower(IC_name_tmp);
-    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
+    if ( IC_name.compare(boost::to_lower_copy(Cluster_SNe_ICs::class_name)) == 0 )
     {
         return new Cluster_SNe_ICs;
     }
 
-    IC_name_tmp = "isentropic";
-    boost::algorithm::to_lower(IC_name_tmp);
-    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
+    if ( IC_name.compare(boost::to_lower_copy(Isentropic_ICs::class_name)) == 0 )
     {
         return new Isentropic_ICs;
     }
 
-    IC_name_tmp = "messy";
-    boost::algorithm::to_lower(IC_name_tmp);
-
-    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
+    if ( IC_name.compare(boost::to_lower_copy(Messy_ICs::class_name)) == 0 )
     {
         return new Messy_ICs;
     }
 
-    IC_name_tmp = "restart";
-    boost::algorithm::to_lower(IC_name_tmp);
-    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
+    if ( IC_name.compare(boost::to_lower_copy(Restart_ICs::class_name)) == 0 )
     {
         return new Restart_ICs;
     }
 
-    IC_name_tmp = "shocktube";
-    boost::algorithm::to_lower(IC_name_tmp);
-    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
+    if ( IC_name.compare(boost::to_lower_copy(Shocktube_ICs::class_name)) == 0 )
     {
         return new Shocktube_ICs;
     }
 
-    IC_name_tmp = "Thornton_parameter_study";
-    boost::algorithm::to_lower(IC_name_tmp);
-    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
+    if ( IC_name.compare(boost::to_lower_copy(Thornton_Parameter_Study_ICs::class_name)) == 0 )
     {
         return new Thornton_Parameter_Study_ICs;
     }
 
-    IC_name_tmp = "uniform";
-    boost::algorithm::to_lower(IC_name_tmp);
-    if ( IC_name_lowercase.compare(IC_name_tmp) == 0 )
+    if ( IC_name.compare(boost::to_lower_copy(Uniform_ICs::class_name)) == 0 )
     {
         return new Uniform_ICs;
     }
 
+    // figure out a better way to deal with this error
     std::cerr << "Initial condition name didn't match known names" << std::endl;
+    throw "Initial condition name didn't match known names";
 
+}
+
+//************ Initial_Conditions (abstract base class) *********************//
+
+Initial_Conditions::Initial_Conditions( const std::string name ) : name(name)
+{}
+
+int Initial_Conditions::parse_command_line_args( struct domain * theDomain , 
+                                                 int argc , 
+                                                 char * argv [] ){ return 0; }
+
+bool Initial_Conditions::trust_LogZoning_flag() const
+{
+    return true;
+}
+
+void Initial_Conditions::add_SNe( struct domain * theDomain ,
+                                  const Mass_Loss * mass_loss )
+{
+    return;
 }
 
 int Initial_Conditions::setICparams( struct domain * theDomain ,

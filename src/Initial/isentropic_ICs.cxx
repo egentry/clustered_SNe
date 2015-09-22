@@ -1,9 +1,15 @@
 
 #include <cmath>
+#include <string>
 
 #include "../structure.H"
 #include "initial_conditions.H"
 #include "isentropic_ICs.H"
+
+const std::string Isentropic_ICs::class_name = "isentropic";
+
+Isentropic_ICs::Isentropic_ICs() : Initial_Conditions( class_name )
+{}
 
 void Isentropic_ICs::initial( double * prim , double r )
 {

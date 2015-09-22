@@ -1,8 +1,15 @@
 
+#include <string>
+
 #include "../structure.H"
 #include "initial_conditions.H"
 #include "uniform_ICs.H"
 
+
+const std::string Uniform_ICs::class_name = "uniform";
+
+Uniform_ICs::Uniform_ICs() : Initial_Conditions( class_name )
+{}
 
 void Uniform_ICs::initial( double * prim , double r )
 {

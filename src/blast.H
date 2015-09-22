@@ -19,14 +19,8 @@ std::vector<supernova> get_SNe( const double ,
                                 const double ,
                                 const unsigned int ,
                                 const Mass_Loss * mass_loss );
-std::vector<supernova> read_SNe(  const std::string filename );
-
 
 bool sort_by_lifetime( const supernova &a, const supernova &b);
-
-
-
-
 
 
 #endif

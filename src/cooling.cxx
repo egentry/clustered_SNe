@@ -1,4 +1,7 @@
 
+#include <string>
+#include <iostream>
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -12,31 +15,71 @@ extern "C" {
 #include "cooling.H"
 #include "structure.H" 
 
-double calc_cooling( const double * prim ,  const double * cons , 
-                     const double dt , code_units my_units )
+#include <boost/algorithm/string.hpp> 
+#include <boost/filesystem.hpp>
+namespace fs = boost::filesystem;   
+
+
+
+Cooling * select_cooling( std::string cooling_type , const bool with_cooling )
 {
 
-    grackle_verbose=1;
+    std::cout << "Using cooling type: " << cooling_type << std::endl;
 
-    const double z_redshift = 0.;
-    const double a_value = 1. / (1. + z_redshift);
+    boost::algorithm::to_lower(cooling_type);
 
+    std::string cooling_type_tmp;
 
-    const int field_size = 1; // we'll be removing guard cells + zone boundaries
-    const int grid_rank  = 1;
-    int grid_dimension[3], grid_start[3], grid_end[3];
-    for (int i=0; i<3; ++i)
+    cooling_type_tmp = "equilibrium";
+    boost::algorithm::to_lower(cooling_type_tmp);
+    if ( cooling_type.compare(cooling_type_tmp) == 0 )
     {
-        // set defaults -- for 1d only change element [0] later
-        grid_dimension[i]   = 1;
-        grid_start[i]       = 0;
-        grid_end[i]         = 0;
+        return new Equilibrium_Cooling (with_cooling);
     }
-    // for the dimension we're using, set guard cell information + size
-    grid_dimension[0]   = field_size;
-    grid_start[0]       = 0;
-    grid_end[0]         = (field_size - 1);
 
+    // figure out a better way to deal with this error
+    std::cerr << "Cooling type didn't match known options" << std::endl;
+    throw "Cooling type didn't match known options";
+
+}
+
+//********************** Cooling (abstract base class) *********************//
+Cooling::Cooling( const bool with_cooling , const std::string name)
+    :   with_cooling(with_cooling),
+        name(name)
+{}
+
+
+//********************** Equilibrium_Cooling *********************//
+const std::string Equilibrium_Cooling::class_name = "equilibrium";
+
+
+Equilibrium_Cooling::Equilibrium_Cooling( bool with_cooling ) 
+    :   Cooling(with_cooling,
+        class_name),
+        grid_rank(1),
+        field_size(1),
+        z_redshift(0.0),
+        a_value(1. / (1. + z_redshift))
+{
+
+    for ( int i=0 ; i<3 ; ++i )
+    {
+        grid_start[i] = 0;
+        grid_end[i] = field_size - 1;
+        grid_dimension[i] = 1;
+    }
+
+}
+
+// std::string Equilibrium_Cooling::get_name() const 
+// {
+//     return name;
+// }
+
+double Equilibrium_Cooling::calc_cooling( const double * prim , const double * cons , 
+                                          const double dt )
+{
 
     // declare fluid variable arrays (will need more for other chemistries)
     gr_float *density, *energy, *x_velocity, *y_velocity, *z_velocity;
@@ -53,9 +96,9 @@ double calc_cooling( const double * prim ,  const double * cons ,
     const double energy_initial  = (1. / (grackle_data.Gamma - 1.)) * prim[PPP] / prim[RHO];
 
     //copy old information into gr_float arrays
-    for(int i=0; i<field_size; ++i)
+    for( int i=0 ; i<field_size ; ++i )
     {
-        density[i]          = density_initial / my_units.density_units;
+        density[i]          = density_initial / cooling_units.density_units;
         energy[i]           = energy_initial;     // internal energy PER UNIT MASS
         x_velocity[i]       = prim[VRR];          // radial velocity
         y_velocity[i]       = 0;
@@ -64,12 +107,7 @@ double calc_cooling( const double * prim ,  const double * cons ,
     }
 
 
-    // setup_cooling();
-
-    // printf("done setting IC's \n");
-
-
-    if (solve_chemistry_table(&my_units,
+    if (solve_chemistry_table(&cooling_units,
                                 a_value, dt,
                                 grid_rank, grid_dimension,
                                 grid_start, grid_end,
@@ -80,11 +118,8 @@ double calc_cooling( const double * prim ,  const double * cons ,
         fprintf(stderr, "Error in solve_chemistry.\n");
     }
 
-    // printf("done setting solving chemistry \n");
-
     const double dE = (energy[0] - energy_initial) * density_initial; // energy per unit volume
 
-    // printf("use_grackle: %d \n", grackle_data.use_grackle);
     delete density;
     delete energy;
     delete x_velocity;
@@ -95,20 +130,25 @@ double calc_cooling( const double * prim ,  const double * cons ,
 
 };    
 
-code_units setup_cooling( const struct domain * theDomain )
+void Equilibrium_Cooling::setup_cooling( const struct domain * theDomain )
 {
+    if ( with_cooling == false) return;
 
     printf("setting up cooling \n");
 
 
-    if (set_default_chemistry_parameters() == 0) {
-    fprintf(stderr, "Error in set_default_chemistry_parameters.\n");
+    if (set_default_chemistry_parameters() == 0) 
+    {
+        fprintf(stderr, "Error in set_default_chemistry_parameters.\n");
     }
 
 
     char grackle_data_file[80] = "";
     strcat(grackle_data_file, GRACKLE_DIR);  // "GRACKLE_DIR" set by preprocessor
     strcat(grackle_data_file, "/input/CloudyData_UVB=HM2012.h5"); 
+    // check that file exists
+    fs::path grackle_data_path(grackle_data_file);
+    assert(fs::exists(grackle_data_path));
 
     printf("grackle data file: %s \n", grackle_data_file);
 
@@ -126,23 +166,23 @@ code_units setup_cooling( const struct domain * theDomain )
     grackle_data.Gamma                  = theDomain->theParList.Adiabatic_Index;
     // All others are defaults...
 
-    code_units my_units;
-    my_units.comoving_coordinates = 0;
-    my_units.density_units        = m_proton; // need to ensure density field ~ 1
-    my_units.length_units         = 1.0;
-    my_units.time_units           = 1.0;
-    my_units.velocity_units       = my_units.length_units / my_units.time_units;
-    my_units.a_units              = 1.0;
-    const double z_redshift = 0.;
-    const double a_value = 1. / (1. + z_redshift);
 
-    if (initialize_chemistry_data(&my_units, a_value) == 0)
+    cooling_units.comoving_coordinates = 0;
+    cooling_units.density_units        = m_proton; // need to ensure density field ~ 1
+    cooling_units.length_units         = 1.0;
+    cooling_units.time_units           = 1.0;
+    cooling_units.velocity_units       = cooling_units.length_units / cooling_units.time_units;
+    cooling_units.a_units              = 1.0;
+
+
+    if (initialize_chemistry_data(&cooling_units, a_value) == 0)
     {
         fprintf(stderr, "Error in initialize_chemistry_data.\n");
     }
 
 
     printf("use_grackle: %d \n", grackle_data.use_grackle);
+    grackle_verbose=1;
 
-    return my_units;
+
 };

@@ -17,38 +17,32 @@ Mass_Loss * select_mass_loss( std::string mass_loss_name )
 
     std::cout << "Using mass loss prescription: " << mass_loss_name << std::endl;
 
-    std::string mass_loss_name_lowercase = std::string(mass_loss_name);
-    boost::algorithm::to_lower(mass_loss_name_lowercase);
+    boost::algorithm::to_lower(mass_loss_name);
 
-    std::string mass_loss_name_tmp;
-
-    mass_loss_name_tmp = "none";
-    boost::algorithm::to_lower(mass_loss_name_tmp);
-    if ( mass_loss_name_lowercase.compare(mass_loss_name_tmp) == 0 )
+    if ( mass_loss_name.compare(boost::to_lower_copy(No_Mass_Loss::class_name)) == 0 )
     {
         return new No_Mass_Loss;
     }
 
-    mass_loss_name_tmp = "uniform";
-    boost::algorithm::to_lower(mass_loss_name_tmp);
-    if ( mass_loss_name_lowercase.compare(mass_loss_name_tmp) == 0 )
+    if ( mass_loss_name.compare(boost::to_lower_copy(Uniform_Mass_Loss::class_name)) == 0 )
     {
         return new Uniform_Mass_Loss;
     }
 
-    mass_loss_name_tmp = "disappear";
-    boost::algorithm::to_lower(mass_loss_name_tmp);
-    if ( mass_loss_name_lowercase.compare(mass_loss_name_tmp) == 0 )
+    if ( mass_loss_name.compare(boost::to_lower_copy(Disappear_Mass_Loss::class_name)) == 0 )
     {
         return new Disappear_Mass_Loss;
     }
 
+    // figure out a better way to deal with this error
     std::cerr << "Mass loss name didn't match known names" << std::endl;
+    throw "Mass loss name didn't match known names";
 
 }
 
-//********************** Mass_Loss *********************//
-
+//********************** Mass_Loss (abstract base class) *********************//
+Mass_Loss::Mass_Loss( const std::string name ) : name(name)
+{}
 
 double Mass_Loss::get_ejecta_mass( const double M_initial ) const
 {
@@ -263,10 +257,10 @@ double Mass_Loss::get_wind_mass( const double M_initial ) const
 }
 
 //********************** Uniform_Mass_Loss *********************//
-std::string Uniform_Mass_Loss::get_name( ) const
-{
-    return std::string("uniform");
-}
+const std::string Uniform_Mass_Loss::class_name = "uniform";
+
+Uniform_Mass_Loss::Uniform_Mass_Loss() : Mass_Loss( class_name )
+{}
 
 void Uniform_Mass_Loss::add_mass_loss( struct domain * theDomain , 
                                        const double dt ) const 
@@ -324,10 +318,11 @@ void Uniform_Mass_Loss::add_mass_loss( struct domain * theDomain ,
 }
 
 //********************** No_Mass_Loss *********************//
-std::string No_Mass_Loss::get_name( ) const
-{
-    return std::string("none");
-}
+const std::string No_Mass_Loss::class_name = "none";
+
+
+No_Mass_Loss::No_Mass_Loss() : Mass_Loss( class_name )
+{}
 
 double No_Mass_Loss::get_wind_mass( const double M_initial ) const
 {
@@ -358,11 +353,10 @@ double No_Mass_Loss::get_ejecta_mass_Z( const double M_initial ) const
 }
 
 //********************** Disappear_Mass_Loss *********************//
+const std::string Disappear_Mass_Loss::class_name = "disappear";
 
-std::string Disappear_Mass_Loss::get_name( ) const
-{
-    return std::string("disappear");
-}
+Disappear_Mass_Loss::Disappear_Mass_Loss() : Mass_Loss( class_name )
+{}
 
 double Disappear_Mass_Loss::get_wind_mass( const double M_initial ) const
 {

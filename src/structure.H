@@ -21,87 +21,93 @@ extern "C" {
 
 struct param_list{
 
-   int Num_R;
-   double t_min, t_max;
-   double rmin,rmax;
-   int NumRepts, NumSnaps, NumChecks;
-   int Out_LogTime;
+    double  t_min, t_max;
 
-   int LogZoning;
-   double LogRadius;
-   int Mesh_Motion, Riemann_Solver;
-   double MaxShort, MaxLong;
-   int Absorb_BC, Initial_Regrid;
+    int     NumRepts, NumSnaps, NumChecks;
+    bool    Out_LogTime;
 
-   double CFL;
-   int    PLM; // Piece-wise reconstruction: 1 = piecewise linear, 0 = piecewise constant
-   int    RK2; // Integration: 1 = 2nd order Runge-Kutta; 0 = 1st order Eulerian
-   double Density_Floor, Pressure_Floor;
-   int With_Cooling;
-   double Adiabatic_Index;
+    int     Num_R;
+    double  rmin, rmax;
+    int     LogZoning;
+    double  LogRadius;
 
-   std::string ICs;
-   std::string mass_loss;
+    double  MaxShort, MaxLong;
+
+    double  CFL;
+    int     PLM; // Piece-wise reconstruction: 1 = piecewise linear, 0 = piecewise constant
+    int     RK2; // Integration: 1 = 2nd order Runge-Kutta; 0 = 1st order Eulerian
+
+    int     Riemann_Solver;
+    int     Mesh_Motion;
+    double  Density_Floor, Pressure_Floor;
+
+    bool     With_Cooling;
+    std::string cooling_type;
+    
+    double  Adiabatic_Index;
+
+    std::string ICs;
+    
+    std::string mass_loss;
 
 };
 
 struct domain{
 
-   struct cell * theCells;
-   int Nr,Ng;                 // number of cells (total and guard, respectively)
+    struct cell * theCells;
+    int Nr,Ng;                 // number of cells (total and guard, respectively)
 
-   time_t Wallt_init;
-   std::string output_prefix;
+    time_t Wallt_init;
+    std::string output_prefix;
 
-   struct param_list theParList;  // for reading in from "in.par" file -- see above
+    struct param_list theParList;  // for reading in from "in.par" file -- see above
 
-   double t;
-   int count_steps;
-   double t_init, t_fin;
+    double t;
+    int count_steps;
+    double t_init, t_fin;
 
-   // n*  = currently at the nth action of *
-   // N_* = user desires N actions of * 
-   // (some may be skipped if the timestep jumps over multiple * actions)
-   int nrpt;
-   int N_rpt;
-   int nsnp;    // unused
-   int N_snp;   // unused
-   int nchk;
-   int N_chk;
-   int nchk_0; // checkpoint numbering starts *at* nchk_0 (used for restart)
+    // n*  = currently at the nth action of *
+    // N_* = user desires N actions of * 
+    // (some may be skipped if the timestep jumps over multiple * actions)
+    int nrpt;
+    int N_rpt;
+    int nsnp;    // unused
+    int N_snp;   // unused
+    int nchk;
+    int N_chk;
+    int nchk_0; // checkpoint numbering starts *at* nchk_0 (used for restart)
 
-   int final_step;        // flag that lets the code know when to terminate
+    int final_step;        // flag that lets the code know when to terminate
 
-   // For grackle cooling: 
-   code_units cooling_units;    
-   double metallicity;              
+    // For grackle cooling: 
+    code_units cooling_units;    
 
-   // For Sedov initial conditions:
-   double background_density;       
-   double background_temperature;   
+    // For initial conditions:
+    double metallicity;              
+    double background_density;       
+    double background_temperature;   
 
-   std::vector<struct supernova>  SNe;
+    std::vector<struct supernova>  SNe;
 
-   double cluster_mass; // [solar masses]
-   int seed;
-   std::string mass_loss;
+    double cluster_mass; // [solar masses]
+    int seed;
 
 
 };
 
 struct cell{
-   double prim[NUM_Q];   // primitive    variables  (density, pressure,       velocity, etc.)
-   double cons[NUM_Q];   // conservative variables  (Mass,    Energy (total), momentum, etc.)
-   double RKcons[NUM_Q]; // holds the value of the conservative variables before a Runge-kutta timestep is started
-   double grad[NUM_Q];   // spatial gradient, for PLM reconstruction
-   double riph;          // radius of outside edge of cell
-   double dr;            // total dr of cell (difference between outside edge + inside edge of cell)
-   double wiph;          // velocity of right edge of cell
-   
-   // for use in checking dE_adiabatic (in fix_negative_energies):
-   double E_int_old; 
-   double dV_old; 
-   double dE_cool; // negative for cooling, positive for heating
+    double prim[NUM_Q];   // primitive    variables  (density, pressure,       velocity, etc.)
+    double cons[NUM_Q];   // conservative variables  (Mass,    Energy (total), momentum, etc.)
+    double RKcons[NUM_Q]; // holds the value of the conservative variables before a Runge-kutta timestep is started
+    double grad[NUM_Q];   // spatial gradient, for PLM reconstruction
+    double riph;          // radius of outside edge of cell
+    double dr;            // total dr of cell (difference between outside edge + inside edge of cell)
+    double wiph;          // velocity of right edge of cell
+
+    // for use in checking dE_adiabatic (in fix_negative_energies):
+    double E_int_old; 
+    double dV_old; 
+    double dE_cool; // negative for cooling, positive for heating
 };
 
 
