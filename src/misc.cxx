@@ -430,6 +430,8 @@ void radial_flux( struct domain * theDomain , const double dt )
         const double r = cL->riph;
         const double dA = get_dA(r); 
         riemann( cL , cR , r , dA , dt );
+        conduction( cL , cR , dA , dt );
+
     }
 
 }
