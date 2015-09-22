@@ -182,7 +182,7 @@ cols_in   = cols[:-7]
 
 
 
-def parse_run(data_dir="", id="", last_run=None):
+def parse_run(data_dir="", id=""):
     #this whole thing is a mess, and needs to be refactored
 
     checkpoint_filenames = glob.glob(os.path.join(data_dir,id + "*checkpoint_*.dat"))
@@ -290,11 +290,7 @@ def parse_run(data_dir="", id="", last_run=None):
     df.Mass   /= M_solar
     df.M_int  /= M_solar
     
-
-    if type(last_run) is not RunSummary:
-        # only overwrite last_run if it's a RunSummary
-        # this logic is sketchy
-        last_run= RunSummary()
+    last_run= RunSummary()
 
     last_run.df         = df
     last_run.times      = times
@@ -325,6 +321,6 @@ def parse_run(data_dir="", id="", last_run=None):
     last_run.t_f        = 13 * last_run.t_0 # to match with t_f given by Thornton
 
     parse_results = ParseResults(checkpoint_filenames)
-    return parse_results
+    return last_run, parse_results
 
 # parse_run(data_dir="../src", id="")
