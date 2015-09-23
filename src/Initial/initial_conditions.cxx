@@ -3,6 +3,7 @@
 #include <string>
 #include <cmath> // std::abs
 #include <uuid/uuid.h>
+#include <stdexcept>
 
 
 
@@ -78,9 +79,7 @@ Initial_Conditions * select_initial_conditions( std::string IC_name )
         return new Uniform_ICs;
     }
 
-    // figure out a better way to deal with this error
-    std::cerr << "Initial condition name didn't match known names" << std::endl;
-    throw "Initial condition name didn't match known names";
+    throw std::invalid_argument("Initial condition name didn't match known names");
 
 }
 

@@ -3,6 +3,7 @@
 #include <vector>
 #include <iostream>
 #include <cmath>
+#include <stdexcept>
 
 #include "structure.H"
 #include "mass_loss.H"
@@ -34,9 +35,7 @@ Mass_Loss * select_mass_loss( std::string mass_loss_name )
         return new Disappear_Mass_Loss;
     }
 
-    // figure out a better way to deal with this error
-    std::cerr << "Mass loss name didn't match known names" << std::endl;
-    throw "Mass loss name didn't match known names";
+    throw std::invalid_argument("Mass loss name didn't match known names");
 
 }
 

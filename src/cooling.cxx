@@ -1,6 +1,8 @@
 
 #include <string>
 #include <iostream>
+#include <stdexcept>
+
 
 #include <stdio.h>
 #include <string.h>
@@ -37,9 +39,7 @@ Cooling * select_cooling( std::string cooling_type , const bool with_cooling )
         return new Equilibrium_Cooling (with_cooling);
     }
 
-    // figure out a better way to deal with this error
-    std::cerr << "Cooling type didn't match known options" << std::endl;
-    throw "Cooling type didn't match known options";
+    throw std::invalid_argument("Cooling type didn't match known options");
 
 }
 
@@ -71,11 +71,6 @@ Equilibrium_Cooling::Equilibrium_Cooling( bool with_cooling )
     }
 
 }
-
-// std::string Equilibrium_Cooling::get_name() const 
-// {
-//     return name;
-// }
 
 double Equilibrium_Cooling::calc_cooling( const double * prim , const double * cons , 
                                           const double dt )
