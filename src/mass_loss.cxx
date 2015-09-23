@@ -6,6 +6,8 @@
 #include <stdexcept>
 
 #include "structure.H"
+#include "constants.H"
+#include "misc.H"
 #include "mass_loss.H"
 #include "boundary.H" // boundary
 #include "misc.H" // calc_prim
@@ -303,7 +305,11 @@ void Uniform_Mass_Loss::add_mass_loss( struct domain * theDomain ,
 
         blast_cell->cons[DDD] += mass_loss;
         blast_cell->cons[SRR] += mass_loss * wind_velocity;
-        blast_cell->cons[TAU] += mass_loss * .5 * std::pow(wind_velocity, 2); 
+
+        const double T_wind = 1e4; // K
+        const double mu = get_mean_molecular_weight( theDomain->metallicity );
+        blast_cell->cons[TAU] += mass_loss * .5 * std::pow(wind_velocity, 2) 
+                              +  mass_loss * k_boltzmann * T_wind / (mu * m_proton);
         blast_cell->cons[ZZZ] += mass_loss * theDomain->metallicity;
 
     }

@@ -1,47 +1,68 @@
 
 
 //Time Range//
-T_Start			1e0
-T_End			3e14
+
+T_Start             1e0
+T_End               3e14
+
+
 
 //Output Frequency//
-Num_Reports		1000
-Num_Snapshots	   0  // not implemented
-Num_Checkpoints		100
-Use_Logtime		true
+
+Num_Reports         1000
+Num_Snapshots       0  // not implemented
+Num_Checkpoints     100
+Use_Logtime         true
+
+
 
 //Grid Dimensions//
-Num_R 			1024
-R_Min			3.08e16
-R_Max			3.08e20
-Log_Zoning		0	//0=Uniform, 1=Log, 2=Hybrid
-Log_Radius		0.25	//Only for option 2 of Log_Zoning
 
-Max_Aspect_Short        10.0
-Max_Aspect_Long         10.0     //Aspect Ratio AMR Refinement Criteria
+Num_R               1024
+R_Min               3.08e16
+R_Max               3.08e20
+Log_Zoning          0   //0=Uniform, 1=Log, 2=Hybrid
+Log_Radius          0.25    //Only for option 2 of Log_Zoning
+
+Max_Aspect_Short    10.0
+Max_Aspect_Long     10.0     //Aspect Ratio AMR Refinement Criteria
+
+
 
 //Numerical Parameters
-CFL			0.2
-PLM			1
-RK2         1
-H_0			10.0
-H_1		 	0.0
-Riemann_Solver		1	//0=HLL, 1=HLLC
-Mesh_Motion		1	//0=Fixed, 1=By Cell, 2=Riemann Solver
-Density_Floor		1e-60
-Pressure_Floor		1e-40 
+
+CFL                 0.2
+PLM                 1
+RK2                 1
+H_0                 0.0
+H_1                 0.0
+Riemann_Solver      1   //0=HLL, 1=HLLC
+Mesh_Motion         1   //0=Fixed, 1=By Cell, 2=Riemann Solver
+Density_Floor       1e-60
+Pressure_Floor      1e-40 
+
+
 
 //Cooling Parameters
-With_Cooling 	true
-Cooling_Type equilibrium
+
+With_Cooling        true
+Cooling_Type        equilibrium
+
+
 
 //Hydro Parameters
-Adiabatic_Index		1.666666667
+
+Adiabatic_Index     1.666666667
+
+
 
 //Initial Conditions
-ICs cluster_SNe
+
+ICs                 cluster_SNe
+
+
 
 //Feedback
-mass_loss uniform
 
+mass_loss           uniform
 

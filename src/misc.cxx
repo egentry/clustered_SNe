@@ -57,6 +57,16 @@ double getmindt( const struct domain * theDomain )
     return dt;
 }
 
+double get_mean_molecular_weight(const double Z)
+{
+    const double Y = .23; // helium fraction
+    const double X = 1 - Y - Z; // hydrogen mass fraction
+
+    const double mu = 1. / (2*X + .75*Y + .5*Z); // mean molecular weight
+
+    return mu;
+}
+
 void set_wcell( struct domain * theDomain )
 {
 

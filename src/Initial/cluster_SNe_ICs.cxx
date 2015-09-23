@@ -3,12 +3,11 @@
 #include <cmath>
 #include <string>
 #include <assert.h>
-
 #include <algorithm>
 #include <vector>
-
 #include <random>
 
+#include "../misc.H" // get_mean_molecular_weight
 #include "../structure.H"
 #include "../constants.H"
 #include "../blast.H"
@@ -60,11 +59,7 @@ int Cluster_SNe_ICs::setICparams( struct domain * theDomain ,
     background_density     = theDomain->background_density;
     background_temperature = theDomain->background_temperature;
 
-    const double Y = .23; // helium fraction
-    const double Z = theDomain->metallicity; // metals fraction
-    const double X = 1 - Y - Z; // hydrogen mass fraction
-
-    mu = 1. / (2*X + .75*Y + .5*Z); // mean molecular weight
+    mu = get_mean_molecular_weight( theDomain-> metallicity );
 
     return 0;
 }

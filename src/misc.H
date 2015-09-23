@@ -10,6 +10,7 @@ extern "C" {
 #include "structure.H"
 
 double getmindt( const struct domain * theDomain );
+double get_mean_molecular_weight( const double Z );
 void set_wcell( struct domain * theDomain );
 void adjust_RK_cons( struct domain * theDomain , const double RK );
 void move_cells( struct domain * theDomain , const double dt);
