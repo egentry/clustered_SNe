@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import shutil
 import numpy as np
@@ -157,8 +158,11 @@ def move_files(source_dirname=os.path.join(os.pardir, "src"),
         for file in files:
             shutil.move(file, dirname)
 
-add_id_to_batch_outputs(dirname="../src")
-# move_files(source_dirname="../tmp", target_dirname="..")
+
+
+if (len(sys.argv) == 2):
+    print("adding ids to batch files in dir: ", sys.argv[1])
+    add_id_to_batch_outputs(dirname=sys.argv[1])
 
 
 
