@@ -15,11 +15,18 @@ static double GAMMA_LAW = 0.0;
 static double RHO_FLOOR = 0.0;
 static double PRE_FLOOR = 0.0;
 
+static double H_0 = 0.0;
+static double H_1 = 0.0;
+
+
 void setHydroParams( const struct domain * theDomain )
 {
     GAMMA_LAW = theDomain->theParList.Adiabatic_Index;
     RHO_FLOOR = theDomain->theParList.Density_Floor;
     PRE_FLOOR = theDomain->theParList.Pressure_Floor;
+
+    H_0 = theDomain->theParList.H_0;
+    H_1 = theDomain->theParList.H_1;
 }
 
 void prim2cons( const double * prim , double * cons , const double dV )
@@ -111,6 +118,30 @@ void cons2prim( const double * cons , double * prim ,
 
 }
 
+double E_int_from_cons( const struct cell * c )
+{
+
+    const double mass  = c->cons[DDD];
+    const double vr    = c->cons[SRR] / mass;
+    const double E_int = c->cons[TAU] - .5*mass*vr*vr;
+
+    return E_int;
+}
+
+double E_int_from_prim( const struct cell * c , 
+                        const double gamma )
+{
+
+    const double rp = c->riph;
+    const double rm = rp - c->dr;
+    const double dV = get_dV( rp , rm );
+    const double E_int = c->prim[PPP] * dV / (gamma-1);
+
+    assert(E_int > 0);
+
+    return E_int;
+}
+
 void getUstar( const double * prim ,  double * Ustar ,
                const double Sk , const double Ss )
 {
@@ -199,30 +230,76 @@ void source( const double * prim , double * cons , const double * grad ,
     }
 }
 
-double E_int_from_cons( const struct cell * c )
+void conduction( struct cell * cL , struct cell * cR, 
+                 const double dA , const double dt )
 {
 
-    const double mass  = c->cons[DDD];
-    const double vr    = c->cons[SRR] / mass;
-    const double E_int = c->cons[TAU] - .5*mass*vr*vr;
+    // ============================================= //
+    //
+    //  Calculate and add heat fluxes from artifical conduction,
+    //  using the formalism of Noh (1987), esp. Eq 2.3
+    //
+    //  Inputs:
+    //    - prim1     - primitive variable array for INNER cell
+    //    - prim2     - primitive variable array for OUTER cell
+    //    - Sl        -  left-most moving sound wave
+    //    - Sr        - right-most moving sound wave
+    //    - Ss        - entropy wave
+    //
+    //  Static Variables:
+    //    - H_0 - shock conduction strength (scales like delta_u)
+    //    - H_1 - thermal conduction strength (scales like sound speed) 
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - overwrites cons[TAU] (energy) of both cells cL, cR
+    //      (cL, cR on left and right side of interface, respectively)
+    //
+    //  Notes:
+    //    - The physics doesn't care which is cL or cR,
+    //      but it *does* matter for the sign convention on velocities
+    //      - and velocity sign convention sets if it's compressing
+    //        (if not compressing, returns without adding flux)
+    //
+    // ============================================= // 
 
-    return E_int;
+    double prim_L[NUM_Q];
+    double prim_R[NUM_Q];
+
+    const double dr_L = .5*cL->dr;
+    const double dr_R = .5*cR->dr;
+
+    for( int q=0 ; q<NUM_Q ; ++q )
+    {
+        prim_L[q] = cL->prim[q] + cL->grad[q]*dr_L;
+        prim_R[q] = cR->prim[q] - cR->grad[q]*dr_R;
+    }
+
+    const double delta_u = prim_R[VRR] - prim_L[VRR];
+    if (delta_u > 0) return;
+
+    const double rho_average = 2 * (prim_L[RHO] * prim_R[RHO]) 
+                                 / (prim_L[RHO] + prim_R[RHO]);
+
+    // change in specific internal energy (E_int / mass)
+    // it's missing a factor of (gamma-1), but that's just a constant term
+    const double delta_E = ((prim_R[PPP]/prim_R[RHO]) - (prim_L[PPP]/prim_L[RHO])) / 2;
+
+    const double cs_L = std::sqrt(std::abs(GAMMA_LAW*prim_L[PPP]/prim_L[RHO]));
+    const double cs_R = std::sqrt(std::abs(GAMMA_LAW*prim_R[PPP]/prim_R[RHO]));
+    const double cs_average = 2 * (cs_L * cs_R)
+                                / (cs_L + cs_R);
+
+    // minus sign between the two terms (which doesn't show up in Noh),
+    // because of sign conventions + absolute values
+    const double H_L = rho_average * ( (H_0 * delta_u) - (H_1 * cs_average) ) * delta_E;
+
+    cL->cons[TAU] -= H_L * dA * dt;
+    cR->cons[TAU] += H_L * dA * dt;
+
 }
-
-double E_int_from_prim( const struct cell * c , 
-                        const double gamma )
-{
-
-    const double rp = c->riph;
-    const double rm = rp - c->dr;
-    const double dV = get_dV( rp , rm );
-    const double E_int = c->prim[PPP] * dV / (gamma-1);
-
-    assert(E_int > 0);
-
-    return E_int;
-}
-
 
 void vel( const double * prim1 , const double * prim2 , 
           double * Sl , double * Sr , double * Ss )

@@ -22,6 +22,11 @@ Cluster_SNe_ICs::Cluster_SNe_ICs(const double E_blast)
         E_blast(E_blast)
 {}
 
+Cluster_SNe_ICs::Cluster_SNe_ICs(std::string overwrite_name) 
+    :   Initial_Conditions( overwrite_name ),
+        E_blast(1e51)
+{}
+
 int Cluster_SNe_ICs::setICparams( struct domain * theDomain ,
                                   const Mass_Loss * mass_loss)
 {

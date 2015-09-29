@@ -110,10 +110,11 @@ double Equilibrium_Cooling::calc_cooling( const double * prim , const double * c
                                 x_velocity, y_velocity, z_velocity,
                                 metal_density) == 0)
     {
-        fprintf(stderr, "Error in solve_chemistry.\n");
+        std::cerr << "Error in solve_chemistry." << std::endl;
     }
 
-    const double dE = (energy[0] - energy_initial) * density_initial; // energy per unit volume
+    // energy per unit volume
+    const double dE = (energy[0] - energy_initial) * density_initial;
 
     delete density;
     delete energy;
@@ -134,7 +135,7 @@ void Equilibrium_Cooling::setup_cooling( const struct domain * theDomain )
 
     if (set_default_chemistry_parameters() == 0) 
     {
-        fprintf(stderr, "Error in set_default_chemistry_parameters.\n");
+        std::cerr << "Error in set_default_chemistry_parameters." << std::endl;
     }
 
 
@@ -144,11 +145,11 @@ void Equilibrium_Cooling::setup_cooling( const struct domain * theDomain )
     // check that file exists
     fs::path grackle_data_path(grackle_data_file);
     assert(fs::exists(grackle_data_path));
-
     printf("grackle data file: %s \n", grackle_data_file);
 
     // 0 = False,  1 = True
-    // Many of these are the defaults. See: https://grackle.readthedocs.org/en/latest/Parameters.html#parameters
+    // Many of these are the defaults. 
+    // See: https://grackle.readthedocs.org/en/latest/Parameters.html#parameters
 
     grackle_data.use_grackle            = 1;  // turn on cooling
     grackle_data.with_radiative_cooling = 1;  // use cooling when updating chemistry
@@ -172,7 +173,7 @@ void Equilibrium_Cooling::setup_cooling( const struct domain * theDomain )
 
     if (initialize_chemistry_data(&cooling_units, a_value) == 0)
     {
-        fprintf(stderr, "Error in initialize_chemistry_data.\n");
+        std::cerr << "Error in initialize_chemistry_data." << std::endl;
     }
 
 

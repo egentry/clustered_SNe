@@ -13,24 +13,22 @@ class Cluster_SNe_ICs : public Initial_Conditions
 
 public:
     Cluster_SNe_ICs(const double E_blast = 1e51);
+    Cluster_SNe_ICs(std::string overwrite_name);
 
-    int setICparams( struct domain * theDomain ,
+    int virtual setICparams( struct domain * theDomain ,
                      const Mass_Loss * mass_loss );
-    void initial( double * prim , double r );
-    int parse_command_line_args (   struct domain * theDomain , 
+    void virtual initial( double * prim , double r );
+    int virtual parse_command_line_args (   struct domain * theDomain , 
                                     int argc , 
                                     char * argv [] );
 
     static const std::string class_name;
     
 protected:
-    void add_SNe( struct domain * theDomain ,
+    void virtual add_SNe( struct domain * theDomain ,
                   const Mass_Loss * mass_loss );
 
-    int setup_parameter_study( struct domain * theDomain );
-
-private:
-
+    int virtual setup_parameter_study( struct domain * theDomain );
 
     double mu;     // mean molecular weight -- this is the only time it's used
     double Gamma;  // adiabatic index
@@ -42,6 +40,9 @@ private:
     double background_density;      // [g cm^-3]
     double background_temperature;  // [K]
     double metallicity;
+
+private:
+
 
 };
 

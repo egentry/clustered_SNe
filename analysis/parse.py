@@ -104,6 +104,8 @@ class Overview(object):
         self.cluster_mass = 0
         self.cooling_type = "equilibrium"
         self.mass_loss = "none"
+        self.H_0 = 0.0
+        self.H_1 = 0.0
 
 
         f = open(filename, "r")
@@ -126,6 +128,10 @@ class Overview(object):
                 self.seed = int(line.split()[-1])
             elif "mass loss" in line: 
                 self.mass_loss = line.split()[-1]
+            elif "H_0" in line:
+                self.H_0 = float(line.split()[-1])
+            elif "H_1" in line:
+                self.H_1 = float(line.split()[-1])
         f.close()
 
         SNe_filename = filename.replace("overview", "SNe") 

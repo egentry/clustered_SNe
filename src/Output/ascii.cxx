@@ -31,7 +31,6 @@ void output( struct domain * theDomain , const char * filestart ,
 
     FILE * pFile = fopen( filename , "w" );
     fprintf(pFile,"# time = %le [s] \n", t);
-    // fprintf(pFile,"# r           dr           dV           Density      Pressure     Velocity     Z\n");
     fprintf(pFile,"# r                  dr                 dV                 Density            Pressure           Velocity           Z\n");
 
     const int i_min = 0;
@@ -115,6 +114,10 @@ int overview( struct domain * theDomain ,
              theDomain->seed);
     fprintf(oFile, "mass loss:              %s \n",
             mass_loss->name.c_str());
+    fprintf(oFile, "H_0:                    %e \n",
+            theDomain->theParList.H_0);
+    fprintf(oFile, "H_1:                    %e \n",
+            theDomain->theParList.H_1);
 
 
     if ( theDomain->SNe.size() > 0 )

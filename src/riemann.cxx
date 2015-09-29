@@ -14,53 +14,14 @@ static int riemann_solver = 0;
 
 static double PRE_FLOOR = 0.0;
 
-static double H_0 = 0.0;
-static double H_1 = 0.0;
-
 
 void setRiemannParams( const struct domain * theDomain )
 {
     riemann_solver = theDomain->theParList.Riemann_Solver;
     PRE_FLOOR = theDomain->theParList.Pressure_Floor;
 
-    H_0 = theDomain->theParList.H_0;
-    H_1 = theDomain->theParList.H_1;
-
 }
 
-void conduction( struct cell * cL , struct cell * cR, 
-                 const double dA , const double dt )
-{
-
-    double primL[NUM_Q];
-    double primR[NUM_Q];
-
-    const double drL = .5*cL->dr;
-    const double drR = .5*cR->dr;
-
-    for( int q=0 ; q<NUM_Q ; ++q )
-    {
-        primL[q] = cL->prim[q] + cL->grad[q]*drL;
-        primR[q] = cR->prim[q] - cR->grad[q]*drR;
-    }
-
-    const double delta_u = primR[VRR] - primL[VRR];
-    if (delta_u > 0) return;
-
-    const double rho_average = 2 * (primL[RHO] * primR[RHO]) 
-                                 / (primL[RHO] + primR[RHO]);
-
-    // change in specific internal energy (E_int / mass)
-    // it's missing a factor of (gamma-1), but that's just a constant term
-    const double delta_E = ((primR[PPP]/primR[RHO]) - (primL[PPP]/primL[RHO])) / 2;
-
-    const double H_L = H_0 * rho_average * delta_u * 2 * delta_E;
-
-    cL->cons[TAU] -= H_L * dA * dt;
-    cR->cons[TAU] += H_L * dA * dt;
-
-
-}
 
 void riemann( struct cell * cL , struct cell * cR, 
               const double r , const double dA , const double dt )

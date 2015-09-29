@@ -58,7 +58,7 @@ Adiabatic_Index     1.666666667
 
 //Initial Conditions
 
-ICs                 cluster_SNe
+ICs                 conduction
 
 
 

@@ -10,7 +10,7 @@ ifeq ($(shell uname),Linux)
 # General linux options
 CXX = g++
 
-CXX_FLAGS = -Wall -g -std=c++11 -fPIC 
+CXX_FLAGS = -Wall -g -std=c++11 -fPIC  
 
 INC += 
 LIB += -lstdc++
@@ -128,7 +128,7 @@ PREFIX = ..
 
 INC_DIR = $(PREFIX)/include
 LIB_DIR = $(PREFIX)/lib
-LIB_NAME = $(LIB_DIR)/$(EXE)$(DYNLIB_EXT)
+LIB_NAME = $(LIB_DIR)/lib$(EXE)$(DYNLIB_EXT)
 
 DEFINES += -DGRACKLE_DIR=\"$(GRACKLE_DIR)\"
 DEFINES += -DSLUG_DIR=\"$(SLUG_DIR)\"
@@ -151,6 +151,7 @@ OBJ = 	main.o \
 		Initial/shocktube_ICs.o \
 		Initial/Thornton_parameter_study_ICs.o \
 		Initial/uniform_ICs.o \
+		Initial/conduction_study_ICs.o \
 		Output/ascii.o 
 
 
@@ -158,7 +159,7 @@ HEADERS = 	structure.H \
 			blast.H boundary.H constants.H cooling.H domain.H \
 			geometry.H mass_loss.H misc.H plm.H profiler.H readpar.H \
 			timestep.H riemann.H \
-	      	Hydro/euler.H \
+			Hydro/euler.H \
 			Initial/chevalier_ICs.H \
 			Initial/cluster_SNe_ICs.H \
 			Initial/ejecta_ICs.H \
@@ -169,6 +170,7 @@ HEADERS = 	structure.H \
 			Initial/shocktube_ICs.H \
 			Initial/Thornton_parameter_study_ICs.H \
 			Initial/uniform_ICs.H \
+			Initial/conduction_study_ICs.H \
 	      	Output/ascii.H 
 
 
@@ -179,6 +181,7 @@ default: all
 all: $(LIB_NAME)
 all: $(EXE)
 all: move_headers
+all: link_inputs
 
 
 %.o: %.cxx $(HEADERS)
@@ -207,6 +210,9 @@ move_headers:
 	do \
 		cp -f $$HEADER $(INC_DIR)/$$HEADER ; \
 	done
+
+link_inputs:
+	ln -sf ../src/in.par ../bin/
 
 clean:
 	rm -f *.o $(EXE) $(LIB_NAME) ../bin/$(EXE)
