@@ -33,14 +33,12 @@ int setupDomain( struct domain * theDomain ,
     theDomain->t_fin   = theDomain->theParList.t_max;
 
     theDomain->N_rpt = theDomain->theParList.NumRepts;
-    theDomain->N_snp = theDomain->theParList.NumSnaps;
     theDomain->N_chk = theDomain->theParList.NumChecks;
 
     theDomain->count_steps = 0;
     theDomain->final_step  = 0;
 
     theDomain->nrpt   = -1;
-    theDomain->nsnp   = -1;
     theDomain->nchk   = -1;
     theDomain->nchk_0 =  0;
 
@@ -78,8 +76,6 @@ void check_dt( struct domain * theDomain , double * dt ){
 
 }
 
-// void snapshot( struct domain * , char * );
-
 void possiblyOutput( struct domain * theDomain , int override )
 {
 
@@ -87,7 +83,6 @@ void possiblyOutput( struct domain * theDomain , int override )
     const double t_min = theDomain->t_init;
     const double t_fin = theDomain->t_fin;
     const int Nrpt     = theDomain->N_rpt;
-    // int Nsnp = theDomain->N_snp;
     const int Nchk     = theDomain->N_chk;
     const int nchk_0   = theDomain->nchk_0;
 
@@ -116,25 +111,15 @@ void possiblyOutput( struct domain * theDomain , int override )
         {
             printf("Creating Checkpoint #%04d...\n",n0);
             sprintf(filename,"checkpoint_%04d",n0);
-            output( theDomain , filename, t );
+            create_checkpoint( theDomain , filename, t );
         }
         else
         {
             printf("Creating Final Checkpoint...\n");
-            output( theDomain , "output", t );
+            create_checkpoint( theDomain , "output", t );
         }
     }
-/*
-    n0 = (int)( t*Nsnp/t_fin );
-    if( LogOut ) n0 = (int)( Nsnp*log(t/t_min)/log(t_fin/t_min) );
-    if( (theDomain->nsnp < n0 && Nsnp>0) || override ){
-      theDomain->nsnp = n0;
-      char filename[256];
-      if(!override) sprintf( filename , "snapshot_%04d" , n0 );
-      else sprintf( filename , "snapshot" );
-      // snapshot( theDomain , filename );
-    }
-*/
+
 }
 
 

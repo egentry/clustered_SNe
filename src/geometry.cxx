@@ -30,7 +30,6 @@ double get_moment_arm( const double rp , const double rm )
     //    - I don't see any physical motivation behind this weighting
     //    - This only seems to be used in
     //       - initial()
-    //       - output() to give a fiducial cell center
     //
     // ============================================= //
 

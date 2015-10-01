@@ -3,6 +3,8 @@
 #include <iostream>
 #include <assert.h>
 #include <time.h>
+#include <stdexcept>
+#include <sstream>
 
 extern "C" {
 #include <grackle.h>
@@ -17,8 +19,8 @@ extern "C" {
 namespace fs = boost::filesystem;
 
 
-void output( struct domain * theDomain , const char * filestart , 
-             const double t )
+void create_checkpoint( struct domain * theDomain , const char * filestart , 
+                 const double t )
 {
 
     const struct cell * theCells = theDomain->theCells;
@@ -52,7 +54,7 @@ void output( struct domain * theDomain , const char * filestart ,
         if(c->prim[PPP] < theDomain->theParList.Pressure_Floor)
         {
             printf("-------ERROR--------- \n");
-            printf("In output() \n");
+            printf("In create_checkpoint() \n");
             printf("c->prim[PPP] = %e at i=%d \n", c->prim[PPP], i);
             printf("Pressure floor should be = %e \n", theDomain->theParList.Pressure_Floor);
             assert(0);
@@ -64,9 +66,23 @@ void output( struct domain * theDomain , const char * filestart ,
 
 }
 
-int overview( struct domain * theDomain ,
-              Mass_Loss * mass_loss ,
-              Cooling * cooling )
+void overviews(  struct domain * theDomain ,
+                Mass_Loss * mass_loss ,
+                Cooling * cooling )
+{
+
+    main_overview( theDomain , mass_loss, cooling );
+
+    SNe_overview( theDomain );
+
+    inputs_overview( theDomain , mass_loss, cooling );
+
+
+}
+
+void main_overview(  struct domain * theDomain ,
+                    Mass_Loss * mass_loss ,
+                    Cooling * cooling )
 {
     // prints an overview of key parameters into a datafile
 
@@ -86,13 +102,13 @@ int overview( struct domain * theDomain ,
         if ( theDomain->theParList.ICs.compare("restart") == 0 )
         {
             // if we're just restarting, we expect overview to already exist
-            return 0;
+            return;
         }
         else
         {
             // the overview file already existing might lead to some problems
             // exit now, and figure out what's happening.
-            return 1;
+            throw std::runtime_error("Overview already exists");
         }
     }
 
@@ -123,10 +139,44 @@ int overview( struct domain * theDomain ,
     if ( theDomain->SNe.size() > 0 )
     {
         fprintf(oFile, "Number of SNe:          %lu \n", theDomain->SNe.size());
+    }
 
+    time_t current_time = time(NULL);
+    fprintf(oFile, "Created at: %s \n", ctime(&current_time));
+
+    fclose(oFile);
+
+    return;
+}
+
+void SNe_overview( struct domain * theDomain )
+{
+    // prints the initial state of the SNe vector into a data file
+
+    if ( theDomain->SNe.size() > 0 )
+    {
         char SNe_filename[256] = "";
         strcat(SNe_filename, theDomain->output_prefix.c_str());
         strcat(SNe_filename, "SNe.dat");
+
+        fs::path SNe_path(SNe_filename);
+        if ( fs::exists(SNe_path) )
+        {
+            std::cerr << "Warning: SNe overview already exists; not overwriting" 
+                      << std::endl;
+            if ( theDomain->theParList.ICs.compare("restart") == 0 )
+            {
+                // if we're just restarting, we expect SNe overview to already exist
+                return;
+            }
+            else
+            {
+                // the SNe overview file already existing might lead to some problems
+                // exit now, and figure out what's happening.
+                throw std::runtime_error("SNe Overview already exists");
+            }
+        }
+
         FILE * SNe_oFile = fopen(SNe_filename,"w");
         fprintf(SNe_oFile, "# SNe times [s]     ");
         fprintf(SNe_oFile, " initial mass [g]    ");
@@ -146,13 +196,123 @@ int overview( struct domain * theDomain ,
         fclose(SNe_oFile);
     }
 
-    time_t current_time = time(NULL);
-    fprintf(oFile, "Created at: %s \n", ctime(&current_time));
+    return;
+}
+
+void inputs_overview( struct domain * theDomain ,
+                      Mass_Loss * mass_loss ,
+                      Cooling * cooling )
+{
+
+    // prints a copy of the input parameters into a data file
+
+
+    // some of this should be moved into a seperate file
+    // which changes depending on the initial conditions / which run we're doing
+
+    char inputs_overview_filename[256] = "";
+    strcat(inputs_overview_filename, theDomain->output_prefix.c_str());
+    strcat(inputs_overview_filename, "inputs.dat");
+
+    fs::path inputs_overview_path(inputs_overview_filename);
+    if ( fs::exists(inputs_overview_path) )
+    {
+        std::cerr << "Warning: inputs overview already exists; not overwriting" 
+                  << std::endl;
+        if ( theDomain->theParList.ICs.compare("restart") == 0 )
+        {
+            // if we're just restarting, we expect overview to already exist
+            return;
+        }
+        else
+        {
+            // the overview file already existing might lead to some problems
+            // exit now, and figure out what's happening.
+            throw std::runtime_error("Input Overview already exists");
+        }
+    }
+
+    FILE * oFile = fopen(inputs_overview_filename,"w");
+
+
+    fprintf(oFile, "T_Start:          %e \n",
+             theDomain->theParList.t_min);
+    fprintf(oFile, "T_End:            %e \n",
+             theDomain->theParList.t_max);
+
+
+    fprintf(oFile, "Num_Reports:      %d \n",
+             theDomain->theParList.NumRepts);
+    fprintf(oFile, "Num_Checkpoints:  %d \n",
+             theDomain->theParList.NumChecks);
+    fprintf(oFile, "Use_Logtime:      %d \n",
+             theDomain->theParList.Out_LogTime);
+
+    fprintf(oFile, "\n");
+
+
+    fprintf(oFile, "Num_R:            %d \n",
+             theDomain->theParList.Num_R);
+    fprintf(oFile, "R_Min:            %e \n",
+             theDomain->theParList.rmin);
+    fprintf(oFile, "R_Max:            %e \n",
+             theDomain->theParList.rmax);
+    fprintf(oFile, "Log_Zoning:       %d \n",
+             theDomain->theParList.LogZoning);
+    fprintf(oFile, "Log_Radius:       %e \n",
+             theDomain->theParList.LogRadius);
+
+    fprintf(oFile, "\n");
+
+
+    fprintf(oFile, "CFL:              %e \n",
+             theDomain->theParList.CFL);
+    fprintf(oFile, "PLM:              %d \n",
+             theDomain->theParList.PLM);
+    fprintf(oFile, "RK2:              %d \n",
+             theDomain->theParList.RK2);
+    fprintf(oFile, "H_0:              %e \n",
+             theDomain->theParList.H_0);
+    fprintf(oFile, "H_1:              %e \n",
+             theDomain->theParList.H_1);
+    fprintf(oFile, "Riemann_Solver:   %d \n", 
+             theDomain->theParList.Riemann_Solver);
+    fprintf(oFile, "Mesh_Motion:      %d \n",
+             theDomain->theParList.Mesh_Motion);
+    fprintf(oFile, "Density_Floor:    %e \n",
+             theDomain->theParList.Density_Floor);
+    fprintf(oFile, "Pressure_Floor:   %e \n",
+             theDomain->theParList.Pressure_Floor);
+
+    fprintf(oFile, "\n");
+
+
+    fprintf(oFile, "With_Cooling:     %d \n",
+             theDomain->theParList.With_Cooling);
+    fprintf(oFile, "Cooling_Type:     %s \n",
+             cooling->name.c_str());
+
+    fprintf(oFile, "\n");
+
+    fprintf(oFile, "Adiabatic_Index:  %e \n",
+             theDomain->theParList.Adiabatic_Index);
+
+    fprintf(oFile, "\n");
+
+    fprintf(oFile, "ICs:              %s \n",
+             theDomain->theParList.ICs.c_str());
+
+    fprintf(oFile, "\n");
+
+    fprintf(oFile, "mass_loss:        %s \n",
+            mass_loss->name.c_str());
 
     fclose(oFile);
 
-    return 0;
+
+    return;
 }
+
 
 std::size_t count_lines_in_file( const std::string filename )
 {
@@ -170,7 +330,7 @@ std::size_t count_lines_in_file( const std::string filename )
    while (std::getline(in_File , line))
         ++num_lines;
 
-return num_lines;
+    return num_lines;
 }
 
 std::vector<supernova> read_SNe( const std::string filename)

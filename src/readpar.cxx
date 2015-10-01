@@ -172,8 +172,6 @@ int read_par_file( struct domain * theDomain , int argc , char * argv [] )
     error += read_var( par_filename , 
                     "Num_Reports"      , &(theList->NumRepts) , 1000 );
     error += read_var( par_filename , 
-                    "Num_Snapshots"    , &(theList->NumSnaps) , 0 );
-    error += read_var( par_filename , 
                     "Num_Checkpoints"  , &(theList->NumChecks) , 100 );
     error += read_var( par_filename , 
                     "Use_Logtime"      , &(theList->Out_LogTime) , true );

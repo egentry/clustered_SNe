@@ -25,7 +25,7 @@ struct param_list{
 
     double  t_min, t_max;
 
-    int     NumRepts, NumSnaps, NumChecks;
+    int     NumRepts, NumChecks;
     bool    Out_LogTime;
 
     int     Num_R;

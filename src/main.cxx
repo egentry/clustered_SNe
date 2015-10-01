@@ -61,12 +61,7 @@ int main( int argc , char * argv[] )
                              theDomain.theParList.With_Cooling );
     cooling->setup_cooling( &theDomain ); // put in constructor? 
 
-    error = overview( &theDomain , mass_loss , cooling );
-    if( error==1)
-    {
-        std::cerr << "Error in overview" << std::endl;
-        return 0;
-    }
+    overviews( &theDomain , mass_loss , cooling );
 
     start_clock( &theDomain ); 
 

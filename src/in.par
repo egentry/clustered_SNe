@@ -1,19 +1,15 @@
 
-
 //Time Range//
 
 T_Start             1e0
 T_End               3e14
 
 
-
 //Output Frequency//
 
 Num_Reports         1000
-Num_Snapshots       0  // not implemented
 Num_Checkpoints     100
 Use_Logtime         true
-
 
 
 //Grid Dimensions//
@@ -28,8 +24,7 @@ Max_Aspect_Short    10.0
 Max_Aspect_Long     10.0     //Aspect Ratio AMR Refinement Criteria
 
 
-
-//Numerical Parameters
+//Numerical Parameters//
 
 CFL                 0.2
 PLM                 1
@@ -42,27 +37,22 @@ Density_Floor       1e-60
 Pressure_Floor      1e-40 
 
 
-
-//Cooling Parameters
+//Cooling Parameters//
 
 With_Cooling        true
 Cooling_Type        equilibrium
 
 
-
-//Hydro Parameters
+//Hydro Parameters//
 
 Adiabatic_Index     1.666666667
 
 
-
-//Initial Conditions
+//Initial Conditions//
 
 ICs                 conduction
 
 
-
-//Feedback
+//Feedback//
 
 mass_loss           uniform
-

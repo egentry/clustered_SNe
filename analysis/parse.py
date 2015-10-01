@@ -49,6 +49,87 @@ class RunSummary(object):
         self.E_int = E_int
         self.E_kin = E_kin
 
+class Inputs(object):
+    """Input Parameters"""
+    def __init__(self, filename):
+        super(Inputs, self).__init__()
+
+        # set defaults, if applicable:
+        # don't set defaults unless you need to!
+        # it's probably better to fail, rathern than silently give a default
+
+
+        # read inputs properly
+        self.read_inputs_from_file(filename)
+
+    def read_inputs_from_file(self, filename):
+
+        f = open(filename, "r")
+        for line in f:
+            if "T_Start" in line:
+                self.T_Start = float(line.split()[-1])
+            elif "T_End" in line:
+                self.T_end = float(line.split()[-1])
+            elif "Num_Reports" in line:
+                self.Num_Reports = int(line.split()[-1])
+            elif "Num_Checkpoints" in line:
+                self.Num_Checkpoints = int(line.split()[-1])
+            elif "Use_Logtime" in line:
+                self.Use_Logtime = bool(int(line.split()[-1]))
+
+            elif "Num_R" in line:
+                self.Num_R = int(line.split()[-1])
+            elif "R_Min" in line:
+                self.R_Min = float(line.split()[-1])
+            elif "R_Max" in line:
+                self.R_Max = float(line.split()[-1])
+            elif "Log_Zoning" in line:
+                self.Log_Zoning = int(line.split()[-1])
+            elif "Log_Radius" in line:
+                self.Log_Radius = float(line.split()[-1])
+
+            elif "CFL" in line:
+                self.CFL = float(line.split()[-1])
+            elif "PLM" in line:
+                self.PLM = bool(int(line.split()[-1]))
+            elif "RK2" in line:
+                self.RK2 = bool(int(line.split()[-1]))
+            elif "H_0" in line:
+                self.H_0 = float(line.split()[-1])
+            elif "H_1" in line:
+                self.H_1 = float(line.split()[-1])
+            elif "Riemann_Solver" in line:
+                self.Riemann_Solver = int(line.split()[-1])
+            elif "Density_Floor" in line:
+                self.Density_Floor = float(line.split()[-1])
+            elif "Pressure_Floor" in line:
+                self.Pressure_Floor = float(line.split()[-1])
+
+            elif "With_Cooling" in line:
+                self.With_Cooling = bool(int(line.split()[-1]))
+            elif "Cooling_Type" in line:
+                self.Cooling_Type = line.split()[-1]
+
+            elif "Adiabatic_Index" in line:
+                self.Adiabatic_Index = float(line.split()[-1])
+
+            elif "ICs" in line:
+                self.ICs = line.split()[-1]
+
+            elif "mass_loss" in line:
+                self.mass_loss = line.split()[-1]
+
+        f.close()
+
+        if "_" in filename:
+            self.id = os.path.basename(filename).split("_")[0]  
+        else:
+            self.id = ""
+
+        self.dirname = os.path.dirname(filename)
+        # Add trailing slash (if dirname isn't empty)
+        self.dirname = os.path.join(self.dirname, "")
+
 
 
 class Overview(object):
@@ -94,19 +175,30 @@ class Overview(object):
         """
         super(Overview, self).__init__()
         
-        self.id = os.path.basename(filename).split("_")[0]  
+        if "_" in filename:
+            self.id = os.path.basename(filename).split("_")[0]  
+        else:
+            self.id = ""
         self.dirname = os.path.dirname(filename)
         # Add trailing slash (if dirname isn't empty)
         self.dirname = os.path.join(self.dirname, "")
         
+        inputs_filename = filename.replace("overview", "inputs")
+        if os.path.exists(inputs_filename):
+            # later I should make an "inputs.dat" file required
+            # but for now I want to keep compatibility with my 
+            # conduction tests
+            self.inputs = Inputs(inputs_filename)
+
          # default, since earlier runs won't have this saved
         self.num_SNe = 0
         self.cluster_mass = 0
         self.cooling_type = "equilibrium"
         self.mass_loss = "none"
+
+        # later this should be required to be in the Inputs class
         self.H_0 = 0.0
         self.H_1 = 0.0
-
 
         f = open(filename, "r")
         for line in f:
@@ -128,9 +220,9 @@ class Overview(object):
                 self.seed = int(line.split()[-1])
             elif "mass loss" in line: 
                 self.mass_loss = line.split()[-1]
-            elif "H_0" in line:
+            elif "H_0" in line: 
                 self.H_0 = float(line.split()[-1])
-            elif "H_1" in line:
+            elif "H_1" in line: 
                 self.H_1 = float(line.split()[-1])
         f.close()
 
