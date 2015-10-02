@@ -29,6 +29,16 @@ from SNe.analysis.helper_functions import calculate_mean_molecular_weight, \
                                           calculate_w_cell, \
                                           calculate_crossing_time
 
+def string_to_bool(string):
+    string = string.lower()
+    if string in ["true", "1"]:
+        return True
+    if string in ["false", "0"]:
+        return False
+
+    if bool(int(string)) is True:
+        return True
+    return False
 
 class RunSummary(object):
     """ 
@@ -75,7 +85,7 @@ class Inputs(object):
             elif "Num_Checkpoints" in line:
                 self.Num_Checkpoints = int(line.split()[-1])
             elif "Use_Logtime" in line:
-                self.Use_Logtime = bool(int(line.split()[-1]))
+                self.Use_Logtime = string_to_bool(line.split()[-1])
 
             elif "Num_R" in line:
                 self.Num_R = int(line.split()[-1])
@@ -91,9 +101,9 @@ class Inputs(object):
             elif "CFL" in line:
                 self.CFL = float(line.split()[-1])
             elif "PLM" in line:
-                self.PLM = bool(int(line.split()[-1]))
+                self.PLM = string_to_bool(line.split()[-1])
             elif "RK2" in line:
-                self.RK2 = bool(int(line.split()[-1]))
+                self.RK2 = string_to_bool(line.split()[-1])
             elif "H_0" in line:
                 self.H_0 = float(line.split()[-1])
             elif "H_1" in line:
@@ -106,7 +116,7 @@ class Inputs(object):
                 self.Pressure_Floor = float(line.split()[-1])
 
             elif "With_Cooling" in line:
-                self.With_Cooling = bool(int(line.split()[-1]))
+                self.With_Cooling = string_to_bool(line.split()[-1])
             elif "Cooling_Type" in line:
                 self.Cooling_Type = line.split()[-1]
 
@@ -130,6 +140,50 @@ class Inputs(object):
         # Add trailing slash (if dirname isn't empty)
         self.dirname = os.path.join(self.dirname, "")
 
+    def create_new_input_file(self, filename):
+        f = open(filename, "w")
+        f.write("T_Start: " + "{0:e}".format(self.T_Start) + "\n")
+        f.write("T_End: " + "{0:e}".format(self.T_end) + "\n")
+        f.write("Num_Reports: " + "{0}".format(self.Num_Reports) + "\n")
+        f.write("Num_Checkpoints: " + "{0}".format(self.Num_Checkpoints) + "\n")
+        f.write("Use_Logtime: " + "{0}".format(self.Use_Logtime) + "\n")
+
+        f.write("\n")
+
+        f.write("Num_R: " + "{0}".format(self.Num_R) + "\n")
+        f.write("R_Min: " + "{0:e}".format(self.R_Min) + "\n")
+        f.write("R_Max: " + "{0:e}".format(self.R_Max) + "\n")
+        f.write("Log_Zoning: " + "{0}".format(self.Log_Zoning) + "\n")
+        f.write("Log_Radius: " + "{0}".format(self.Log_Radius) + "\n")
+
+        f.write("\n")
+
+
+        f.write("CFL: " + "{0}".format(self.CFL) + "\n")
+        f.write("PLM: " + "{0}".format(self.PLM) + "\n")
+        f.write("RK2: " + "{0}".format(self.RK2) + "\n")
+        f.write("H_0: " + "{0}".format(self.H_0) + "\n")
+        f.write("H_1: " + "{0}".format(self.H_1) + "\n")
+        f.write("Riemann_Solver: " + "{0}".format(self.Riemann_Solver) + "\n")
+        f.write("Density_Floor: " + "{0}".format(self.Density_Floor) + "\n")
+        f.write("Pressure_Floor: " + "{0}".format(self.Pressure_Floor) + "\n")
+
+        f.write("\n")
+
+        f.write("With_Cooling: " + "{0}".format(self.With_Cooling) + "\n")
+        f.write("Cooling_Type: " + "{0}".format(self.Cooling_Type) + "\n")
+
+        f.write("\n")
+
+        f.write("Adiabatic_Index: " + "{0}".format(self.Adiabatic_Index) + "\n")
+
+        f.write("\n")
+
+        f.write("ICs: " + "{0}".format(self.ICs) + "\n")
+
+        f.write("\n")
+
+        f.write("mass_loss: " + "{0}".format(self.mass_loss) + "\n")
 
 
 class Overview(object):
@@ -184,21 +238,13 @@ class Overview(object):
         self.dirname = os.path.join(self.dirname, "")
         
         inputs_filename = filename.replace("overview", "inputs")
-        if os.path.exists(inputs_filename):
-            # later I should make an "inputs.dat" file required
-            # but for now I want to keep compatibility with my 
-            # conduction tests
-            self.inputs = Inputs(inputs_filename)
+        self.inputs = Inputs(inputs_filename)
 
          # default, since earlier runs won't have this saved
         self.num_SNe = 0
         self.cluster_mass = 0
         self.cooling_type = "equilibrium"
         self.mass_loss = "none"
-
-        # later this should be required to be in the Inputs class
-        self.H_0 = 0.0
-        self.H_1 = 0.0
 
         f = open(filename, "r")
         for line in f:
@@ -209,7 +255,7 @@ class Overview(object):
             elif "Background Temperature" in line:
                 self.background_temperature = float(line.split()[2])
             elif "With cooling" in line:
-                self.with_cooling = bool(int(line.split()[2]))
+                self.with_cooling = string_to_bool(line.split()[2])
             elif "Cooling Type" in line:
                 self.cooling_type = line.split()[-1]
             elif "Number of SNe" in line:
@@ -220,10 +266,6 @@ class Overview(object):
                 self.seed = int(line.split()[-1])
             elif "mass loss" in line: 
                 self.mass_loss = line.split()[-1]
-            elif "H_0" in line: 
-                self.H_0 = float(line.split()[-1])
-            elif "H_1" in line: 
-                self.H_1 = float(line.split()[-1])
         f.close()
 
         SNe_filename = filename.replace("overview", "SNe") 

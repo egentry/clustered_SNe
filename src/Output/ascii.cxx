@@ -130,10 +130,6 @@ void main_overview(  struct domain * theDomain ,
              theDomain->seed);
     fprintf(oFile, "mass loss:              %s \n",
             mass_loss->name.c_str());
-    fprintf(oFile, "H_0:                    %e \n",
-            theDomain->theParList.H_0);
-    fprintf(oFile, "H_1:                    %e \n",
-            theDomain->theParList.H_1);
 
 
     if ( theDomain->SNe.size() > 0 )
