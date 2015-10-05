@@ -152,6 +152,7 @@ OBJ = 	main.o \
 		Initial/Thornton_parameter_study_ICs.o \
 		Initial/uniform_ICs.o \
 		Initial/conduction_study_ICs.o \
+		Initial/Sedov_ICs.o \
 		Output/ascii.o 
 
 
@@ -171,6 +172,7 @@ HEADERS = 	structure.H \
 			Initial/Thornton_parameter_study_ICs.H \
 			Initial/uniform_ICs.H \
 			Initial/conduction_study_ICs.H \
+			Initial/Sedov_ICs.H \
 	      	Output/ascii.H 
 
 

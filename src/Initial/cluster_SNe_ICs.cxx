@@ -61,10 +61,11 @@ int Cluster_SNe_ICs::setICparams( struct domain * theDomain ,
 
     Gamma = theDomain->theParList.Adiabatic_Index;
 
+    metallicity            = theDomain->metallicity;
     background_density     = theDomain->background_density;
     background_temperature = theDomain->background_temperature;
 
-    mu = get_mean_molecular_weight( theDomain-> metallicity );
+    mu = get_mean_molecular_weight( theDomain->metallicity );
 
     return 0;
 }
@@ -147,7 +148,6 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
     {
         // just add more seeds to the lowest mass case
         theDomain->metallicity            = metallicities[0];
-        metallicity                       = metallicities[0];
         theDomain->background_density     = background_densities[0];
         theDomain->background_temperature = 1e4;
         theDomain->cluster_mass           = cluster_masses[0];
@@ -163,7 +163,6 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
                 if( completed_runs == run )
                 {
                     theDomain->metallicity            = metallicities[i];
-                    metallicity                       = metallicities[i];
                     theDomain->background_density     = background_densities[j];
                     theDomain->background_temperature = 1e4;
                     theDomain->cluster_mass           = cluster_masses[k];

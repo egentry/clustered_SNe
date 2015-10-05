@@ -24,6 +24,7 @@
 #include "Thornton_parameter_study_ICs.H"
 #include "uniform_ICs.H"
 #include "conduction_study_ICs.H"
+#include "Sedov_ICs.H"
 
 #include <boost/algorithm/string.hpp>    
 
@@ -83,6 +84,11 @@ Initial_Conditions * select_initial_conditions( std::string IC_name )
     if ( IC_name.compare(boost::to_lower_copy(Conduction_Study_ICs::class_name)) == 0 )
     {
         return new Conduction_Study_ICs;
+    }
+
+    if ( IC_name.compare(boost::to_lower_copy(Sedov_ICs::class_name)) == 0 )
+    {
+        return new Sedov_ICs;
     }
 
     throw std::invalid_argument("Initial condition name didn't match known names");

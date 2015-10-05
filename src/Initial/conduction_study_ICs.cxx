@@ -68,7 +68,7 @@ int Conduction_Study_ICs::parse_command_line_args (  struct domain * theDomain ,
     }
     else
     {
-        std::cerr << "Missing argument " << 3 << std::endl;
+        std::cerr << "Missing argument " << 3 << " (H_0)" << std::endl;
         return 1;
     }
 
@@ -79,7 +79,7 @@ int Conduction_Study_ICs::parse_command_line_args (  struct domain * theDomain ,
     }
     else
     {
-        std::cerr << "Missing argument " << 4 << std::endl;
+        std::cerr << "Missing argument " << 4 << " (H_1)" << std::endl;
         return 1;
     }
 

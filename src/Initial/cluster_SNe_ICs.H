@@ -30,7 +30,7 @@ protected:
 
     int virtual setup_parameter_study( struct domain * theDomain );
 
-    double mu;     // mean molecular weight -- this is the only time it's used
+    double mu;
     double Gamma;  // adiabatic index
 
     double E_blast;        // [erg]
@@ -39,7 +39,7 @@ protected:
 
     double background_density;      // [g cm^-3]
     double background_temperature;  // [K]
-    double metallicity;
+    double metallicity;             // mass fraction
 
 private:
 

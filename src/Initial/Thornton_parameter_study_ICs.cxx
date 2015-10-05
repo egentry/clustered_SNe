@@ -16,7 +16,7 @@
 #include "Thornton_parameter_study_ICs.H"
 
 
-const std::string Thornton_Parameter_Study_ICs::class_name = "disappear";
+const std::string Thornton_Parameter_Study_ICs::class_name = "Thornton_parameter_study";
 
 Thornton_Parameter_Study_ICs::Thornton_Parameter_Study_ICs(const double E_blast) 
     :   Initial_Conditions( class_name ),
@@ -57,10 +57,12 @@ int Thornton_Parameter_Study_ICs::setICparams( struct domain * theDomain ,
 
     Gamma = theDomain->theParList.Adiabatic_Index;
 
+    metallicity            = theDomain->metallicity;
     background_density     = theDomain->background_density;
     background_temperature = theDomain->background_temperature;
 
-    mu = get_mean_molecular_weight( theDomain-> metallicity );
+
+    mu = get_mean_molecular_weight( theDomain->metallicity );
 
     return 0;
 }
@@ -148,7 +150,6 @@ int Thornton_Parameter_Study_ICs::setup_parameter_study( struct domain * theDoma
             if( completed_runs == run )
             {
                 theDomain->metallicity            = metallicities[i];
-                metallicity                       = metallicities[i];
                 theDomain->background_density     = background_densities[j];
                 theDomain->background_temperature = 1e4;
             }

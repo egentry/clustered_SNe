@@ -1,6 +1,6 @@
 
-#ifndef _THORNTON_PARAMETER_STUDY_ICS_H_
-#define _THORNTON_PARAMETER_STUDY_ICS_H_
+#ifndef _SEDOV_ICS_H_
+#define _SEDOV_ICS_H_
 
 #include <string>
 
@@ -9,13 +9,13 @@
 #include "../mass_loss.H"
 
 
-class Thornton_Parameter_Study_ICs : public Initial_Conditions
+class Sedov_ICs : public Initial_Conditions
 {
 
 
 public:
 
-    Thornton_Parameter_Study_ICs(const double E_blast = 1e51);
+    Sedov_ICs();
 
     int setICparams( struct domain * theDomain ,
                      const Mass_Loss * mass_loss );
@@ -30,16 +30,12 @@ protected:
     void add_SNe( struct domain * theDomain ,
                   const Mass_Loss * mass_loss );
 
-    int setup_parameter_study( struct domain * theDomain );
-
 private:
 
     double mu;
     double Gamma;  // adiabatic index
 
     double E_blast;        // [erg]
-
-    int    completed_runs; // for starting a parameter study mid-way
 
     double background_density;      // [g cm^-3]
     double background_temperature;  // [K]
