@@ -28,6 +28,8 @@ protected:
     void virtual add_SNe( struct domain * theDomain ,
                   const Mass_Loss * mass_loss );
 
+    void virtual set_times( struct domain * theDomain );
+
     int virtual setup_parameter_study( struct domain * theDomain );
 
     double mu;

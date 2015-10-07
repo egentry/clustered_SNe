@@ -195,15 +195,6 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
     theDomain->theParList.rmax = 2 * 4 * R_thornton;
     theDomain->theParList.rmin = theDomain->theParList.rmax / 1e4;
 
-    // Sets the end time appropriately,
-    // having done a 2d power law fit to t_f(n_0, Z)
-    // using the results of Thornton (Table 3)
-    const double t_f = 5.52e5 * yr 
-            * pow(theDomain->background_density / m_proton,   -.53)
-            * pow(theDomain->metallicity / metallicity_solar, -.16);
-
-    theDomain->theParList.t_max = 5 * t_f * 5;
-
     return 0;
 
 }
@@ -271,3 +262,30 @@ void Cluster_SNe_ICs::add_SNe( struct domain * theDomain,
                              theDomain->seed,
                              mass_loss);
 }
+
+
+void Cluster_SNe_ICs::set_times( struct domain * theDomain )
+{
+
+    assert( std::is_sorted( theDomain->SNe.rbegin(),
+                            theDomain->SNe.rend(),
+                            sort_by_lifetime) );
+
+    if ( theDomain->SNe.size() > 0 )
+    {
+
+        double t_first_SN = theDomain->SNe.back().lifetime;
+        double t_last_SN  = theDomain->SNe.front().lifetime;
+
+        theDomain->t      += t_first_SN;
+        theDomain->t_init += t_first_SN;
+        theDomain->t_fin   = 2 * t_last_SN;
+
+    }
+    else
+    {
+        // No SNe, so trust the input file for start and end times
+    }
+
+}
+
