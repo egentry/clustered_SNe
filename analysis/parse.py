@@ -40,24 +40,33 @@ def string_to_bool(string):
         return True
     return False
 
-class RunSummary(object):
-    """ 
-        Allows return variables to be stored in function arguments
-        
-        The better way to do this would be to get the return variables
-        from the functions I pass to interact*
-        
-        But I haven't figured out how to do that yet.
 
-        Other attributes will be added
+class RunSummary(dict):
+    """Extends dict to hold useful reduced variables.
+
+        Basically all of the initialization will be set within parse_run.
+        At some point, it might be worth making this cleaner.
     """
-    def __init__(self, df=None, zones=None, E_tot=None, E_int=None, E_kin=None):
+    def __init__(self):
         super(RunSummary, self).__init__()
-        self.df    = df
-        self.zones = zones
-        self.E_tot = E_tot
-        self.E_int = E_int
-        self.E_kin = E_kin
+
+    def replace_with(self, copy_this):
+        if type(copy_this) is not RunSummary:
+            raise TypeError("Object passed to `replace_with' must be type RunSummary")
+
+        self.clear()
+        keys = copy_this.keys()
+        for key in keys:
+            self[key] = copy_this[key]
+
+    def __repr__(self):
+        """Overwrite dict.__repr__ to give the default object repr"""
+        return '<%s.%s object at %s>' % (
+            self.__class__.__module__,
+            self.__class__.__name__,
+            hex(id(self))
+        )
+
 
 class Inputs(object):
     """Input Parameters"""
@@ -322,7 +331,7 @@ cols_in   = cols[:-7]
 
 
 
-def parse_run(data_dir="", id=""):
+def parse_run(data_dir, id):
     #this whole thing is a mess, and needs to be refactored
 
     checkpoint_filenames = glob.glob(os.path.join(data_dir,id + "*checkpoint_*.dat"))
@@ -432,21 +441,21 @@ def parse_run(data_dir="", id=""):
     
     last_run= RunSummary()
 
-    last_run.df         = df
-    last_run.times      = times
-    last_run.zones      = zones
-    last_run.E_tot      = E_tot
-    last_run.Z_tot      = Z_tot
-    last_run.E_int      = E_int
-    last_run.E_kin      = E_kin
-    last_run.E_R_int    = E_R_int
-    last_run.E_R_kin    = E_R_kin
-    last_run.E_R_tot    = E_R_tot
-    last_run.R_shock    = R_shock
-    last_run.momentum   = momentum
-    last_run.Luminosity = Luminosity
+    last_run["df"]         = df
+    last_run["times"]      = times
+    last_run["zones"]      = zones
+    last_run["E_tot"]      = E_tot
+    last_run["Z_tot"]      = Z_tot
+    last_run["E_int"]      = E_int
+    last_run["E_kin"]      = E_kin
+    last_run["E_R_int"]    = E_R_int
+    last_run["E_R_kin"]    = E_R_kin
+    last_run["E_R_tot"]    = E_R_tot
+    last_run["R_shock"]    = R_shock
+    last_run["momentum"]   = momentum
+    last_run["Luminosity"] = Luminosity
 
-    last_run.overview = overview
+    last_run["overview"]   = overview
     
     # filter for when initial transients have settled
     # assume that the settling time scales with the total time
@@ -457,10 +466,10 @@ def parse_run(data_dir="", id=""):
     smoothing_kernel    = Gaussian1DKernel(smoothing_width)
     smoothed_lums       = convolve(valid_lums, smoothing_kernel)
     max_lum             = valid_lums[np.argmax(smoothed_lums)]
-    last_run.t_0        = times[Luminosity == max_lum][0]
-    last_run.t_f        = 13 * last_run.t_0 # to match with t_f given by Thornton
+    last_run["t_0"]     = times[Luminosity == max_lum][0]
+    last_run["t_f"]     = 13 * last_run["t_0"] # to match with t_f given by Thornton
 
     parse_results = ParseResults(checkpoint_filenames)
     return last_run, parse_results
 
-# parse_run(data_dir="../src", id="")
+# parse_run("../src", "")
