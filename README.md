@@ -39,6 +39,7 @@ This code will generally not run immediately out of the box.  In addition to the
     - IPython/Jupyter (tested for v.4; should be compatible with v.3)
       - ipywidgets (tested for v.4)
     - Matplotlib
+    - Bokeh
     - Numpy
     - Astropy
     - Pandas
