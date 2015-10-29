@@ -51,3 +51,15 @@ void Chevalier_ICs::initial( double * prim , double r )
     prim[ZZZ] = Z;
 
 }
+
+void Chevalier_ICs::possibly_extend_grid( struct domain * theDomain)
+{
+    // never extend the grid
+    return;
+}
+
+double Chevalier_ICs::find_shock( const struct domain * theDomain ) const
+{
+    // treat all gas a shocked; no uniform background
+    return INFINITY;
+}

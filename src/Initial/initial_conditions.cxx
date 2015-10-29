@@ -214,22 +214,56 @@ void Initial_Conditions::possibly_extend_grid( struct domain * theDomain )
     //     - Inherits side effects of extend_grid
     //
     //  Notes:
-    //    - Assumes a uniform background density
+    //    - Assumes shock is travelling outwards (extends outer boundary)
     //    - Uses shock-finding to determine if grid should be extended
     //    - This will throw off energy conservation calculations in analysis
     // ============================================= //
 
     const unsigned int Nr = theDomain->Nr;
+    const double R_max    = theDomain->theCells[Nr-2].riph;
+    const double R_shock  = theDomain->R_shock;
+
+
+    const double radius_threshold = .9;
+    if ( (R_shock / R_max) > radius_threshold )
+    {
+        this->extend_grid( theDomain );
+    }
+}
+
+double Initial_Conditions::find_shock( const struct domain * theDomain ) const
+{
+    // ============================================= //
+    //
+    //  Finds the location of the shock
+    //
+    //  Inputs:
+    //     - theDomain - the standard domain struct used throughout
+    //
+    //  Returns:
+    //    - R_shock - outer boundary of first unshocked zone
+    //
+    //  Side effects:
+    //     - None
+    //
+    //  Notes:
+    //    - Assumes shock is travelling outwards (extends outer boundary)
+    //    - Assumes constant density background
+    //    - Used for determining when to:
+    //          - Extend grid
+    //          - Use previously cached cooling results
+    // ============================================= //
+
+    const unsigned int Nr = theDomain->Nr;
     const double background_density = theDomain->theCells[Nr-2].prim[RHO];
 
-    const double density_tolerance = 1e-3;
+    const double density_tolerance = 1e-2;
 
     int i_shock = 0;
     double R_shock = 0;
-    const double R_max = theDomain->theCells[Nr-2].riph;
     for (int i = 1 ; i < Nr ; ++i )
     {
-        struct cell * c = &(theDomain->theCells[i]);
+        const struct cell * c = &(theDomain->theCells[i]);
         if ( ((c->prim[RHO] - background_density) / background_density) 
                 > density_tolerance )
         {
@@ -238,12 +272,9 @@ void Initial_Conditions::possibly_extend_grid( struct domain * theDomain )
         }
     }
 
-    const double radius_threshold = .9;
-    if ( (R_shock / R_max) > radius_threshold )
-    {
-        this->extend_grid( theDomain );
-    }
+    return R_shock;
 }
+
 
 void Initial_Conditions::extend_grid( struct domain * theDomain, 
                                         const double extend_fraction )
@@ -275,6 +306,11 @@ void Initial_Conditions::extend_grid( struct domain * theDomain,
     std::cout << "Extending grid" << std::endl;
 
     const unsigned int Nr_old = theDomain->Nr;
+    if( Nr_old > 50000 )
+    {
+        throw std::runtime_error("too many zones");
+    }
+
     theDomain->Nr *= 1.25;
     const unsigned int Nr_new = theDomain->Nr;
 

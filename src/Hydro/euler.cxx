@@ -204,8 +204,8 @@ void flux( const double * prim , double * flux )
 void source( const double * prim , double * cons , const double * grad , 
                    double * dE_cool , 
              const double rp , const double rm ,
-             const double dV , const double dt , 
-             Cooling * cooling )
+             const double dV , const double dt ,
+             const double R_shock, Cooling * cooling )
 {
     const double P = prim[PPP];
     const double r = .5 * (rp + rm);
@@ -221,7 +221,11 @@ void source( const double * prim , double * cons , const double * grad ,
 
     if( cooling->with_cooling == true )
     {
-        *dE_cool   = cooling->calc_cooling(prim, cons, dt ) * dV;  
+        bool cached_cooling = false;
+        double dr = rp - rm;
+        if( r > (R_shock+(10*dr)) ) cached_cooling = true;
+
+        *dE_cool   = cooling->calc_cooling(prim, cons, dt , cached_cooling ) * dV;  
         cons[TAU] += *dE_cool; 
     }
     else
@@ -240,11 +244,10 @@ void conduction( struct cell * cL , struct cell * cR,
     //  using the formalism of Noh (1987), esp. Eq 2.3
     //
     //  Inputs:
-    //    - prim1     - primitive variable array for INNER cell
-    //    - prim2     - primitive variable array for OUTER cell
-    //    - Sl        -  left-most moving sound wave
-    //    - Sr        - right-most moving sound wave
-    //    - Ss        - entropy wave
+    //    - cL        - cell to the Left
+    //    - prim2     - cell to the Right
+    //    - dA        - interface area between cells [cm^2]
+    //    - dt        - timestep [s]
     //
     //  Static Variables:
     //    - H_0 - shock conduction strength (scales like delta_u)

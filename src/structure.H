@@ -95,6 +95,8 @@ struct domain{
     double cluster_mass; // [solar masses]
     int seed;
 
+    double R_shock;
+
 
 };
 

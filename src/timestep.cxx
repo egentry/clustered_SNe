@@ -59,6 +59,7 @@ void substep( struct domain * theDomain , double RK ,
     if( last_step )
     {
         AMR( theDomain );
+        theDomain->R_shock = ICs->find_shock( theDomain );
         ICs->possibly_extend_grid( theDomain );
 
     }

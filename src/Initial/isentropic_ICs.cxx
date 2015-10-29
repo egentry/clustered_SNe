@@ -19,3 +19,15 @@ void Isentropic_ICs::initial( double * prim , double r )
     prim[VRR] = 0.0;
     prim[ZZZ] = 0.0;
 }
+
+void Isentropic_ICs::possibly_extend_grid( struct domain * theDomain)
+{
+    // never extend the grid
+    return;
+}
+
+double Isentropic_ICs::find_shock( const struct domain * theDomain ) const
+{
+    // treat all gas as shocked; no uniform background
+    return INFINITY;
+}

@@ -466,7 +466,7 @@ void add_source( struct domain * theDomain , const double dt ,
             rm = 0; // boundary condition -- don't change dV to match this rm
         }
         source( c->prim , c->cons , c->grad , &(c->dE_cool) , 
-                rp , rm , dV , dt , cooling );
+                rp , rm , dV , dt , theDomain->R_shock , cooling );
 
 
         // ======== Verify post-conditions ========= //

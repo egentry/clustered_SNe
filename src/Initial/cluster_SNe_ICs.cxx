@@ -173,26 +173,14 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
     }
 
 
-    // Set the scale of the simulation -- see Thornton et al. (1998) Eqs 14-35
     // Assumes E_blast = 1e51
-    double R_thornton;
-    if( log10(theDomain->metallicity / metallicity_solar) > -2  )
-    {
-      // Equation 20
-      R_thornton = 49.3 * pc 
-         * pow(E_blast / 1e51, 2./7) 
-         * pow(theDomain->background_density / m_proton, -.42)
-         * pow(theDomain->metallicity / metallicity_solar, -.1);
-    }
-    else
-    {
-      // Equation 31
-      R_thornton = 78.1 * pc 
-         * pow(E_blast / 1e51, 2./7) 
-         * pow(theDomain->background_density / m_proton, -.42);
-    }
 
-    theDomain->theParList.rmax = 2 * 4 * R_thornton;
+    double R = 300 * pc 
+         * pow(E_blast / 1e51, 2./7) 
+         * pow(theDomain->background_density / (1.33*m_proton), -.33)
+         * pow(theDomain->cluster_mass / pow(10,2), .33);
+
+    theDomain->theParList.rmax = R;
     theDomain->theParList.rmin = theDomain->theParList.rmax / 1e4;
 
     return 0;
@@ -279,7 +267,7 @@ void Cluster_SNe_ICs::set_times( struct domain * theDomain )
 
         theDomain->t      += t_first_SN;
         theDomain->t_init += t_first_SN;
-        theDomain->t_fin   = 2 * t_last_SN;
+        theDomain->t_fin   = 3 * t_last_SN;
 
     }
     else

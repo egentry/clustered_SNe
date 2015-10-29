@@ -73,8 +73,13 @@ Equilibrium_Cooling::Equilibrium_Cooling( bool with_cooling )
 }
 
 double Equilibrium_Cooling::calc_cooling( const double * prim , const double * cons , 
-                                          const double dt )
+                                          const double dt, const bool cached )
 {
+
+    if( cached )
+    {
+        return dE_saved;
+    }
 
     // declare fluid variable arrays (will need more for other chemistries)
     gr_float *density, *energy, *x_velocity, *y_velocity, *z_velocity;
@@ -110,11 +115,12 @@ double Equilibrium_Cooling::calc_cooling( const double * prim , const double * c
                                 x_velocity, y_velocity, z_velocity,
                                 metal_density) == 0)
     {
-        std::cerr << "Error in solve_chemistry." << std::endl;
+        std::runtime_error("Error in solve_chemistry_table.");
     }
 
     // energy per unit volume
     const double dE = (energy[0] - energy_initial) * density_initial;
+    dE_saved = dE;
 
     delete density;
     delete energy;
@@ -122,6 +128,7 @@ double Equilibrium_Cooling::calc_cooling( const double * prim , const double * c
     delete y_velocity;
     delete z_velocity;
     delete metal_density;
+
     return dE;
 
 };    
@@ -135,7 +142,7 @@ void Equilibrium_Cooling::setup_cooling( const struct domain * theDomain )
 
     if (set_default_chemistry_parameters() == 0) 
     {
-        std::cerr << "Error in set_default_chemistry_parameters." << std::endl;
+        std::runtime_error("Error in set_default_chemistry_parameters");
     }
 
 
@@ -173,7 +180,7 @@ void Equilibrium_Cooling::setup_cooling( const struct domain * theDomain )
 
     if (initialize_chemistry_data(&cooling_units, a_value) == 0)
     {
-        std::cerr << "Error in initialize_chemistry_data." << std::endl;
+        std::runtime_error("Error in initialize_chemistry_data");
     }
 
 

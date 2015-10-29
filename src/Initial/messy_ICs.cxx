@@ -48,3 +48,15 @@ void Messy_ICs::initial( double * prim , double r )
     prim[ZZZ] = Z;
 
 }
+
+void Messy_ICs::possibly_extend_grid( struct domain * theDomain)
+{
+    // never extend the grid
+    return;
+}
+
+double Messy_ICs::find_shock( const struct domain * theDomain ) const
+{
+    // treat all gas as shocked; no uniform background
+    return INFINITY; 
+}

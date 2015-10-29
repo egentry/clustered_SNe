@@ -26,6 +26,7 @@ public:
     virtual void possibly_extend_grid( struct domain * theDomain);
     virtual void extend_grid( struct domain * theDomain ,
                               const double extend_fraction=0.25);
+    virtual double find_shock( const struct domain * theDomain ) const;
 
     virtual bool trust_LogZoning_flag() const ;
 

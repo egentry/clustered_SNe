@@ -18,6 +18,9 @@ public:
 
     static const std::string class_name;
 
+    void possibly_extend_grid( struct domain * theDomain);
+    double find_shock( const struct domain * theDomain ) const;
+
 private:
 
 };
