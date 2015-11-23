@@ -4,7 +4,7 @@ import numpy as np
 
 from numba import jit, njit
 
-## Boilerplate path hack to give access to full SNe package
+## Boilerplate path hack to give access to full clustered_SNe package
 import sys, os
 if __package__ is None:
     if os.pardir not in sys.path[0]:
@@ -13,7 +13,7 @@ if __package__ is None:
                                         os.pardir, 
                                         os.pardir))
 
-from SNe.analysis.constants import m_proton, hbar, k_b, gamma
+from clustered_SNe.analysis.constants import m_proton, hbar, k_b, gamma
 
 
 @jit

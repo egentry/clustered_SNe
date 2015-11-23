@@ -4,7 +4,7 @@ import glob
 import shutil
 import numpy as np
 
-## Boilerplate path hack to give access to full SNe package
+## Boilerplate path hack to give access to full clustered_SNe package
 import sys
 if __package__ is None:
     if os.pardir not in sys.path[0]:
@@ -13,8 +13,8 @@ if __package__ is None:
                                         os.pardir, 
                                         os.pardir))
 
-from SNe.analysis.constants import m_proton
-from SNe.analysis.parse import Overview
+from clustered_SNe.analysis.constants import m_proton
+from clustered_SNe.analysis.parse import Overview
 
 
 

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy.integrate import quad
 
-## Boilerplate path hack to give access to full SNe package
+## Boilerplate path hack to give access to full clustered_SNe package
 import sys, os
 if __package__ is None:
     if os.pardir not in sys.path[0]:
@@ -14,7 +14,7 @@ if __package__ is None:
                                         os.pardir, 
                                         os.pardir,))
 
-from SNe.analysis.helper_functions import calculate_mean_molecular_weight, \
+from clustered_SNe.analysis.helper_functions import calculate_mean_molecular_weight, \
                                           calculate_entropy, \
                                           calculate_temperature
 

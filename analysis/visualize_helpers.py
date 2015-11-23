@@ -20,7 +20,7 @@ import seaborn as sns
 
 
 ## import from local files
-## Boilerplate path hack to give access to full SNe package
+## Boilerplate path hack to give access to full clustered_SNe package
 import sys
 if __package__ is None:
     if os.pardir not in sys.path[0]:
@@ -29,13 +29,13 @@ if __package__ is None:
                                         os.pardir, 
                                         os.pardir))
 
-from SNe.analysis.constants import m_proton, pc, yr, M_solar, \
+from clustered_SNe.analysis.constants import m_proton, pc, yr, M_solar, \
                                    gamma, E_0, metallicity_solar
     
-from SNe.analysis.sedov.dimensionalize_sedov import dimensionalized_sedov
-from SNe.analysis.sedov.closed_form_sedov import SedovSolution
-from SNe.analysis.parameter_study_file_structure import make_dirname_from_properties
-from SNe.analysis.parse import RunSummary, Overview, parse_run, cols
+from clustered_SNe.analysis.sedov.dimensionalize_sedov import dimensionalized_sedov
+from clustered_SNe.analysis.sedov.closed_form_sedov import SedovSolution
+from clustered_SNe.analysis.parameter_study_file_structure import make_dirname_from_properties
+from clustered_SNe.analysis.parse import RunSummary, Overview, parse_run, cols
 
 
 general_string_format = ".2e"
@@ -211,13 +211,13 @@ def single_run(data_dir="", id=""):
     if not os.path.exists(data_dir):
         raise FileNotFoundError("No directory found named: "+ data_dir)
         
-    last_run, parse_results = parse_run(data_dir, id)
+    last_run = parse_run(data_dir, id)
     sedov_solution = SedovSolution(E_0,
                                    last_run["overview"].background_density, 
                                    last_run["overview"].metallicity)
     
     #### PASS TO PLOTTER ####
-    num_checkpoints = len(parse_results.checkpoint_filenames)
+    num_checkpoints = len(last_run["filenames"])
     
     log_R_max = round(np.log10(last_run["df"]["Radius"].max()), 2)
     log_R_min = max(log_R_max-4, 
@@ -228,7 +228,7 @@ def single_run(data_dir="", id=""):
 
     w = interactive(plotter,
         last_run               = fixed(last_run),
-        checkpoint_filenames   = fixed(parse_results.checkpoint_filenames),
+        checkpoint_filenames   = fixed(last_run["filenames"]),
         metallicity            = fixed(last_run["overview"].metallicity),
         background_density     = fixed(last_run["overview"].background_density),
         background_temperature = fixed(last_run["overview"].background_temperature),
@@ -316,13 +316,13 @@ def conduction_comparisons(mass, H_0, data_dir,
         display(Math(labels[i]))
         print("Number of checkpoints available: ",
               last_checkpoints[i])
-        last_run, parse_results = parse_run(data_dir, id)
+        last_run = parse_run(data_dir, id)
         sedov_solution = SedovSolution(E_0,
                                        last_run["overview"].background_density, 
                                        last_run["overview"].metallicity)
 
         #### PASS TO PLOTTER ####
-        num_checkpoints = len(parse_results.checkpoint_filenames)
+        num_checkpoints = len(last_run["filenames"])
         plot_checkpoint = last_common_checkpoint-1
 
         log_R_max = round(np.log10(last_run["df"]["Radius"].max()), 2)
@@ -337,7 +337,7 @@ def conduction_comparisons(mass, H_0, data_dir,
         plt.title("Num " + SN_or_SNe + ": {0}".format(last_run["overview"].num_SNe))
 
         plotter(last_run,
-                parse_results.checkpoint_filenames, 
+                last_run["filenames"], 
                 last_run["overview"].metallicity, 
                 last_run["overview"].background_density, 
                 last_run["overview"].background_temperature,
@@ -590,3 +590,16 @@ def plot_luminosity(last_run, x_axis):
         print("Luminosity max at time:       ", format(last_run["t_0"] / yr,
                                                        general_string_format),
               "[yr]" )
+
+
+def plot_momentum_scaling(masses, momenta):
+
+    plt.plot(masses / M_solar, momenta / masses / (1000 * 100), linestyle="", marker="o")
+    plt.xscale("log")
+    # plt.yscale("log")
+    plt.xlabel("M$_\mathrm{cluster}$ [M$_\odot$]")
+    plt.ylabel("Momentum / M$_\mathrm{cluster}$ [km s$^{-1}$]")
+
+    x_min, x_max = plt.xlim()
+    plt.xlim( x_min / 5, x_max * 5)
+    plt.ylim(ymin=0)

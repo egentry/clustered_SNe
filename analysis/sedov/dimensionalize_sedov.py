@@ -3,7 +3,7 @@ import numpy as np
 import os
 from astropy import constants as const 
 
-## Boilerplate path hack to give access to full SNe package
+## Boilerplate path hack to give access to full clustered_SNe package
 import sys, os
 if __package__ is None:
     if os.pardir not in sys.path[0]:
@@ -13,7 +13,7 @@ if __package__ is None:
                                         os.pardir, 
                                         os.pardir))
 
-from SNe.analysis.constants import hbar, k_b, m_proton, pc, yr, gamma, \
+from clustered_SNe.analysis.constants import hbar, k_b, m_proton, pc, yr, gamma, \
                                    metallicity_solar
 
 nstep = 1000
