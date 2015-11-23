@@ -1,0 +1,11 @@
+#!/bin/bash
+#
+#$ -M egentry@ucsc.edu
+#$ -m e
+#
+#$ -cwd
+#$ -S /bin/bash
+#
+
+source $HOME/.bashrc
+time ../bin/SNe ../src/in.par.restart 
