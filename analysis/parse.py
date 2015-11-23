@@ -6,7 +6,7 @@ import pandas as pd
 
 from astropy.convolution import convolve, Gaussian1DKernel
 
-## Boilerplate path hack to give access to full SNe package
+## Boilerplate path hack to give access to full clustered_SNe package
 import sys
 if __package__ is None:
     if os.pardir not in sys.path[0]:
@@ -15,11 +15,12 @@ if __package__ is None:
                                         os.pardir, 
                                         os.pardir))
 
-from SNe.analysis.constants import m_proton, pc, M_solar, gamma, E_0, \
-                                   metallicity_solar, yr
+from clustered_SNe.analysis.constants import m_proton, pc, M_solar, \
+                                             gamma, E_0, \
+                                             metallicity_solar, yr
 
-from SNe.analysis.helper_functions import calculate_mean_molecular_weight, \
-                                          calculate_mass, \
+from clustered_SNe.analysis.helper_functions import calculate_mass, \
+                                          calculate_mean_molecular_weight, \
                                           calculate_kinetic_energy, \
                                           calculate_internal_energy, \
                                           calculate_momentum, \
@@ -75,7 +76,7 @@ class Inputs(object):
 
         # set defaults, if applicable:
         # don't set defaults unless you need to!
-        # it's probably better to fail, rathern than silently give a default
+        # it's probably better to fail, rather than silently give a default
 
 
         # read inputs properly
@@ -88,7 +89,7 @@ class Inputs(object):
             if "T_Start" in line:
                 self.T_Start = float(line.split()[-1])
             elif "T_End" in line:
-                self.T_end = float(line.split()[-1])
+                self.T_End = float(line.split()[-1])
             elif "Num_Reports" in line:
                 self.Num_Reports = int(line.split()[-1])
             elif "Num_Checkpoints" in line:
@@ -152,7 +153,7 @@ class Inputs(object):
     def create_new_input_file(self, filename):
         f = open(filename, "w")
         f.write("T_Start: " + "{0:e}".format(self.T_Start) + "\n")
-        f.write("T_End: " + "{0:e}".format(self.T_end) + "\n")
+        f.write("T_End: " + "{0:e}".format(self.T_End) + "\n")
         f.write("Num_Reports: " + "{0}".format(self.Num_Reports) + "\n")
         f.write("Num_Checkpoints: " + "{0}".format(self.Num_Checkpoints) + "\n")
         f.write("Use_Logtime: " + "{0}".format(self.Use_Logtime) + "\n")
@@ -312,16 +313,6 @@ class Overview(object):
         return string
 
 
-class ParseResults(object):
-    """ 
-        This should be taken out when I have more time
-    """
-    def __init__(self, checkpoint_filenames):
-        super(ParseResults, self).__init__()
-        self.checkpoint_filenames   = checkpoint_filenames 
-        return
-
-
 cols = ["Radius", "dR", "dV", "Density", 
         "Pressure", "Velocity", "Z", 
         "Temperature", "Energy", "Entropy", 
@@ -343,7 +334,12 @@ def parse_run(data_dir, id):
     
     # ensure that the id is actually the FULL id
     basename = os.path.basename(checkpoint_filenames[0])
-    id = basename.split("checkpoint")[0]
+    id = basename.split("_checkpoint")[0]
+
+    for filename in checkpoint_filenames:
+        id_tmp = os.path.basename(filename).split("_checkpoint")[0]
+        if id_tmp != id:
+            raise ValueError("id not unique in directory")
 
     times = np.empty(num_checkpoints)
     for k, checkpoint_filename in enumerate(checkpoint_filenames):
@@ -352,7 +348,7 @@ def parse_run(data_dir, id):
         times[k] = float(line.split()[3])
         f.close()
 
-    overview = Overview(os.path.join(data_dir, id + "overview.dat"))
+    overview = Overview(os.path.join(data_dir, id + "_overview.dat"))
 
     mu = calculate_mean_molecular_weight(overview.metallicity)
 
@@ -365,6 +361,7 @@ def parse_run(data_dir, id):
     E_R_kin  = np.empty(num_checkpoints) # Energy of the remnant
     E_R_tot  = np.empty(num_checkpoints) # Energy of the remnant
     R_shock  = np.empty(num_checkpoints) # size of the shock/remnant
+    M_R      = np.empty(num_checkpoints) # mass of the shock/remnant
     
     M_tot    = np.empty(num_checkpoints)
     Z_tot    = np.empty(num_checkpoints)
@@ -418,8 +415,10 @@ def parse_run(data_dir, id):
         over_dense = df_tmp.Density > overview.background_density * 1.0001
         if np.any(over_dense):
             R_shock[k] = np.max(df_tmp.Radius[over_dense])
+            M_R[k]     = np.max(df_tmp.M_int[over_dense])  
         else:    
             R_shock[k] = df_tmp.Radius.iloc[0]
+            M_R[k]     = df_tmp.M_int.iloc[0]
         remnant = df_tmp.Radius <= R_shock[k]
         E_R_kin[k] = calculate_kinetic_energy(df_tmp.Mass[remnant].values,
                                               df_tmp.Velocity[remnant].values).sum()
@@ -441,6 +440,7 @@ def parse_run(data_dir, id):
     
     last_run= RunSummary()
 
+    last_run["id"]         = id
     last_run["df"]         = df
     last_run["times"]      = times
     last_run["zones"]      = zones
@@ -452,10 +452,12 @@ def parse_run(data_dir, id):
     last_run["E_R_kin"]    = E_R_kin
     last_run["E_R_tot"]    = E_R_tot
     last_run["R_shock"]    = R_shock
+    last_run["M_R"]        = M_R
     last_run["momentum"]   = momentum
     last_run["Luminosity"] = Luminosity
 
     last_run["overview"]   = overview
+    last_run["filenames"]  = checkpoint_filenames
     
     # filter for when initial transients have settled
     # assume that the settling time scales with the total time
@@ -469,7 +471,63 @@ def parse_run(data_dir, id):
     last_run["t_0"]     = times[Luminosity == max_lum][0]
     last_run["t_f"]     = 13 * last_run["t_0"] # to match with t_f given by Thornton
 
-    parse_results = ParseResults(checkpoint_filenames)
-    return last_run, parse_results
+    return last_run
+
+
+def extract_masses_momenta(data_dir, density, metallicity,
+                           H_1=.1,
+                           extract_at_last_SN = False):
+    
+    if not os.path.exists(data_dir):
+        raise FileNotFoundError("No directory found named: "+ data_dir)
+        
+    overview_filenames = glob.glob(os.path.join(data_dir,
+                                                "*overview.dat"))
+    ids = np.array([])
+    masses = np.array([])
+    momenta = np.array([])
+    
+    
+    for overview_filename in overview_filenames:
+        overview = Overview(overview_filename)
+        
+        
+        # apply filters
+        
+        if overview.inputs.H_1 != H_1:
+            continue
+        
+        if not np.isclose(overview.background_density, density, atol=0):
+            continue
+            
+        if not np.isclose(overview.metallicity, metallicity, atol=0):
+            continue
+        
+        mass = overview.cluster_mass
+        id = os.path.basename(overview_filename).split("_")[0]
+    
+        last_run = parse_run(data_dir, id)
+        if extract_at_last_SN:
+            last_SNe_time = last_run["overview"].SNe_times.max()
+            times = last_run["times"]
+            
+            checkpoint_after_SNe = np.argmin(np.abs(times - times[times>last_SNe_time].min()))
+            momentum = last_run["momentum"][checkpoint_after_SNe]
+        else:
+            momentum = last_run["momentum"].max()
+        
+        masses  = np.append(masses, mass)
+        momenta = np.append(momenta, momentum)
+        ids     = np.append(ids, id)
+
+    if len(ids) == 0:
+        print("No matching files found!")
+        return
+    
+    sorted_indices = np.argsort(masses)
+    masses  = masses[  sorted_indices]
+    momenta = momenta[ sorted_indices]
+    ids     = ids[     sorted_indices]
+    return masses, momenta, ids
 
 # parse_run("../src", "")
