@@ -4,6 +4,7 @@ from __future__ import print_function, division
 import os, sys
 import glob
 import numpy as np
+import datetime
 
 
 from sqlalchemy import create_engine, Column, Integer, String, Float
@@ -112,6 +113,38 @@ class Simulation(Base):
                                 last_updated = last_updated)
         return simulation
 
+    def add_to_table(self):
+        session.add(self)
+
+    def update_to_table(self):
+        # Only updates the things I *think* are going to change
+        # things like cluster mass *shouldn't* change, 
+        # but if you did change that, things could break
+        session.query(Simulation).\
+            filter(Simulation.id==self.id).\
+            update({
+                "E_R_kin": self.E_R_kin,
+                "E_R_int": self.E_R_int,
+                "M_R":     self.M_R,
+                "R":       self.R,
+                "t":       self.t,
+                "momentum": self.momentum,
+                "num_checkpoints": self.num_checkpoints,
+                "last_updated": self.last_updated
+            })
+
+    def add_or_update_to_table(self):
+        count = session.query(Simulation_Inputs).\
+            filter(Simulation_Inputs.id==self.id).\
+            count()
+
+        if count == 0:
+            self.add_to_table()
+        elif count == 1:
+            self.update_to_table()
+        else:
+            print("count: ", count)
+            raise RuntimeError("id seems non-unique?")
 
 
 
@@ -185,6 +218,27 @@ class Simulation_Inputs(Base):
             mass_loss   = inputs.mass_loss,
         )
         return simulation_inputs
+
+    def add_to_table(self):
+        session.add(self)
+
+    def update_to_table(self):
+        # none of the inputs should change;
+        # if they do, you're probably breaking other things
+        pass
+
+    def add_or_update_to_table(self):
+        count = session.query(Simulation_Inputs).\
+            filter(Simulation_Inputs.id==self.id).\
+            count()
+
+        if count == 0:
+            self.add_to_table()
+        elif count == 1:
+            self.update_to_table()
+        else:
+            print("count: ", count)
+            raise RuntimeError("id seems non-unique?")
 
 
 class Simulation_Status(Base):
