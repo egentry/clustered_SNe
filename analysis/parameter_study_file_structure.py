@@ -1,11 +1,10 @@
-import os
 import sys
 import glob
 import shutil
 import numpy as np
 
 ## Boilerplate path hack to give access to full clustered_SNe package
-import sys
+import os, sys
 if __package__ is None:
     if os.pardir not in sys.path[0]:
         file_dir = os.path.dirname(__file__)
@@ -72,7 +71,7 @@ def add_id_to_batch_outputs(dirname=os.pardir, batch_name=""):
     batch_name : Optional[str]
         The batch script would be named "<batch_name>.batch",
         so the output and error streams would have been captured as
-        "<batch_name>*.batch.(o|e)*"
+        "<batch_name>*.batch*.(o|e)*"
 
         (If batch name is an empty string, all batch files will be processed)
 
@@ -88,25 +87,40 @@ def add_id_to_batch_outputs(dirname=os.pardir, batch_name=""):
     --------
 
     """
+    batch_outputs = glob.glob(os.path.join(dirname, batch_name + "*.batch*.o*"))
 
-    batch_outputs = glob.glob(os.path.join(dirname, batch_name + "*.batch.o*"))
     for batch_output in batch_outputs:
         f = open(batch_output, "r")
         for line in f:
-            if "uuid" in line:
-                id = line.split()[-1]
-                if id not in batch_output:
-                    batch_output_parts = os.path.split(batch_output)
-                    new_batch_output = os.path.join(batch_output_parts[0],
-                                             id + "_" + batch_output_parts[1])
-                    os.rename(batch_output, new_batch_output)
-                batch_error = batch_output.replace("batch.o", "batch.e")
-                if id not in batch_error:
-                    batch_error_parts = os.path.split(batch_error)
-                    new_batch_error = os.path.join(batch_error_parts[0],
-                                             id + "_" + batch_error_parts[1])
-                    os.rename(batch_error, new_batch_error)
+            if ("uuid" in line) or ("output_prefix" in line):
+                id = line.split()[-1].strip("_")
+                id += "_"
+                
+                dir, batch_output_base = os.path.split(batch_output)
+
+                #strip id, just in case
+                batch_output_base = batch_output_base.replace(id, "")
+
+                batch_output_new = os.path.join(dir, id + batch_output_base)
+
+                try: 
+                    os.rename(batch_output, batch_output_new)
+                except FileNotFoundError:
+                    pass
+
+                # this isn't terribly robust
+                batch_error_base     = batch_output_base.replace(".o", ".e")
+
+                batch_error     = os.path.join(dir,      batch_error_base)
+                batch_error_new = os.path.join(dir, id + batch_error_base)
+
+                try:
+                    os.rename(batch_error, batch_error_new)
+                except FileNotFoundError:
+                    pass
+
                 break
+
         f.close()
 
     return
