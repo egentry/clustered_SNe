@@ -24,7 +24,8 @@ if __package__ is None:
 from clustered_SNe.analysis.constants import m_proton, pc, yr, M_solar, \
                                     metallicity_solar
     
-from clustered_SNe.analysis.parse import parse_run, Overview, Inputs
+from clustered_SNe.analysis.parse import parse_run, Overview, Inputs, \
+                                        extract_masses_momenta_raw
 
 
 #####################
@@ -32,42 +33,46 @@ from clustered_SNe.analysis.parse import parse_run, Overview, Inputs
 # hardcodes database name -- probably okay?
 # check later: is this the best way to do this?
 
-engine = create_engine('sqlite:///clustered_SNe.db')
+import warnings
+warnings.warn("`session' from database_helpers can only write using 1 process at a time",
+    UserWarning)
+
+engine = create_engine('sqlite:///clustered_SNe.db', echo=False)
 Base = declarative_base()
 
 
 ######### TABLES ############
 class Simulation(Base):
     __tablename__ = "simulations"
-    id = Column(String, primary_key = True)
-    data_dir = Column(String)
+    id          = Column(String, primary_key = True)
+    data_dir    = Column(String)
     
-    metallicity = Column(Float)
-    background_density = Column(Float)
-    background_temperature = Column(Float)
-    with_cooling = Column(Integer)
-    cooling_type = Column(String)
-    num_SNe = Column(Integer)
-    cluster_mass = Column(Float)
-    seed = Column(Integer)
-    mass_loss = Column(String)
+    metallicity             = Column(Float)
+    background_density      = Column(Float)
+    background_temperature  = Column(Float)
+    with_cooling            = Column(Integer)
+    cooling_type            = Column(String)
+    num_SNe                 = Column(Integer)
+    cluster_mass            = Column(Float)
+    seed                    = Column(Integer)
+    mass_loss               = Column(String)
     
-    E_R_kin = Column(Float)
-    E_R_int = Column(Float)
-    M_R     = Column(Float)
-    R       = Column(Float)
-    t       = Column(Float)
-    momentum = Column(Float)
-    num_checkpoints = Column(Integer)
+    E_R_kin                 = Column(Float)
+    E_R_int                 = Column(Float)
+    M_R                     = Column(Float)
+    R                       = Column(Float)
+    t                       = Column(Float)
+    momentum                = Column(Float)
+    num_checkpoints         = Column(Integer)
     
-    last_updated = Column(String)
+    last_updated            = Column(String)
     
     def __repr__(self):
         return "<Simulation: {0}, last updated: {1}".format(self.id,
                                                             self.last_updated)
 
-    @staticmethod
-    def from_last_run(data_dir, last_run):
+    @classmethod
+    def from_last_run(cls, data_dir, last_run):
         id = last_run["id"]
 
         metallicity             = last_run["overview"].metallicity
@@ -80,37 +85,48 @@ class Simulation(Base):
         seed                    = last_run["overview"].seed
         mass_loss               = last_run["overview"].mass_loss
         
-        extraction_index = np.argmax(last_run["momentum"])
+        if num_SNe > 1:
+            extraction_index = np.argmax(last_run["momentum"])
 
-        E_R_kin = last_run["E_R_kin"][extraction_index]
-        E_R_int = last_run["E_R_int"][extraction_index]
-        M_R     = last_run["M_R"][extraction_index]
-        R       = last_run["R_shock"][extraction_index]
+            E_R_kin                 = last_run["E_R_kin"][ extraction_index]
+            E_R_int                 = last_run["E_R_int"][ extraction_index]
+            M_R                     = last_run["M_R"][     extraction_index]
+            R                       = last_run["R_shock"][ extraction_index]
 
-        t       = last_run["times"][extraction_index]
-        momentum = last_run["momentum"][extraction_index]
+            t                       = last_run["times"][   extraction_index]
+            momentum                = last_run["momentum"][extraction_index]
+
+        else:
+            E_R_kin                 = 0 
+            E_R_int                 = 0 
+            M_R                     = 0 
+            R                       = 0 
+
+            t                       = 0 
+            momentum                = 0             
+
         num_checkpoints = len(last_run["filenames"])
 
-        last_updated = str(datetime.datetime.now())
+        last_updated    = str(datetime.datetime.now())
 
-        simulation = Simulation(id=id, data_dir=data_dir,
-                                metallicity             = metallicity,
-                                background_density      = background_density,
-                                background_temperature  = background_temperature,
-                                with_cooling            = with_cooling,
-                                cooling_type            = cooling_type,
-                                num_SNe                 = num_SNe,
-                                cluster_mass            = cluster_mass, 
-                                seed                    = seed,
-                                mass_loss               = mass_loss, 
-                                E_R_kin = E_R_kin,
-                                E_R_int = E_R_int,
-                                M_R     = M_R,
-                                R       = R,
-                                t       = t,
-                                momentum = momentum,
-                                num_checkpoints = num_checkpoints,
-                                last_updated = last_updated)
+        simulation = cls(id=id, data_dir=data_dir,
+            metallicity             = metallicity,
+            background_density      = background_density,
+            background_temperature  = background_temperature,
+            with_cooling            = with_cooling,
+            cooling_type            = cooling_type,
+            num_SNe                 = num_SNe,
+            cluster_mass            = cluster_mass, 
+            seed                    = seed,
+            mass_loss               = mass_loss, 
+            E_R_kin                 = E_R_kin,
+            E_R_int                 = E_R_int,
+            M_R                     = M_R,
+            R                       = R,
+            t                       = t,
+            momentum                = momentum,
+            num_checkpoints         = num_checkpoints,
+            last_updated            = last_updated)
         return simulation
 
     def add_to_table(self):
@@ -120,8 +136,8 @@ class Simulation(Base):
         # Only updates the things I *think* are going to change
         # things like cluster mass *shouldn't* change, 
         # but if you did change that, things could break
-        session.query(Simulation).\
-            filter(Simulation.id==self.id).\
+        session.query(self.__class__).\
+            filter(self.__class__.id==self.id).\
             update({
                 "E_R_kin": self.E_R_kin,
                 "E_R_int": self.E_R_int,
@@ -134,17 +150,13 @@ class Simulation(Base):
             })
 
     def add_or_update_to_table(self):
-        count = session.query(Simulation_Inputs).\
-            filter(Simulation_Inputs.id==self.id).\
-            count()
+        existing_entry = session.query(self.__class__).\
+            get(self.id)
 
-        if count == 0:
+        if existing_entry is None:
             self.add_to_table()
-        elif count == 1:
-            self.update_to_table()
         else:
-            print("count: ", count)
-            raise RuntimeError("id seems non-unique?")
+            self.update_to_table()
 
 
 
@@ -152,36 +164,37 @@ class Simulation_Inputs(Base):
     __tablename__ = "inputs"
     id = Column(String, primary_key = True)
     
-    T_Start = Column(Float)
-    T_End = Column(Float)
-    Num_Reports = Column(Integer)
-    Num_Checkpoints = Column(Integer)
-    Use_Logtime = Column(Integer)
+    T_Start             = Column(Float)
+    T_End               = Column(Float)
+    Num_Reports         = Column(Integer)
+    Num_Checkpoints     = Column(Integer)
+    Use_Logtime         = Column(Integer)
     
-    Num_R = Column(Integer)
-    R_Min = Column(Float)
-    R_Max = Column(Float)
-    Log_Zoning = Column(Integer)
-    Log_Radius = Column(Integer)
+    Num_R               = Column(Integer)
+    R_Min               = Column(Float)
+    R_Max               = Column(Float)
+    Log_Zoning          = Column(Integer)
+    Log_Radius          = Column(Integer)
     
-    CFL = Column(Integer)
-    PLM = Column(Integer)
-    RK2 = Column(Integer)
-    H_0 = Column(Float)
-    H_1 = Column(Float)
-    Riemann_Solver = Column(Integer)
-    Density_Floor = Column(Float)
-    Pressure_Floor = Column(Float)
+    CFL                 = Column(Integer)
+    PLM                 = Column(Integer)
+    RK2                 = Column(Integer)
+    H_0                 = Column(Float)
+    H_1                 = Column(Float)
+    Riemann_Solver      = Column(Integer)
+    Density_Floor       = Column(Float)
+    Pressure_Floor      = Column(Float)
     
-    With_Cooling = Column(Integer)
-    Cooling_Type = Column(String)
-    Adiabatic_Index = Column(Float)
+    With_Cooling        = Column(Integer)
+    Cooling_Type        = Column(String)
+    Adiabatic_Index     = Column(Float)
     
-    ICs = Column(String)
-    mass_loss = Column(String)
+    ICs                 = Column(String)
+    mass_loss           = Column(String)
     
     def __repr__(self):
-        return "<Simulation_Inputs for id: {0}>".format(self.id)
+        return "<{0} for id: {1}>".format(self.__class__.__name__,
+                                          self.id)
     
     @staticmethod
     def from_Inputs(id, inputs):
@@ -193,29 +206,29 @@ class Simulation_Inputs(Base):
             Num_Checkpoints = inputs.Num_Checkpoints,
             Use_Logtime     = inputs.Use_Logtime,
 
-            Num_R = inputs.Num_R,
-            R_Min = inputs.R_Min,
-            R_Max = inputs.R_Max,
-            Log_Zoning = inputs.Log_Zoning,
-            Log_Radius = inputs.Log_Radius,
+            Num_R           = inputs.Num_R,
+            R_Min           = inputs.R_Min,
+            R_Max           = inputs.R_Max,
+            Log_Zoning      = inputs.Log_Zoning,
+            Log_Radius      = inputs.Log_Radius,
 
-            CFL = inputs.CFL,
-            PLM = inputs.PLM,
-            RK2 = inputs.RK2,
-            H_0 = inputs.H_0,
-            H_1 = inputs.H_1,
+            CFL             = inputs.CFL,
+            PLM             = inputs.PLM,
+            RK2             = inputs.RK2,
+            H_0             = inputs.H_0,
+            H_1             = inputs.H_1,
             Riemann_Solver  = inputs.Riemann_Solver,
             Density_Floor   = inputs.Density_Floor,
             Pressure_Floor  = inputs.Pressure_Floor,
 
-            With_Cooling = inputs.With_Cooling,
-            Cooling_Type = inputs.Cooling_Type,
+            With_Cooling    = inputs.With_Cooling,
+            Cooling_Type    = inputs.Cooling_Type,
 
             Adiabatic_Index = inputs.Adiabatic_Index,
 
-            ICs         = inputs.ICs,
+            ICs             = inputs.ICs,
 
-            mass_loss   = inputs.mass_loss,
+            mass_loss       = inputs.mass_loss,
         )
         return simulation_inputs
 
@@ -228,17 +241,13 @@ class Simulation_Inputs(Base):
         pass
 
     def add_or_update_to_table(self):
-        count = session.query(Simulation_Inputs).\
-            filter(Simulation_Inputs.id==self.id).\
-            count()
+        existing_entry = session.query(self.__class__).\
+            get(self.id)
 
-        if count == 0:
+        if existing_entry is None:
             self.add_to_table()
-        elif count == 1:
-            self.update_to_table()
         else:
-            print("count: ", count)
-            raise RuntimeError("id seems non-unique?")
+            self.update_to_table()
 
 
 class Simulation_Status(Base):
@@ -264,12 +273,13 @@ class Simulation_Status(Base):
 
     # do all these static/class methods probably need to be static/class methods
     @staticmethod
-    def from_id_and_data_dir(id, data_dir):
-        pass
-
-    @staticmethod
     def is_converged(id, data_dir):
+        overview = Overview(os.path.join(data_dir, id.rstrip("_") + "_overview.dat"))
+        if overview.num_SNe == 0:
+            return True
+
         last_run = parse_run(data_dir, id)
+
         momenta = last_run["momentum"]
         if (momenta.size < 25):
             earlier_momentum = momenta[0]
@@ -289,9 +299,10 @@ class Simulation_Status(Base):
 
 
     @staticmethod
-    def checkpoint_99_exists(id, data_dir):
-        checkpoints = glob.glob(os.path.join(data_dir, id + "*_checkpoint_*.dat"))
+    def is_last_checkpoint_x99(id, data_dir):
+        checkpoints = glob.glob(os.path.join(data_dir, id + "_checkpoint_*.dat"))
         checkpoints = sorted(checkpoints)
+
         last_checkpoint = checkpoints[-1]
         last_checkpoint_num = int(last_checkpoint.split("_")[-1].strip(".dat")) % 100
         if last_checkpoint_num != 99:
@@ -300,9 +311,9 @@ class Simulation_Status(Base):
             return True
 
     @classmethod
-    def mappable_checkpoint_99_exists(cls, id_and_data_dir):
+    def mappable_is_last_checkpoint_x99(cls, id_and_data_dir):
         id, data_dir = id_and_data_dir
-        return cls.checkpoint_99_exists(id, data_dir)
+        return cls.is_last_checkpoint_x99(id, data_dir)
 
 
     def create_new_batch_file(self, 
@@ -321,24 +332,24 @@ class Simulation_Status(Base):
         session.add(self)
 
     def update_to_table(self):
-        session.query(Simulation_Status).\
-            filter(Simulation_Status.id==self.id).\
+        session.query(self.__class__).\
+            filter(self.__class__.id==self.id).\
             update({"status":self.status})
 
     def add_or_update_to_table(self):
         assert(self.status in self.possible_statuses)
 
-        count = session.query(Simulation_Status).\
-            filter(Simulation_Status.id==self.id).\
-            count()
+        existing_entry = session.query(self.__class__).\
+            get(self.id)
 
-        if count == 0:
+        if existing_entry is None:
             self.add_to_table()
-        elif count == 1:
-            self.update_to_table()
+        elif existing_entry.status == "Error":
+            return
+        elif (existing_entry.status == "Running") and (self.status == "Unknown"):
+            return
         else:
-            print("count: ", count)
-            raise RuntimeError("id seems non-unique?")
+            self.update_to_table()
 
     def switch_to_running(self):
         self.status = "Running"
@@ -356,7 +367,8 @@ class Simulation_Status(Base):
         self.switch_to_running()
 
     def __repr__(self):
-        return "<Simulation_Status for id: {0}>".format(self.id)
+        return "<{0} for id: {1}>".format(self.__class__.__name__,
+                                          self.id)
 
 
 
@@ -372,6 +384,38 @@ session = Session()
 
 
 ####################
+
+def extract_masses_momenta(density, metallicity):
+    """Fetches the cluster mass and max momentum from SQL table.
+    For more options, check out extract_masses_momenta_raw from `parse.py`"""
+
+    ids = []
+    masses = []
+    momenta = []
+    print("density: ", density)
+    print("metallicity: ", metallicity)
+
+    for simulation in session.query(Simulation).\
+                    filter(Simulation.metallicity==metallicity):
+        if np.isclose(simulation.background_density, density, rtol=.1, atol=0):
+            ids.append(simulation.id)
+            masses.append(simulation.cluster_mass)
+            momenta.append(simulation.momentum)
+    
+    if len(ids) == 0:
+        print("No matching files found!")
+        return
+    
+    ids     = np.array(ids)
+    masses  = np.array(masses)
+    momenta = np.array(momenta)
+
+
+    sorted_indices = np.argsort(masses)
+    masses  = masses[  sorted_indices]
+    momenta = momenta[ sorted_indices]
+    ids     = ids[     sorted_indices]
+    return masses, momenta, ids
 
 
 

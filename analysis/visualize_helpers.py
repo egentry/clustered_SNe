@@ -184,6 +184,9 @@ def plot_sedov(last_run, time, x_axis_variable, y_axis_variable,
     if y_axis_variable not in sedov_cols_plot:
         return
     
+    if last_run["overview"].SNe_times.size == 0:
+        return
+
     sedov_time = time - last_run["overview"].SNe_times[0]
     if sedov_time <= 0:
         return

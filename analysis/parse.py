@@ -290,18 +290,19 @@ class Overview(object):
             self.SNe_ejecta_mass    = SNe[:,2]
             self.SNe_ejecta_mass_Z  = SNe[:,3]
             self.SNe_wind_mass      = SNe[:,4]
-        else:
-            self.SNe_times          = np.array([0.])
-            self.SNe_initial_mass   = np.array([0.])
-            self.SNe_ejecta_mass    = np.array([0.])
-            self.SNe_ejecta_mass_Z  = np.array([0.])
-            self.SNe_wind_mass      = np.array([0.])
 
-        sorted_indices = np.argsort(self.SNe_times)
-        self.SNe_times          = self.SNe_times[         sorted_indices]
-        self.SNe_initial_mass   = self.SNe_initial_mass[  sorted_indices]
-        self.SNe_ejecta_mass    = self.SNe_ejecta_mass[   sorted_indices]
-        self.SNe_ejecta_mass_Z  = self.SNe_ejecta_mass_Z[ sorted_indices]
+            sorted_indices = np.argsort(self.SNe_times)
+            self.SNe_times          = self.SNe_times[         sorted_indices]
+            self.SNe_initial_mass   = self.SNe_initial_mass[  sorted_indices]
+            self.SNe_ejecta_mass    = self.SNe_ejecta_mass[   sorted_indices]
+            self.SNe_ejecta_mass_Z  = self.SNe_ejecta_mass_Z[ sorted_indices]
+            self.SNe_wind_mass      = self.SNe_wind_mass[     sorted_indices]
+        else:
+            self.SNe_times          = np.array([])
+            self.SNe_initial_mass   = np.array([])
+            self.SNe_ejecta_mass    = np.array([])
+            self.SNe_ejecta_mass_Z  = np.array([])
+            self.SNe_wind_mass      = np.array([])
 
         return
 
@@ -474,9 +475,11 @@ def parse_run(data_dir, id):
     return last_run
 
 
-def extract_masses_momenta(data_dir, density, metallicity,
+def extract_masses_momenta_raw(data_dir, density, metallicity,
                            H_1=.1,
                            extract_at_last_SN = False):
+    """For a faster version, get these from the database,
+    using `extract_masses_momenta` from database_helpers"""
     
     if not os.path.exists(data_dir):
         raise FileNotFoundError("No directory found named: "+ data_dir)
