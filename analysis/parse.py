@@ -67,6 +67,10 @@ class RunSummary(dict):
             self.__class__.__name__,
             hex(id(self))
         )
+    def __getattr__(self, name):
+        return self[name]
+    def __setattr__(self, name, value):
+        self[name] = value
 
 
 class Inputs(object):
@@ -441,24 +445,24 @@ def parse_run(data_dir, id):
     
     last_run= RunSummary()
 
-    last_run["id"]         = id
-    last_run["df"]         = df
-    last_run["times"]      = times
-    last_run["zones"]      = zones
-    last_run["E_tot"]      = E_tot
-    last_run["Z_tot"]      = Z_tot
-    last_run["E_int"]      = E_int
-    last_run["E_kin"]      = E_kin
-    last_run["E_R_int"]    = E_R_int
-    last_run["E_R_kin"]    = E_R_kin
-    last_run["E_R_tot"]    = E_R_tot
-    last_run["R_shock"]    = R_shock
-    last_run["M_R"]        = M_R
-    last_run["momentum"]   = momentum
-    last_run["Luminosity"] = Luminosity
+    last_run.id         = id
+    last_run.df         = df
+    last_run.times      = times
+    last_run.zones      = zones
+    last_run.E_tot      = E_tot
+    last_run.Z_tot      = Z_tot
+    last_run.E_int      = E_int
+    last_run.E_kin      = E_kin
+    last_run.E_R_int    = E_R_int
+    last_run.E_R_kin    = E_R_kin
+    last_run.E_R_tot    = E_R_tot
+    last_run.R_shock    = R_shock
+    last_run.M_R        = M_R
+    last_run.momentum   = momentum
+    last_run.Luminosity = Luminosity
 
-    last_run["overview"]   = overview
-    last_run["filenames"]  = checkpoint_filenames
+    last_run.overview   = overview
+    last_run.filenames  = checkpoint_filenames
     
     # filter for when initial transients have settled
     # assume that the settling time scales with the total time
@@ -469,8 +473,8 @@ def parse_run(data_dir, id):
     smoothing_kernel    = Gaussian1DKernel(smoothing_width)
     smoothed_lums       = convolve(valid_lums, smoothing_kernel)
     max_lum             = valid_lums[np.argmax(smoothed_lums)]
-    last_run["t_0"]     = times[Luminosity == max_lum][0]
-    last_run["t_f"]     = 13 * last_run["t_0"] # to match with t_f given by Thornton
+    last_run.t_0        = times[Luminosity == max_lum][0]
+    last_run.t_f        = 13 * last_run.t_0 # to match with t_f given by Thornton
 
     return last_run
 
@@ -511,13 +515,13 @@ def extract_masses_momenta_raw(data_dir, density, metallicity,
     
         last_run = parse_run(data_dir, id)
         if extract_at_last_SN:
-            last_SNe_time = last_run["overview"].SNe_times.max()
-            times = last_run["times"]
+            last_SNe_time = last_run.overview.SNe_times.max()
+            times = last_run.times
             
             checkpoint_after_SNe = np.argmin(np.abs(times - times[times>last_SNe_time].min()))
-            momentum = last_run["momentum"][checkpoint_after_SNe]
+            momentum = last_run.momentum[checkpoint_after_SNe]
         else:
-            momentum = last_run["momentum"].max()
+            momentum = last_run.momentum.max()
         
         masses  = np.append(masses, mass)
         momenta = np.append(momenta, momentum)

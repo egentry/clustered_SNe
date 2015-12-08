@@ -73,28 +73,28 @@ class Simulation(Base):
 
     @classmethod
     def from_last_run(cls, data_dir, last_run):
-        id = last_run["id"]
+        id = last_run.id
 
-        metallicity             = last_run["overview"].metallicity
-        background_density      = last_run["overview"].background_density
-        background_temperature  = last_run["overview"].background_temperature
-        with_cooling            = last_run["overview"].with_cooling
-        cooling_type            = last_run["overview"].cooling_type
-        num_SNe                 = last_run["overview"].num_SNe
-        cluster_mass            = last_run["overview"].cluster_mass
-        seed                    = last_run["overview"].seed
-        mass_loss               = last_run["overview"].mass_loss
+        metallicity             = last_run.overview.metallicity
+        background_density      = last_run.overview.background_density
+        background_temperature  = last_run.overview.background_temperature
+        with_cooling            = last_run.overview.with_cooling
+        cooling_type            = last_run.overview.cooling_type
+        num_SNe                 = last_run.overview.num_SNe
+        cluster_mass            = last_run.overview.cluster_mass
+        seed                    = last_run.overview.seed
+        mass_loss               = last_run.overview.mass_loss
         
         if num_SNe > 1:
-            extraction_index = np.argmax(last_run["momentum"])
+            extraction_index = np.argmax(last_run.momentum)
 
-            E_R_kin                 = last_run["E_R_kin"][ extraction_index]
-            E_R_int                 = last_run["E_R_int"][ extraction_index]
-            M_R                     = last_run["M_R"][     extraction_index]
-            R                       = last_run["R_shock"][ extraction_index]
+            E_R_kin                 = last_run.E_R_kin[ extraction_index]
+            E_R_int                 = last_run.E_R_int[ extraction_index]
+            M_R                     = last_run.M_R[     extraction_index]
+            R                       = last_run.R_shock[ extraction_index]
 
-            t                       = last_run["times"][   extraction_index]
-            momentum                = last_run["momentum"][extraction_index]
+            t                       = last_run.times[   extraction_index]
+            momentum                = last_run.momentum[extraction_index]
 
         else:
             E_R_kin                 = 0 
@@ -105,7 +105,7 @@ class Simulation(Base):
             t                       = 0 
             momentum                = 0             
 
-        num_checkpoints = len(last_run["filenames"])
+        num_checkpoints = len(last_run.filenames)
 
         last_updated    = str(datetime.datetime.now())
 
@@ -280,7 +280,7 @@ class Simulation_Status(Base):
 
         last_run = parse_run(data_dir, id)
 
-        momenta = last_run["momentum"]
+        momenta = last_run.momentum
         if (momenta.size < 25):
             earlier_momentum = momenta[0]
         else:
@@ -344,6 +344,8 @@ class Simulation_Status(Base):
 
         if existing_entry is None:
             self.add_to_table()
+        elif existing_entry.status == "Complete":
+            return
         elif existing_entry.status == "Error":
             return
         elif (existing_entry.status == "Running") and (self.status == "Unknown"):
