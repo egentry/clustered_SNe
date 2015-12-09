@@ -21,7 +21,7 @@ import seaborn as sns
 
 ## import from local files
 ## Boilerplate path hack to give access to full clustered_SNe package
-import sys
+import sys, os
 if __package__ is None:
     if os.pardir not in sys.path[0]:
         file_dir = os.getcwd()
@@ -35,7 +35,7 @@ from clustered_SNe.analysis.constants import m_proton, pc, yr, M_solar, \
 from clustered_SNe.analysis.sedov.dimensionalize_sedov import dimensionalized_sedov
 from clustered_SNe.analysis.sedov.closed_form_sedov import SedovSolution
 from clustered_SNe.analysis.parameter_study_file_structure import make_dirname_from_properties
-from clustered_SNe.analysis.parse import RunSummary, Overview, parse_run, cols
+from clustered_SNe.analysis.parse import RunSummary, Overview, cols
 
 
 general_string_format = ".2e"
@@ -65,7 +65,7 @@ label_dict = {"Radius"       : r"$R$ [pc]",
 
 
 
-def plotter(last_run,
+def plotter(run_summary,
             checkpoint_filenames, 
             metallicity, background_density, background_temperature,
             sedov_solution,
@@ -75,16 +75,16 @@ def plotter(last_run,
             highlight_timestep_limiting_cell = False,
             outer_limit_log  = 0, 
             checkpoint_index = 0):
-    df_tmp = last_run.df.loc[checkpoint_index]
+    df_tmp = run_summary.df.loc[checkpoint_index]
 
     checkpoint_filename = checkpoint_filenames[checkpoint_index]
-    time = last_run.times[checkpoint_index]
+    time = run_summary.times[checkpoint_index]
     
     E_kin = sedov_solution.E_kin
     E_int = sedov_solution.E_int
     print("E_kin: ", format(E_kin, general_string_format))
     print("E_int: ", format(E_int, general_string_format))
-    momentum = sedov_solution.get_momentum(time=time - last_run.times[0])
+    momentum = sedov_solution.get_momentum(time=time - run_summary.times[0])
 
     print("checkpoint: ",
           checkpoint_filename)
@@ -92,48 +92,45 @@ def plotter(last_run,
         format(time / yr, general_string_format), "[yr]",
         "\t", format(time, general_string_format), "[s]")
     print("time elapsed:              ",
-          format((time - last_run.times[0]) / yr, general_string_format), "[yr]",
-          "\t", format((time - last_run.times[0]), general_string_format), "[s]")
+          format((time - run_summary.times[0]) / yr, general_string_format), "[yr]",
+          "\t", format((time - run_summary.times[0]), general_string_format), "[s]")
 
-    if last_run.overview.SNe_times.size == 1:
+    if run_summary.overview.SNe_times.size == 1:
         print("energy conserved to:       ", 
-              format( (   last_run.E_tot[checkpoint_index]
-                        - last_run.E_tot[0])
-                      / last_run.E_tot[0], general_string_format) )
+              format( (   run_summary.E_tot[checkpoint_index]
+                        - run_summary.E_tot[0])
+                      / run_summary.E_tot[0], general_string_format) )
         print("E_kin    accurate to:      ", 
-              format( (last_run.E_kin[checkpoint_index]
+              format( (run_summary.E_kin[checkpoint_index]
                               - E_kin)
                       / E_kin, general_string_format) )
         print("momentum accurate to:      ", 
-              format( (last_run.momentum[checkpoint_index]
+              format( (run_summary.momentum[checkpoint_index]
                              - momentum)
                       / momentum, general_string_format) )
-        # # DON'T USE E_INT AS A METRIC, since you accrete in thermal energy
-    #     print("E_int accurate to:         ", 
-    #           (last_run.E_int[checkpoint_index] - E_int) / E_int)
         print("Peak luminosity at checkpoint",
-              np.argmax(last_run.times == last_run.t_0) )
+              np.argmax(run_summary.times == run_summary.t_0) )
         print("Peak luminosity at t_0 =   ",
-              format(last_run.t_0 / yr, general_string_format), "[yr]")
+              format(run_summary.t_0 / yr, general_string_format), "[yr]")
         print("t_f = 13 * t_0 =           ",
-              format(last_run.t_f / yr, general_string_format), "[yr]")
+              format(run_summary.t_f / yr, general_string_format), "[yr]")
         print("R_shock =                  ",
-              format(last_run.R_shock[checkpoint_index] / pc, "3.2f"), "[pc]")
+              format(run_summary.R_shock[checkpoint_index] / pc, "3.2f"), "[pc]")
         print("E_R_tot =                  ",
-              format(last_run.E_R_tot[checkpoint_index], general_string_format),
+              format(run_summary.E_R_tot[checkpoint_index], general_string_format),
               "[ergs]")
     print("background_density:        ", 
-        format(last_run.overview.background_density, general_string_format))
+        format(run_summary.overview.background_density, general_string_format))
     print("Cluster mass:              ", 
-        format(last_run.overview.cluster_mass / M_solar, general_string_format),
+        format(run_summary.overview.cluster_mass / M_solar, general_string_format),
         "M_sol")
     print("Number of SNe so far:      ",
-          np.sum(last_run.overview.SNe_times <= time))
-    print("mass loss prescription:    ", last_run.overview.mass_loss)
+          np.sum(run_summary.overview.SNe_times <= time))
+    print("mass loss prescription:    ", run_summary.overview.mass_loss)
     
-    if x_axis_variable is "Radius":
+    if x_axis_variable == "Radius":
         plt.xlim((0,10**outer_limit_log))
-    if x_axis_variable is "M_int":
+    if x_axis_variable == "M_int":
         plt.xlim((0,10**2))
 
     marker = "."
@@ -142,7 +139,12 @@ def plotter(last_run,
              marker=marker,
              label="numeric",
              drawstyle="steps")
-    if highlight_timestep_limiting_cell is True:
+    if y_axis_variable == "Velocity":
+        plt.plot(df_tmp[x_axis_variable], -1*df_tmp[y_axis_variable],
+          color="r",
+          drawstyle="steps",
+          label="numeric (inward velocity)")
+    if highlight_timestep_limiting_cell:
         timestep_limiting_index = df_tmp.Crossing_time.argmin()
         plt.plot(df_tmp[x_axis_variable].loc[timestep_limiting_index],
                  df_tmp[y_axis_variable].loc[timestep_limiting_index], 
@@ -158,11 +160,11 @@ def plotter(last_run,
         # Set and fix limits
         y_min, y_max = plt.ylim()
         plt.ylim( (y_min / 5, y_max * 5) )
-    if y_axis_variable is "Velocity":
+    if y_axis_variable == "Velocity":
         plt.ylim(ymin=1)
     
     if with_Sedov:
-        plot_sedov(last_run, time, x_axis_variable, y_axis_variable, 
+        plot_sedov(run_summary, time, x_axis_variable, y_axis_variable, 
                    metallicity, background_density, background_temperature)
     
     plt.xlabel(label_dict[x_axis_variable])
@@ -171,7 +173,7 @@ def plotter(last_run,
     plt.legend(loc="best")
     
 
-def plot_sedov(last_run, time, x_axis_variable, y_axis_variable, 
+def plot_sedov(run_summary, time, x_axis_variable, y_axis_variable, 
                metallicity, background_density, background_temperature):
 
     sedov_x_axes = ["Radius", "M_int"]
@@ -184,18 +186,18 @@ def plot_sedov(last_run, time, x_axis_variable, y_axis_variable,
     if y_axis_variable not in sedov_cols_plot:
         return
     
-    if last_run.overview.SNe_times.size == 0:
+    if run_summary.overview.SNe_times.size == 0:
         return
 
-    sedov_time = time - last_run.overview.SNe_times[0]
+    sedov_time = time - run_summary.overview.SNe_times[0]
     if sedov_time <= 0:
         return
     
-    SNe_so_far = np.sum(last_run.overview.SNe_times <= time) 
+    SNe_so_far = np.sum(run_summary.overview.SNe_times <= time) 
     if SNe_so_far != 1:
         return
     
-    sedov = dimensionalized_sedov(time - last_run.times[0],
+    sedov = dimensionalized_sedov(time - run_summary.times[0],
                                   metallicity=metallicity, 
                                   background_density=background_density,
                                   background_temperature=background_temperature)
@@ -214,27 +216,27 @@ def single_run(data_dir="", id=""):
     if not os.path.exists(data_dir):
         raise FileNotFoundError("No directory found named: "+ data_dir)
         
-    last_run = parse_run(data_dir, id)
+    run_summary = RunSummary(data_dir=data_dir, id=id)
     sedov_solution = SedovSolution(E_0,
-                                   last_run.overview.background_density, 
-                                   last_run.overview.metallicity)
+                                   run_summary.overview.background_density, 
+                                   run_summary.overview.metallicity)
     
     #### PASS TO PLOTTER ####
-    num_checkpoints = len(last_run.filenames)
+    num_checkpoints = len(run_summary.filenames)
     
-    log_R_max = round(np.log10(last_run.df["Radius"].max()), 2)
+    log_R_max = round(np.log10(run_summary.df["Radius"].max()), 2)
     log_R_min = max(log_R_max-4, 
-                    round(np.log10(last_run.df["Radius"].min()), 2)+1)
+                    round(np.log10(run_summary.df["Radius"].min()), 2)+1)
                 
     if type(single_run.previous_widget) is widgets.Box:
         single_run.previous_widget.close()
 
     w = interactive(plotter,
-        last_run               = fixed(last_run),
-        checkpoint_filenames   = fixed(last_run.filenames),
-        metallicity            = fixed(last_run.overview.metallicity),
-        background_density     = fixed(last_run.overview.background_density),
-        background_temperature = fixed(last_run.overview.background_temperature),
+        run_summary            = fixed(run_summary),
+        checkpoint_filenames   = fixed(run_summary.filenames),
+        metallicity            = fixed(run_summary.overview.metallicity),
+        background_density     = fixed(run_summary.overview.background_density),
+        background_temperature = fixed(run_summary.overview.background_temperature),
         sedov_solution         = fixed(sedov_solution),
         outer_limit_log        = FloatSlider(min=log_R_min, 
                                              max=log_R_max, 
@@ -251,7 +253,7 @@ def single_run(data_dir="", id=""):
                                                        "zones"]))
     single_run.previous_widget = w
     display(w)
-    return last_run
+    return run_summary
 single_run.previous_widget = widgets.Box()
 
 def conduction_comparisons(mass, H_0, data_dir,
@@ -264,7 +266,7 @@ def conduction_comparisons(mass, H_0, data_dir,
     overview_filenames = glob.glob(os.path.join(data_dir,
                                                 "*overview.dat"))
     
-    if H_0 is True:
+    if H_0:
         label = r"$H_0"
     else:
         label = r"$H_1"
@@ -276,13 +278,13 @@ def conduction_comparisons(mass, H_0, data_dir,
         overview = Overview(overview_filename)
         if overview.cluster_mass != mass:
             continue
-        if mass == 100 * M_solar:
+        if np.isclose(mass,100 * M_solar, atol=0, rtol=1e-2):
             if overview.num_SNe != num_SNe:
                 continue
             
         ids = np.append(ids, 
                         os.path.basename(overview_filename).split("_")[0])
-        if H_0 is True:
+        if H_0:
             labels = np.append(labels,
                                label + r" = {0}$".format(int(round(overview.inputs.H_0*10)) / 10))
             conduction_values = np.append(conduction_values,
@@ -319,31 +321,31 @@ def conduction_comparisons(mass, H_0, data_dir,
         display(Math(labels[i]))
         print("Number of checkpoints available: ",
               last_checkpoints[i])
-        last_run = parse_run(data_dir, id)
+        run_summary = RunSummary(data_dir=data_dir, id=id)
         sedov_solution = SedovSolution(E_0,
-                                       last_run.overview.background_density, 
-                                       last_run.overview.metallicity)
+                                       run_summary.overview.background_density, 
+                                       run_summary.overview.metallicity)
 
         #### PASS TO PLOTTER ####
-        num_checkpoints = len(last_run.filenames)
+        num_checkpoints = len(run_summary.filenames)
         plot_checkpoint = last_common_checkpoint-1
 
-        log_R_max = round(np.log10(last_run.df["Radius"].max()), 2)
+        log_R_max = round(np.log10(run_summary.df["Radius"].max()), 2)
         log_R_min = max(log_R_max-4, 
-                        round(np.log10(last_run.df["Radius"].min()), 2)+1)
+                        round(np.log10(run_summary.df["Radius"].min()), 2)+1)
 
 
-        if last_run.overview.num_SNe == 1:
+        if run_summary.overview.num_SNe == 1:
             SN_or_SNe = "SN"
         else:
             SN_or_SNe = "SNe"
-        plt.title("Num " + SN_or_SNe + ": {0}".format(last_run.overview.num_SNe))
+        plt.title("Num " + SN_or_SNe + ": {0}".format(run_summary.overview.num_SNe))
 
-        plotter(last_run,
-                last_run.filenames, 
-                last_run.overview.metallicity, 
-                last_run.overview.background_density, 
-                last_run.overview.background_temperature,
+        plotter(run_summary,
+                run_summary.filenames, 
+                run_summary.overview.metallicity, 
+                run_summary.overview.background_density, 
+                run_summary.overview.background_temperature,
                 sedov_solution,
                 x_axis_variable  = "Radius",
                 y_axis_variable  = "Temperature",
@@ -382,15 +384,15 @@ def parameter_study_wrapper(log_n, log_Z, T=1e4,
                                              metallicity, 
                                              background_temperature,
                                              with_cooling)
-    last_run = RunSummary() # default
+    run_summary = RunSummary() # default
     if os.path.isdir(data_dir):
         tmp = glob.glob(os.path.join(data_dir, "*checkpoint*.dat"))        
         
-        if len(tmp) is not 0:
+        if len(tmp) != 0:
             basename = os.path.basename(tmp[0])
             id = basename.split("checkpoint")[0]
             print(data_dir)
-            last_run = single_run(data_dir=data_dir, id=id)
+            run_summary = single_run(data_dir=data_dir, id=id)
 
                         
         else:
@@ -398,22 +400,22 @@ def parameter_study_wrapper(log_n, log_Z, T=1e4,
     else:
         print("No directory was found")
         print("Directory: ", data_dir)
-    return last_run
+    return run_summary
 
 
 
 
-def SNe_distplot(last_run, x_axis):
-    if x_axis is "time":
-        x_data = last_run.overview.SNe_times / yr
+def SNe_distplot(run_summary, x_axis):
+    if x_axis == "time":
+        x_data = run_summary.overview.SNe_times / yr
         rug=True
         hist=False
-    elif x_axis is "checkpoints":
+    elif x_axis == "checkpoints":
         x_data = np.array([], dtype=np.int)
         
-        for SNe_time in last_run.overview.SNe_times:
-            if (SNe_time >= last_run.times.min()) and (SNe_time < last_run.times.max()):
-                x_data = np.append(x_data, np.argmin(np.abs(last_run.times - SNe_time)))
+        for SNe_time in run_summary.overview.SNe_times:
+            if (SNe_time >= run_summary.times.min()) and (SNe_time < run_summary.times.max()):
+                x_data = np.append(x_data, np.argmin(np.abs(run_summary.times - SNe_time)))
         # this would be more natural as a histogram,
         # but I can't figure out how to normalize a histogram in a good way
         # Maybe it'd just be better to use subplots?
@@ -427,185 +429,180 @@ def SNe_distplot(last_run, x_axis):
     sns.distplot(x_data, color="k", norm_hist=False, 
                  hist=hist, rug=rug, kde=False, 
                  rug_kws={"linewidth":3},
-                 bins=np.arange(last_run.times.size))
+                 bins=np.arange(run_summary.times.size))
 
 
-def plot_zones(last_run, distplot=True):
-    if type(last_run) is RunSummary:
-        if last_run.zones is not None:
-            plt.plot(last_run.zones)
+def plot_zones(run_summary, distplot=True):
+    if isinstance(run_summary, RunSummary):
+        if run_summary.zones is not None:
+            plt.plot(run_summary.zones)
             plt.ylim(ymin=0)
             plt.ylabel("Number of Zones")
             plt.xlabel("Checkpoint")
-            if distplot is True:
-                SNe_distplot(last_run, "checkpoints")
+            if distplot:
+                SNe_distplot(run_summary, "checkpoints")
 
-def plot_shock_location(last_run, clear_previous = True, distplot=True):
+def plot_shock_location(run_summary, clear_previous = True, distplot=True):
     if clear_previous:
         plt.figure()
-    if distplot is True:
-        SNe_distplot(last_run, "time")
-    plt.plot(last_run.times / yr, last_run.R_shock / pc)
+    if distplot:
+        SNe_distplot(run_summary, "time")
+    plt.plot(run_summary.times / yr, run_summary.R_shock / pc)
     plt.xlabel(r"time [yr]")
     plt.ylabel(r"$R_{\mathrm{shock}}$ [pc]")
 
-def plot_energy(last_run, x_axis):
-    if type(last_run) is RunSummary:
-        if ( (last_run.E_tot is not None) and
-             (last_run.E_int is not None) and
-             (last_run.E_kin is not None) ):
+def plot_energy(run_summary, x_axis):
             
-            plt.figure()
-            
-            if x_axis is "time":
-                x_variable = last_run.times / yr
-                xlabel = "Time [yr]"
-                xscale = "linear"
-                plt.xscale(xscale)
-                xfmt = plt.gca().get_xaxis().get_major_formatter() # needs to be set AFTER plt.xscale()
-                if xscale is "log":
-                    mask = x_variable > 1
-                elif xscale is "linear":
-                    mask = np.full_like(x_variable, True, dtype=bool) 
-                    xfmt.set_powerlimits((-2, 2)) # force scientific notation outside this range
-
-            elif x_axis is "checkpoints":
-                x_variable = np.arange(len(last_run.times))
-                xlabel = "Checkpoint"
-                xscale = "linear"
-                mask = np.full_like(x_variable, True, dtype=bool) 
-
-                plt.xscale(xscale)
-                xfmt = plt.gca().get_xaxis().get_major_formatter() # needs to be set AFTER plt.xscale()
-
-            else:
-                raise NotImplementedError("can't recognize x_axis value: " + x_axis)
-
-            E_err = (last_run.E_tot - last_run.E_tot[0]) / last_run.E_tot[0]
-            plt.plot(x_variable[mask], E_err[mask])
-            plt.xscale(xscale)
-            plt.xlabel(xlabel)   
-            plt.gca().xaxis.set_major_formatter(xfmt)
-            plt.ylabel("Fractional Change (Energy)")
-            SNe_distplot(last_run, x_axis)
-
-            plt.figure()
-            plt.plot(x_variable[mask], last_run.E_tot[mask], label="E_tot" )
-            plt.plot(x_variable[mask], last_run.E_kin[mask], label="E_kin" )
-            plt.plot(x_variable[mask], last_run.E_int[mask], label="E_int" )
-            plt.legend(loc="best")
-            plt.xscale(xscale)
-            plt.xlabel(xlabel) 
-            plt.gca().xaxis.set_major_formatter(xfmt)
-            plt.ylabel("Energy [erg]")
-            SNe_distplot(last_run, x_axis)
-
-            
-            plt.figure()
-            plt.plot(x_variable[mask], last_run.E_R_tot[mask], label="E_Remnant" )
-            plt.legend(loc="best")
-            plt.xscale(xscale)
-            plt.xlabel(xlabel)  
-            plt.gca().xaxis.set_major_formatter(xfmt)
-            plt.ylabel("Energy [erg]")
-            SNe_distplot(last_run, x_axis)
-
-            if x_axis is "checkpoints":
-                plt.xlim(xmin=0)
-
-
-def plot_momentum(last_run, x_axis, clear_previous=True, distplot=True):
-    if last_run.overview.cluster_mass <= 0:
-        raise ValueError("Cluster mass doesn't allow valid normalization of momentum")
-    if type(last_run) is RunSummary:
-        if clear_previous:
-            plt.figure()
-
-        if x_axis is "time":
-            x_variable = last_run.times / yr
-            xlabel = "Time [yr]"
-            xscale = "linear"
-            plt.xscale(xscale)
-            xfmt = plt.gca().get_xaxis().get_major_formatter() # needs to be set AFTER plt.xscale()
-            if xscale is "log":
-                mask = x_variable > 1
-            elif xscale is "linear":
-                mask = np.full_like(x_variable, True, dtype=bool) 
-                xfmt.set_powerlimits((-2, 2)) # force scientific notation outside this range
-
-        elif x_axis is "checkpoints":
-            x_variable = np.arange(len(last_run.times))
-            xlabel = "Checkpoint"
-            xscale = "linear"
+    plt.figure()
+    
+    if x_axis == "time":
+        x_variable = run_summary.times / yr
+        xlabel = "Time [yr]"
+        xscale = "linear"
+        plt.xscale(xscale)
+        xfmt = plt.gca().get_xaxis().get_major_formatter() # needs to be set AFTER plt.xscale()
+        if xscale == "log":
+            mask = x_variable > 1
+        elif xscale == "linear":
             mask = np.full_like(x_variable, True, dtype=bool) 
+            xfmt.set_powerlimits((-2, 2)) # force scientific notation outside this range
 
-            plt.xscale(xscale)
-            # needs to be set AFTER plt.xscale():
-            xfmt = plt.gca().get_xaxis().get_major_formatter() 
+    elif x_axis == "checkpoints":
+        x_variable = np.arange(len(run_summary.times))
+        xlabel = "Checkpoint"
+        xscale = "linear"
+        mask = np.full_like(x_variable, True, dtype=bool) 
 
-        else:
-            raise NotImplementedError("can't recognize x_axis value: " + x_axis)
-
-        if distplot is True:
-            SNe_distplot(last_run, x_axis)
-
-
-        plt.plot(x_variable[mask], 
-                 last_run.momentum[mask] / (last_run.overview.cluster_mass * 100*1000))
         plt.xscale(xscale)
-        plt.xlabel(xlabel)   
-        plt.gca().xaxis.set_major_formatter(xfmt)
-        plt.ylabel(r"Momentum / M$_\mathrm{cluster}$ [km s$^{-1}$]")
-        
-        plt.ylim(ymin=0)
-        if x_axis is "checkpoints":
-            plt.xlim(xmin=0)
+        xfmt = plt.gca().get_xaxis().get_major_formatter() # needs to be set AFTER plt.xscale()
+
+    else:
+        raise NotImplementedError("can't recognize x_axis value: " + x_axis)
+
+    E_err = (run_summary.E_tot - run_summary.E_tot[0]) / run_summary.E_tot[0]
+    plt.plot(x_variable[mask], E_err[mask])
+    plt.xscale(xscale)
+    plt.xlabel(xlabel)   
+    plt.gca().xaxis.set_major_formatter(xfmt)
+    plt.ylabel("Fractional Change (Energy)")
+    SNe_distplot(run_summary, x_axis)
+
+    plt.figure()
+    plt.plot(x_variable[mask], run_summary.E_tot[mask], label="E_tot" )
+    plt.plot(x_variable[mask], run_summary.E_kin[mask], label="E_kin" )
+    plt.plot(x_variable[mask], run_summary.E_int[mask], label="E_int" )
+    plt.legend(loc="best")
+    plt.xscale(xscale)
+    plt.xlabel(xlabel) 
+    plt.gca().xaxis.set_major_formatter(xfmt)
+    plt.ylabel("Energy [erg]")
+    SNe_distplot(run_summary, x_axis)
+
+    
+    plt.figure()
+    plt.plot(x_variable[mask], run_summary.E_R_tot[mask], label="E_Remnant" )
+    plt.legend(loc="best")
+    plt.xscale(xscale)
+    plt.xlabel(xlabel)  
+    plt.gca().xaxis.set_major_formatter(xfmt)
+    plt.ylabel("Energy [erg]")
+    SNe_distplot(run_summary, x_axis)
+
+    if x_axis == "checkpoints":
+        plt.xlim(xmin=0)
 
 
-
-def plot_luminosity(last_run, x_axis):
-    if type(last_run) is RunSummary:
+def plot_momentum(run_summary, x_axis, clear_previous=True, distplot=True):
+    if run_summary.overview.cluster_mass <= 0:
+        raise ValueError("Cluster mass doesn't allow valid normalization of momentum")
+    
+    if clear_previous:
         plt.figure()
-        if x_axis is "time":
-            x_variable = last_run.times / yr
-            xlabel = "Time [yr]"
-            xscale = "log"
-            if xscale is "log":
-                mask = x_variable > 1
-            else:
-                mask = np.full_like(x_variable, True, dtype=bool)
-                xfmt.set_powerlimits((-2, 2)) # force scientific notation outside this range
 
-        elif x_axis is "checkpoints":
-            x_variable = np.arange(len(last_run.times))
-            xlabel = "Checkpoint"
-            xscale = "linear"
-            mask = np.full_like(x_variable, True, dtype=bool)
-
-        else:
-            raise NotImplementedError("can't recognize x_axis value: " + x_axis)
-        
-        y_data = last_run.Luminosity[mask]
-        gauss_kernel = Gaussian1DKernel(2)
-        y_data = convolve(y_data, gauss_kernel)
-        
-        plt.plot(x_variable[mask],  y_data, label="net cooling")
-        plt.plot(x_variable[mask], -y_data, label="net heating + accretion", color="r")
-        plt.xlabel(xlabel)
+    if x_axis == "time":
+        x_variable = run_summary.times / yr
+        xlabel = "Time [yr]"
+        xscale = "linear"
         plt.xscale(xscale)
-        plt.ylabel(r"dE/dt [erg s$^{-1}$]")
-        plt.yscale("log")
-        plt.legend(loc="best")
-        
-        xfmt = plt.gca().get_xaxis().get_major_formatter()
+        xfmt = plt.gca().get_xaxis().get_major_formatter() # needs to be set AFTER plt.xscale()
+        if xscale == "log":
+            mask = x_variable > 1
+        elif xscale == "linear":
+            mask = np.full_like(x_variable, True, dtype=bool) 
+            xfmt.set_powerlimits((-2, 2)) # force scientific notation outside this range
 
-        plt.gca().xaxis.set_major_formatter(xfmt)
-        print("Luminosity max at checkpoint: ", np.argmax(last_run.t_0 == last_run.times))
-        print("Luminosity max at time:       ", format(last_run.t_0 / yr,
-                                                       general_string_format),
-              "[yr]" )
-        if x_axis is "checkpoints":
-            plt.xlim(xmin=0)
+    elif x_axis == "checkpoints":
+        x_variable = np.arange(len(run_summary.times))
+        xlabel = "Checkpoint"
+        xscale = "linear"
+        mask = np.full_like(x_variable, True, dtype=bool) 
+
+        plt.xscale(xscale)
+        # needs to be set AFTER plt.xscale():
+        xfmt = plt.gca().get_xaxis().get_major_formatter() 
+
+    else:
+        raise NotImplementedError("can't recognize x_axis value: " + x_axis)
+
+    if distplot:
+        SNe_distplot(run_summary, x_axis)
+
+
+    plt.plot(x_variable[mask], 
+             run_summary.momentum[mask] / (run_summary.overview.cluster_mass * 100*1000))
+    plt.xscale(xscale)
+    plt.xlabel(xlabel)   
+    plt.gca().xaxis.set_major_formatter(xfmt)
+    plt.ylabel(r"Momentum / M$_\mathrm{cluster}$ [km s$^{-1}$]")
+    
+    plt.ylim(ymin=0)
+    if x_axis == "checkpoints":
+        plt.xlim(xmin=0)
+
+
+
+def plot_luminosity(run_summary, x_axis):
+    plt.figure()
+    if x_axis == "time":
+        x_variable = run_summary.times / yr
+        xlabel = "Time [yr]"
+        xscale = "log"
+        if xscale == "log":
+            mask = x_variable > 1
+        else:
+            mask = np.full_like(x_variable, True, dtype=bool)
+            xfmt.set_powerlimits((-2, 2)) # force scientific notation outside this range
+
+    elif x_axis == "checkpoints":
+        x_variable = np.arange(len(run_summary.times))
+        xlabel = "Checkpoint"
+        xscale = "linear"
+        mask = np.full_like(x_variable, True, dtype=bool)
+
+    else:
+        raise NotImplementedError("can't recognize x_axis value: " + x_axis)
+    
+    y_data = run_summary.Luminosity[mask]
+    gauss_kernel = Gaussian1DKernel(2)
+    y_data = convolve(y_data, gauss_kernel)
+    
+    plt.plot(x_variable[mask],  y_data, label="net cooling")
+    plt.plot(x_variable[mask], -y_data, label="net heating + accretion", color="r")
+    plt.xlabel(xlabel)
+    plt.xscale(xscale)
+    plt.ylabel(r"dE/dt [erg s$^{-1}$]")
+    plt.yscale("log")
+    plt.legend(loc="best")
+    
+    xfmt = plt.gca().get_xaxis().get_major_formatter()
+
+    plt.gca().xaxis.set_major_formatter(xfmt)
+    print("Luminosity max at checkpoint: ", np.argmax(run_summary.t_0 == run_summary.times))
+    print("Luminosity max at time:       ", format(run_summary.t_0 / yr,
+                                                   general_string_format),
+          "[yr]" )
+    if x_axis == "checkpoints":
+        plt.xlim(xmin=0)
 
 
 def plot_momentum_scaling(masses, momenta):

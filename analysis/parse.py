@@ -6,8 +6,10 @@ import pandas as pd
 
 from astropy.convolution import convolve, Gaussian1DKernel
 
+from scipy.signal import argrelextrema
+
 ## Boilerplate path hack to give access to full clustered_SNe package
-import sys
+import sys, os
 if __package__ is None:
     if os.pardir not in sys.path[0]:
         file_dir = os.path.dirname(__file__)
@@ -37,28 +39,165 @@ def string_to_bool(string):
     if string in ["false", "0"]:
         return False
 
-    if bool(int(string)) is True:
-        return True
-    return False
+    return bool(int(string))
 
+#####################
 
 class RunSummary(dict):
-    """Extends dict to hold useful reduced variables.
+    """Extended dict to hold useful reduced variables.
 
-        Basically all of the initialization will be set within parse_run.
         At some point, it might be worth making this cleaner.
     """
-    def __init__(self):
+    def __init__(self, data_dir = None, id = None):
         super(RunSummary, self).__init__()
+        if data_dir is None:
+            return # create an empty place holder
 
-    def replace_with(self, copy_this):
-        if type(copy_this) is not RunSummary:
-            raise TypeError("Object passed to `replace_with' must be type RunSummary")
+        checkpoint_filenames = glob.glob(os.path.join(data_dir,
+                                                      id + "*checkpoint_*.dat"))
+        checkpoint_filenames = sorted(checkpoint_filenames)
+        num_checkpoints = len(checkpoint_filenames)
 
-        self.clear()
-        keys = copy_this.keys()
-        for key in keys:
-            self[key] = copy_this[key]
+        if num_checkpoints == 0:
+            raise FileNotFoundError("No checkpoints found")
+
+        # ensure that the id is actually the FULL id
+        basename = os.path.basename(checkpoint_filenames[0])
+        id = basename.split("_checkpoint")[0]
+
+        for filename in checkpoint_filenames:
+            id_tmp = os.path.basename(filename).split("_checkpoint")[0]
+            if id_tmp != id:
+                raise ValueError("id not unique in directory")
+
+        times = np.empty(num_checkpoints)
+        for k, checkpoint_filename in enumerate(checkpoint_filenames):
+            f = open(checkpoint_filename, 'r')
+            line = f.readline()
+            times[k] = float(line.split()[3])
+            f.close()
+
+        overview = Overview(os.path.join(data_dir, id + "_overview.dat"))
+
+        mu = calculate_mean_molecular_weight(overview.metallicity)
+
+        E_int    = np.empty(num_checkpoints)
+        E_kin    = np.empty(num_checkpoints)
+        momentum = np.empty(num_checkpoints)
+        E_tot    = np.empty(num_checkpoints)
+        
+        E_R_int  = np.empty(num_checkpoints) # Energy of the remnant
+        E_R_kin  = np.empty(num_checkpoints) # Energy of the remnant
+        E_R_tot  = np.empty(num_checkpoints) # Energy of the remnant
+        R_shock  = np.empty(num_checkpoints) # size of the shock/remnant
+        M_R      = np.empty(num_checkpoints) # mass of the shock/remnant
+        
+        M_tot    = np.empty(num_checkpoints)
+        Z_tot    = np.empty(num_checkpoints)
+        zones    = np.empty(num_checkpoints)
+        
+        Luminosity = np.empty(num_checkpoints)
+
+
+
+        #### PARSE DATAFILES INTO DATAFRAME
+        df = pd.DataFrame()
+        for k, checkpoint_filename in enumerate(checkpoint_filenames):
+            array_tmp = np.loadtxt(checkpoint_filename, usecols=range(len(cols_in)))
+            array_tmp = array_tmp[1:-1] # ignore guard cells
+            index     = pd.MultiIndex.from_product([k, np.arange(array_tmp.shape[0])],
+                                                   names=["k","i"])
+            df_tmp    = pd.DataFrame(array_tmp, columns=cols_in, index = index)
+
+            df_tmp["Mass"]        = calculate_mass(df_tmp.Density.values,
+                                                   df_tmp.dV.values)
+            df_tmp["M_int"]       = df_tmp.Mass.cumsum()
+            df_tmp["Temperature"] = calculate_temperature(df_tmp.Pressure.values,
+                                                          df_tmp.Density.values, mu)
+            df_tmp["Energy"]      = calculate_internal_energy(df_tmp.Mass.values,
+                                                              df_tmp.Pressure.values,
+                                                              df_tmp.Density.values) \
+                                                               / df_tmp.Mass.values
+            df_tmp["Entropy"]     = calculate_entropy(df_tmp.Temperature.values, 
+                                                      df_tmp.Density.values, mu)
+            df_tmp["C_ad"]        = calculate_c_ad(df_tmp.Pressure.values,
+                                                   df_tmp.Density.values)
+            w_cell = calculate_w_cell(df_tmp.Velocity.values)
+            df_tmp["Crossing_time"] = calculate_crossing_time(df_tmp.C_ad.values,
+                                                              df_tmp.Velocity.values,
+                                                              w_cell,
+                                                              df_tmp.dR.values )
+            df_tmp["zones"]       = np.arange(array_tmp.shape[0])
+            
+            E_kin[k]    = calculate_kinetic_energy(df_tmp.Mass.values,
+                                                   df_tmp.Velocity.values).sum()
+            E_int[k]    = calculate_internal_energy(df_tmp.Mass.values,
+                                                    df_tmp.Pressure.values,
+                                                    df_tmp.Density.values).sum()
+            momentum[k] = calculate_momentum(df_tmp.Mass.values,
+                                             df_tmp.Velocity.values).sum()
+            E_tot[k]    = E_kin[k] + E_int[k]
+            M_tot[k]    = df_tmp.M_int[-1]
+            Z_tot[k]    = np.sum(df_tmp.Mass * df_tmp.Z)
+            zones[k]    = df_tmp.shape[0]
+            
+            over_dense = df_tmp.Density > overview.background_density * 1.0001
+            if np.any(over_dense):
+                R_shock[k] = np.max(df_tmp.Radius[over_dense])
+                M_R[k]     = np.max(df_tmp.M_int[over_dense])  
+            else:    
+                R_shock[k] = df_tmp.Radius.iloc[0]
+                M_R[k]     = df_tmp.M_int.iloc[0]
+            remnant = df_tmp.Radius <= R_shock[k]
+            E_R_kin[k] = calculate_kinetic_energy(df_tmp.Mass[remnant].values,
+                                                  df_tmp.Velocity[remnant].values).sum()
+            E_R_int[k] = calculate_internal_energy(df_tmp.Mass[remnant].values, 
+                                                   df_tmp.Pressure[remnant].values,
+                                                   df_tmp.Density[remnant].values).sum()
+            E_R_tot[k] = E_R_int[k] + E_R_kin[k]
+            
+            if k == 0:
+                Luminosity[k] = 0
+            else:
+                Luminosity[k] = -(E_R_tot[k] - E_R_tot[k-1]) / (times[k] - times[k-1])
+
+            df = pd.concat([df, df_tmp])
+
+        df.Radius /= pc
+        df.Mass   /= M_solar
+        df.M_int  /= M_solar
+        
+        self.id         = id
+        self.data_dir   = data_dir
+        self.df         = df
+        self.times      = times
+        self.zones      = zones
+        self.E_tot      = E_tot
+        self.Z_tot      = Z_tot
+        self.E_int      = E_int
+        self.E_kin      = E_kin
+        self.E_R_int    = E_R_int
+        self.E_R_kin    = E_R_kin
+        self.E_R_tot    = E_R_tot
+        self.R_shock    = R_shock
+        self.M_R        = M_R
+        self.momentum   = momentum
+        self.Luminosity = Luminosity
+
+        self.overview   = overview
+        self.filenames  = checkpoint_filenames
+        
+        # filter for when initial transients have settled
+        # assume that the settling time scales with the total time
+        #   (e.g. since t_0 of Thornton should scale with our final end time)
+        t_settled         = np.max(times) / 3e3
+        valid_lums        = Luminosity[times > t_settled]
+        smoothing_width   = 2 # how many checkpoints wide
+        smoothing_kernel  = Gaussian1DKernel(smoothing_width)
+        smoothed_lums     = convolve(valid_lums, smoothing_kernel)
+        max_lum           = valid_lums[np.argmax(smoothed_lums)]
+        self.t_0          = times[Luminosity == max_lum][0]
+        self.t_f          = 13 * self.t_0 # to match with t_f given by Thornton
 
     def __repr__(self):
         """Overwrite dict.__repr__ to give the default object repr"""
@@ -67,10 +206,84 @@ class RunSummary(dict):
             self.__class__.__name__,
             hex(id(self))
         )
+
     def __getattr__(self, name):
         return self[name]
+
     def __setattr__(self, name, value):
         self[name] = value
+
+    def replace_with(self, copy_this):
+        if not isinstance(copy_this, RunSummary):
+            raise TypeError("Object passed to `replace_with' must be RunSummary instance")
+
+        self.clear()
+        keys = copy_this.keys()
+        for key in keys:
+            self[key] = copy_this[key]
+
+    def is_last_checkpoint_x99(self):
+        if self.overview.num_SNe == 0:
+            return True
+
+        momenta = self.momentum
+        if (momenta.size < 25):
+            earlier_momentum = momenta[0]
+        else:
+            earlier_momentum = momenta[-25]
+        current_momentum = momenta[-1]
+        tolerance = .01
+        if (current_momentum > ((1+tolerance) * earlier_momentum)):
+            return False
+        else:
+            return True
+
+    def is_converged(self):
+        if self.overview.num_SNe == 0:
+            return True
+
+        momenta = self.momentum
+        if (momenta.size < 25):
+            earlier_momentum = momenta[0]
+        else:
+            earlier_momentum = momenta[-25]
+        current_momentum = momenta[-1]
+        tolerance = .01
+        if (current_momentum > ((1+tolerance) * earlier_momentum)):
+            return False
+        else:
+            return True
+
+    def is_time_resolved(self):
+        if self.overview.SNe_times.size == 0:
+            return True
+        
+        momentum_max_index = self.momentum.argmax()
+        if momentum_max_index == 1:
+            return False
+        else:
+            return True
+
+    def is_energy_reasonable(self):
+        if self.overview.SNe_times.size == 0:
+            return True
+
+        flagged_indices = np.argwhere( (self.E_R_tot[1:]/self.E_R_tot[:-1]) > 2 )
+        for i in flagged_indices:
+            dE = self.E_R_tot[i+1] - self.E_R_tot[i]
+            dN_SNe = sum((self.overview.SNe_times > self.times[i])
+                         & (self.overview.SNe_times < self.times[i+1]))
+            dE_SNe = dN_SNe * E_0
+            if dE > dE_SNe:
+                return False
+        return True
+
+    def num_momenta_maxima(self):
+        return len(argrelextrema(self.momentum, np.greater)[0])
+
+
+#####################
+
 
 
 class Inputs(object):
@@ -200,6 +413,9 @@ class Inputs(object):
         f.write("mass_loss: " + "{0}".format(self.mass_loss) + "\n")
 
 
+#####################
+
+
 class Overview(object):
     """Basic overview of a given ./SNe run
 
@@ -318,165 +534,15 @@ class Overview(object):
         return string
 
 
+#####################
+
+
 cols = ["Radius", "dR", "dV", "Density", 
         "Pressure", "Velocity", "Z", 
         "Temperature", "Energy", "Entropy", 
         "Mass", "M_int", "C_ad", "Crossing_time"]
 cols_in   = cols[:-7]
 
-
-
-
-def parse_run(data_dir, id):
-    #this whole thing is a mess, and needs to be refactored
-
-    checkpoint_filenames = glob.glob(os.path.join(data_dir,id + "*checkpoint_*.dat"))
-    checkpoint_filenames = sorted(checkpoint_filenames)
-    num_checkpoints = len(checkpoint_filenames)
-
-    if num_checkpoints == 0:
-        raise FileNotFoundError("No checkpoints found")
-    
-    # ensure that the id is actually the FULL id
-    basename = os.path.basename(checkpoint_filenames[0])
-    id = basename.split("_checkpoint")[0]
-
-    for filename in checkpoint_filenames:
-        id_tmp = os.path.basename(filename).split("_checkpoint")[0]
-        if id_tmp != id:
-            raise ValueError("id not unique in directory")
-
-    times = np.empty(num_checkpoints)
-    for k, checkpoint_filename in enumerate(checkpoint_filenames):
-        f = open(checkpoint_filename, 'r')
-        line = f.readline()
-        times[k] = float(line.split()[3])
-        f.close()
-
-    overview = Overview(os.path.join(data_dir, id + "_overview.dat"))
-
-    mu = calculate_mean_molecular_weight(overview.metallicity)
-
-    E_int    = np.empty(num_checkpoints)
-    E_kin    = np.empty(num_checkpoints)
-    momentum = np.empty(num_checkpoints)
-    E_tot    = np.empty(num_checkpoints)
-    
-    E_R_int  = np.empty(num_checkpoints) # Energy of the remnant
-    E_R_kin  = np.empty(num_checkpoints) # Energy of the remnant
-    E_R_tot  = np.empty(num_checkpoints) # Energy of the remnant
-    R_shock  = np.empty(num_checkpoints) # size of the shock/remnant
-    M_R      = np.empty(num_checkpoints) # mass of the shock/remnant
-    
-    M_tot    = np.empty(num_checkpoints)
-    Z_tot    = np.empty(num_checkpoints)
-    zones    = np.empty(num_checkpoints)
-    
-    Luminosity = np.empty(num_checkpoints)
-
-
-    #### PARSE DATAFILES INTO DATAFRAME
-    df = pd.DataFrame()
-    for k, checkpoint_filename in enumerate(checkpoint_filenames):
-        array_tmp = np.loadtxt(checkpoint_filename, usecols=range(len(cols_in)))
-        array_tmp = array_tmp[1:-1] # ignore guard cells
-        index     = pd.MultiIndex.from_product([k, np.arange(array_tmp.shape[0])],
-                                               names=["k","i"])
-        df_tmp    = pd.DataFrame(array_tmp, columns=cols_in, index = index)
-
-        df_tmp["Mass"]        = calculate_mass(df_tmp.Density.values,
-                                               df_tmp.dV.values)
-        df_tmp["M_int"]       = df_tmp.Mass.cumsum()
-        df_tmp["Temperature"] = calculate_temperature(df_tmp.Pressure.values,
-                                                      df_tmp.Density.values, mu)
-        df_tmp["Energy"]      = calculate_internal_energy(df_tmp.Mass.values,
-                                                          df_tmp.Pressure.values,
-                                                          df_tmp.Density.values) \
-                                                           / df_tmp.Mass.values
-        df_tmp["Entropy"]     = calculate_entropy(df_tmp.Temperature.values, 
-                                                  df_tmp.Density.values, mu)
-        df_tmp["C_ad"]        = calculate_c_ad(df_tmp.Pressure.values,
-                                               df_tmp.Density.values)
-        w_cell = calculate_w_cell(df_tmp.Velocity.values)
-        df_tmp["Crossing_time"] = calculate_crossing_time(df_tmp.C_ad.values,
-                                                          df_tmp.Velocity.values,
-                                                          w_cell,
-                                                          df_tmp.dR.values )
-        df_tmp["zones"]       = np.arange(array_tmp.shape[0])
-        
-        E_kin[k]    = calculate_kinetic_energy(df_tmp.Mass.values,
-                                               df_tmp.Velocity.values).sum()
-        E_int[k]    = calculate_internal_energy(df_tmp.Mass.values,
-                                                df_tmp.Pressure.values,
-                                                df_tmp.Density.values).sum()
-        momentum[k] = calculate_momentum(df_tmp.Mass.values,
-                                         df_tmp.Velocity.values).sum()
-        E_tot[k]    = E_kin[k] + E_int[k]
-        M_tot[k]    = df_tmp.M_int[-1]
-        Z_tot[k]    = np.sum(df_tmp.Mass * df_tmp.Z)
-        zones[k]    = df_tmp.shape[0]
-        
-        # over_dense = df_tmp.Density != background_density
-        over_dense = df_tmp.Density > overview.background_density * 1.0001
-        if np.any(over_dense):
-            R_shock[k] = np.max(df_tmp.Radius[over_dense])
-            M_R[k]     = np.max(df_tmp.M_int[over_dense])  
-        else:    
-            R_shock[k] = df_tmp.Radius.iloc[0]
-            M_R[k]     = df_tmp.M_int.iloc[0]
-        remnant = df_tmp.Radius <= R_shock[k]
-        E_R_kin[k] = calculate_kinetic_energy(df_tmp.Mass[remnant].values,
-                                              df_tmp.Velocity[remnant].values).sum()
-        E_R_int[k] = calculate_internal_energy(df_tmp.Mass[remnant].values, 
-                                               df_tmp.Pressure[remnant].values,
-                                               df_tmp.Density[remnant].values).sum()
-        E_R_tot[k] = E_R_int[k] + E_R_kin[k]
-        
-        if k is 0:
-            Luminosity[k] = 0
-        else:
-            Luminosity[k] = -(E_R_tot[k] - E_R_tot[k-1]) / (times[k] - times[k-1])
-
-        df = pd.concat([df, df_tmp])
-        
-    df.Radius /= pc
-    df.Mass   /= M_solar
-    df.M_int  /= M_solar
-    
-    last_run= RunSummary()
-
-    last_run.id         = id
-    last_run.df         = df
-    last_run.times      = times
-    last_run.zones      = zones
-    last_run.E_tot      = E_tot
-    last_run.Z_tot      = Z_tot
-    last_run.E_int      = E_int
-    last_run.E_kin      = E_kin
-    last_run.E_R_int    = E_R_int
-    last_run.E_R_kin    = E_R_kin
-    last_run.E_R_tot    = E_R_tot
-    last_run.R_shock    = R_shock
-    last_run.M_R        = M_R
-    last_run.momentum   = momentum
-    last_run.Luminosity = Luminosity
-
-    last_run.overview   = overview
-    last_run.filenames  = checkpoint_filenames
-    
-    # filter for when initial transients have settled
-    # assume that the settling time scales with the total time
-    #   (e.g. since t_0 of Thornton should scale with our final end time)
-    t_settled           = np.max(times) / 3e3
-    valid_lums          = Luminosity[times > t_settled]
-    smoothing_width     = 2 # how many checkpoints wide
-    smoothing_kernel    = Gaussian1DKernel(smoothing_width)
-    smoothed_lums       = convolve(valid_lums, smoothing_kernel)
-    max_lum             = valid_lums[np.argmax(smoothed_lums)]
-    last_run.t_0        = times[Luminosity == max_lum][0]
-    last_run.t_f        = 13 * last_run.t_0 # to match with t_f given by Thornton
-
-    return last_run
 
 
 def extract_masses_momenta_raw(data_dir, density, metallicity,
@@ -513,15 +579,15 @@ def extract_masses_momenta_raw(data_dir, density, metallicity,
         mass = overview.cluster_mass
         id = os.path.basename(overview_filename).split("_")[0]
     
-        last_run = parse_run(data_dir, id)
+        run_summary = RunSummary(data_dir=data_dir, id=id)
         if extract_at_last_SN:
-            last_SNe_time = last_run.overview.SNe_times.max()
-            times = last_run.times
+            last_SNe_time = run_summary.overview.SNe_times.max()
+            times = run_summary.times
             
             checkpoint_after_SNe = np.argmin(np.abs(times - times[times>last_SNe_time].min()))
-            momentum = last_run.momentum[checkpoint_after_SNe]
+            momentum = run_summary.momentum[checkpoint_after_SNe]
         else:
-            momentum = last_run.momentum.max()
+            momentum = run_summary.momentum.max()
         
         masses  = np.append(masses, mass)
         momenta = np.append(momenta, momentum)
@@ -537,4 +603,3 @@ def extract_masses_momenta_raw(data_dir, density, metallicity,
     ids     = ids[     sorted_indices]
     return masses, momenta, ids
 
-# parse_run("../src", "")

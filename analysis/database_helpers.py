@@ -13,7 +13,7 @@ from sqlalchemy.orm import sessionmaker
 
 ## import from local files
 ## Boilerplate path hack to give access to full clustered_SNe package
-import sys
+import sys, os
 if __package__ is None:
     if os.pardir not in sys.path[0]:
         file_dir = os.getcwd()
@@ -24,7 +24,7 @@ if __package__ is None:
 from clustered_SNe.analysis.constants import m_proton, pc, yr, M_solar, \
                                     metallicity_solar
     
-from clustered_SNe.analysis.parse import parse_run, Overview, Inputs, \
+from clustered_SNe.analysis.parse import RunSummary, Overview, Inputs, \
                                         extract_masses_momenta_raw
 
 
@@ -72,29 +72,31 @@ class Simulation(Base):
                                                             self.last_updated)
 
     @classmethod
-    def from_last_run(cls, data_dir, last_run):
-        id = last_run.id
+    def from_run_summary(cls, run_summary):
+        id       = run_summary.id
+        data_dir = run_summary.data_dir
 
-        metallicity             = last_run.overview.metallicity
-        background_density      = last_run.overview.background_density
-        background_temperature  = last_run.overview.background_temperature
-        with_cooling            = last_run.overview.with_cooling
-        cooling_type            = last_run.overview.cooling_type
-        num_SNe                 = last_run.overview.num_SNe
-        cluster_mass            = last_run.overview.cluster_mass
-        seed                    = last_run.overview.seed
-        mass_loss               = last_run.overview.mass_loss
+        metallicity             = run_summary.overview.metallicity
+        background_density      = run_summary.overview.background_density
+        background_temperature  = run_summary.overview.background_temperature
+        with_cooling            = run_summary.overview.with_cooling
+        cooling_type            = run_summary.overview.cooling_type
+        num_SNe                 = run_summary.overview.num_SNe
+        cluster_mass            = run_summary.overview.cluster_mass
+        seed                    = run_summary.overview.seed
+        mass_loss               = run_summary.overview.mass_loss
         
-        if num_SNe > 1:
-            extraction_index = np.argmax(last_run.momentum)
+        if num_SNe >= 1:
+            extraction_index = np.argmax(run_summary.momentum)
 
-            E_R_kin                 = last_run.E_R_kin[ extraction_index]
-            E_R_int                 = last_run.E_R_int[ extraction_index]
-            M_R                     = last_run.M_R[     extraction_index]
-            R                       = last_run.R_shock[ extraction_index]
 
-            t                       = last_run.times[   extraction_index]
-            momentum                = last_run.momentum[extraction_index]
+            E_R_kin                 = run_summary.E_R_kin[ extraction_index]
+            E_R_int                 = run_summary.E_R_int[ extraction_index]
+            M_R                     = run_summary.M_R[     extraction_index]
+            R                       = run_summary.R_shock[ extraction_index]
+
+            t                       = run_summary.times[   extraction_index]
+            momentum                = run_summary.momentum[extraction_index]
 
         else:
             E_R_kin                 = 0 
@@ -105,7 +107,7 @@ class Simulation(Base):
             t                       = 0 
             momentum                = 0             
 
-        num_checkpoints = len(last_run.filenames)
+        num_checkpoints = len(run_summary.filenames)
 
         last_updated    = str(datetime.datetime.now())
 
@@ -137,7 +139,7 @@ class Simulation(Base):
         # things like cluster mass *shouldn't* change, 
         # but if you did change that, things could break
         session.query(self.__class__).\
-            filter(self.__class__.id==self.id).\
+            filter(self.__class__.id == self.id).\
             update({
                 "E_R_kin": self.E_R_kin,
                 "E_R_int": self.E_R_int,
@@ -271,49 +273,33 @@ class Simulation_Status(Base):
     # Unknown = everything else...
 
 
-    # do all these static/class methods probably need to be static/class methods
-    @staticmethod
-    def is_converged(id, data_dir):
-        overview = Overview(os.path.join(data_dir, id.rstrip("_") + "_overview.dat"))
-        if overview.num_SNe == 0:
-            return True
-
-        last_run = parse_run(data_dir, id)
-
-        momenta = last_run.momentum
-        if (momenta.size < 25):
-            earlier_momentum = momenta[0]
-        else:
-            earlier_momentum = momenta[-25]
-        current_momentum = momenta[-1]
-        tolerance = .01
-        if (current_momentum > ((1+tolerance) * earlier_momentum)):
-            return False
-        else:
-            return True
-
     @classmethod
-    def mappable_is_converged(cls, id_and_data_dir):
-        id, data_dir = id_and_data_dir
-        return cls.is_converged(id, data_dir)
+    def from_run_summary(cls, run_summary):
+        id = run_summary.id
 
+        finished  = run_summary.is_last_checkpoint_x99()
+        converged = run_summary.is_converged()
 
-    @staticmethod
-    def is_last_checkpoint_x99(id, data_dir):
-        checkpoints = glob.glob(os.path.join(data_dir, id + "_checkpoint_*.dat"))
-        checkpoints = sorted(checkpoints)
+        status = "Unknown"
+        if finished:
+            status = "Ready"
+        if finished and converged:
+            status = "Complete"
 
-        last_checkpoint = checkpoints[-1]
-        last_checkpoint_num = int(last_checkpoint.split("_")[-1].strip(".dat")) % 100
-        if last_checkpoint_num != 99:
-            return False
-        else:
-            return True
+        simulation_status = cls(id = id,
+                                data_dir = run_summary.data_dir,
+                                status = status)
 
-    @classmethod
-    def mappable_is_last_checkpoint_x99(cls, id_and_data_dir):
-        id, data_dir = id_and_data_dir
-        return cls.is_last_checkpoint_x99(id, data_dir)
+        if run_summary.overview.SNe_times.size > 0:
+            if not run_summary.is_time_resolved():
+                warnings.warn("Momentum max not time-resolved; id: " + id, UserWarning)
+            if not run_summary.is_energy_reasonable():
+                warnings.warn("Energy jumps unreasonably; id: " + id, UserWarning)
+            if run_summary.num_momenta_maxima() > 1:
+                warnings.warn("Multiple momenta maxima; id: " + id, UserWarning)
+
+        return simulation_status
+
 
 
     def create_new_batch_file(self, 
@@ -333,7 +319,7 @@ class Simulation_Status(Base):
 
     def update_to_table(self):
         session.query(self.__class__).\
-            filter(self.__class__.id==self.id).\
+            filter(self.__class__.id == self.id).\
             update({"status":self.status})
 
     def add_or_update_to_table(self):

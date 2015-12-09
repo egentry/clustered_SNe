@@ -151,7 +151,7 @@ class SedovSolution(object):
 
         momentum  = quad(dMomentum, self.V_0, self.V_2)
 
-        if verbose is True:
+        if verbose:
             print("momentum = {0:e} +/- {1:e}".format(momentum[0], momentum[1]))
 
         return momentum[0]
@@ -210,7 +210,7 @@ class SedovSolution(object):
 
         E_kin  = quad(dE_kin, self.V_0, self.V_2)
 
-        if verbose is True:
+        if verbose:
             print("E_kin    = {0:e} +/- {1:e}".format(E_kin[0], E_kin[1]))
 
         return E_kin[0]
@@ -262,7 +262,7 @@ class SedovSolution(object):
 
         E_int  = quad(dE_int, self.V_0, self.V_2)
 
-        if verbose is True:
+        if verbose:
             print("E_int    = {0:e} +/- {1:e}".format(E_int[0], E_int[1]))
 
         return E_int[0]

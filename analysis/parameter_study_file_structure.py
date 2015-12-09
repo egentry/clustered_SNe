@@ -4,7 +4,7 @@ import shutil
 import numpy as np
 
 ## Boilerplate path hack to give access to full clustered_SNe package
-import os, sys
+import sys, os
 if __package__ is None:
     if os.pardir not in sys.path[0]:
         file_dir = os.path.dirname(__file__)
@@ -50,7 +50,7 @@ def make_dirname_from_properties(background_density, metallicity,
     dirname = os.path.join(dirname, "log_n_" + "{0:+03.0f}".format(5*int(round(2*np.log10(background_density / m_proton / 1.33)))))
     dirname = os.path.join(dirname, "log_Z_" + "{0:+03.0f}".format(5*int(round(2*np.log10(metallicity / .02)))))
     dirname = os.path.join(dirname, "T_" + "{0:.0f}".format(background_temperature))
-    if with_cooling is True:
+    if with_cooling:
         dirname = os.path.join(dirname, "with_cooling")
     else:
         dirname = os.path.join(dirname, "no_cooling")
