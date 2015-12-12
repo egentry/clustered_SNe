@@ -266,7 +266,7 @@ class RunSummary(dict):
 
     def is_energy_reasonable(self):
         first_unreasonable_energy_filename = self.first_unreasonable_energy()
-        if first_unreasonable_energy is None:
+        if first_unreasonable_energy_filename is None:
             return True
         else:
             print("unreasonable jump before checkpoint: " \
