@@ -265,8 +265,17 @@ class RunSummary(dict):
             return True
 
     def is_energy_reasonable(self):
-        if self.overview.SNe_times.size == 0:
+        first_unreasonable_energy_filename = self.first_unreasonable_energy()
+        if first_unreasonable_energy is None:
             return True
+        else:
+            print("unreasonable jump before checkpoint: " \
+                +  first_unreasonable_energy_filename)
+            return False
+
+    def first_unreasonable_energy(self):
+        if self.overview.SNe_times.size == 0:
+            return None
 
         flagged_indices = np.argwhere( (self.E_R_tot[1:]/self.E_R_tot[:-1]) > 2 )
         for i in flagged_indices:
@@ -274,9 +283,10 @@ class RunSummary(dict):
             dN_SNe = sum((self.overview.SNe_times > self.times[i])
                          & (self.overview.SNe_times < self.times[i+1]))
             dE_SNe = dN_SNe * E_0
-            if dE > dE_SNe:
-                return False
-        return True
+            if dE > 2*dE_SNe:
+                return self.filenames[i+1]
+        return None
+
 
     def num_momenta_maxima(self):
         return len(argrelextrema(self.momentum, np.greater)[0])
