@@ -172,6 +172,25 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
         }
     }
 
+    if (completed_runs >= 196)
+    {
+        int run=196;
+        for( int i=0 ; i<n_metallicities ; ++i )
+        {
+            for( int j=0 ; j<n_background_densities ; ++j )
+            {
+                if( completed_runs == run )
+                {
+                    theDomain->metallicity            = metallicities[i];
+                    theDomain->background_density     = background_densities[j];
+                    theDomain->background_temperature = 1e4;
+                    theDomain->cluster_mass           = pow(10, 2.5);
+                }
+                ++run;
+            }
+        }
+    }
+
 
     // Assumes E_blast = 1e51
 

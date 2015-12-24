@@ -1,0 +1,15 @@
+#!/bin/bash
+#
+# this is ugly. If I wasn't in the middle of runs, 
+# I'd change this so this runs followed the previous pattern
+#$ -t 197-245
+#
+#$ -M egentry@ucsc.edu
+#$ -m e
+#
+#$ -cwd
+#$ -S /bin/bash
+#
+
+source $HOME/.bashrc
+time ../bin/SNe ../src/in.par $(expr $SGE_TASK_ID - 1)
