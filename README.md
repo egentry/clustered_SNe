@@ -26,7 +26,7 @@ This code will generally not run immediately out of the box.  In addition to the
   - c++ compiler (assumes clang for OS X, gcc for Linux)
     - should (must?) be c++11 capable
   - [slug2](https://bitbucket.org/krumholz/slug2)
-    - slug2 must be built as a shared library (change into the `src` directory and call `make lib`)
+    - slug2 must be built as a shared library (change into the `src` directory and call `make lib`; if you enabled FITS at compile time, then keep it enabled at link time. For simplicity, use `make clean && make lib` in the `src` directory.)
     - requires the [GSL](https://www.gnu.org/software/gsl/), [Boost](http://www.boost.org/)
   - libuuid
   - [grackle cooling](https://bitbucket.org/grackle/grackle)
