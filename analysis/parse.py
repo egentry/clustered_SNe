@@ -62,13 +62,7 @@ class RunSummary(dict):
             raise FileNotFoundError("No checkpoints found")
 
         # ensure that the id is actually the FULL id
-        basename = os.path.basename(checkpoint_filenames[0])
-        id = basename.split("_checkpoint")[0]
-
-        for filename in checkpoint_filenames:
-            id_tmp = os.path.basename(filename).split("_checkpoint")[0]
-            if id_tmp != id:
-                raise ValueError("id not unique in directory")
+        id = get_full_id_from_partial_id(data_dir, id)
 
         times = np.empty(num_checkpoints)
         for k, checkpoint_filename in enumerate(checkpoint_filenames):
@@ -242,17 +236,9 @@ class RunSummary(dict):
         if self.overview.num_SNe == 0:
             return True
 
-        momenta = self.momentum
-        if (momenta.size < 25):
-            earlier_momentum = momenta[0]
-        else:
-            earlier_momentum = momenta[-25]
-        current_momentum = momenta[-1]
-        tolerance = .01
-        if (current_momentum > ((1+tolerance) * earlier_momentum)):
-            return False
-        else:
-            return True
+        momentum_max = self.momentum.max()
+        tolerance = .05
+        return (((1+tolerance) * self.momentum[-1]) < momentum_max)
 
     def is_time_resolved(self):
         if self.overview.SNe_times.size == 0:
@@ -273,6 +259,14 @@ class RunSummary(dict):
                 +  first_unreasonable_energy_filename)
             return False
 
+    def num_momentum_extrema_after_last_SNe(self, operator):
+        """Operator: e.g. np.less for minima; np.greater for maxima"""
+        indices = argrelextrema(self.momentum, operator)[0]
+        checkpoint_after_last_SNe = np.argmax(self.times > self.overview.SNe_times.max())
+
+        indices = indices[ indices > checkpoint_after_last_SNe]
+        return len(indices)
+
     def first_unreasonable_energy(self):
         if self.overview.SNe_times.size == 0:
             return None
@@ -290,6 +284,9 @@ class RunSummary(dict):
 
     def num_momenta_maxima(self):
         return len(argrelextrema(self.momentum, np.greater)[0])
+
+    def num_momenta_minima(self):
+        return len(argrelextrema(self.momentum, np.less)[0])
 
 
 #####################
@@ -612,4 +609,17 @@ def extract_masses_momenta_raw(data_dir, density, metallicity,
     momenta = momenta[ sorted_indices]
     ids     = ids[     sorted_indices]
     return masses, momenta, ids
+
+def get_full_id_from_partial_id(data_dir, partial_id):
+    filenames = glob.glob(os.path.join(data_dir, partial_id + "*_checkpoint_*.dat"))
+    if len(filenames) == 0:
+        raise FileNotFoundError("No checkpoints found with partial id: " + partial_id)
+
+    full_id = os.path.basename(filenames[0]).split("_checkpoint")[0]
+
+    for filename in filenames:
+        full_id_tmp = os.path.basename(filename).split("_checkpoint")[0]
+        if full_id_tmp != full_id:
+            raise ValueError("partial id not unique in directory")
+    return full_id
 

@@ -53,7 +53,7 @@ CXX_FLAGS = -Wall -g -std=c++11 -fPIC
 INC += 
 LIB += -lstdc++
 
-UUID_DIR = $(HOME)/local/libuuid
+UUID_DIR = $(HOME)/miniconda3
 INC_UUID = -I$(UUID_DIR)/include
 LIB_UUID = -L$(UUID_DIR)/lib -luuid
 
@@ -62,15 +62,15 @@ INC_SLUG  = -I$(SLUG_DIR)/src
 LIB_SLUG  = -L$(SLUG_DIR)/src -lslug
 LIB_SLUG += -Wl,-rpath,$(SLUG_DIR)/src
 
-BOOST_DIR  = $(HOME)/local/boost_1_59_0
+BOOST_DIR  = $(HOME)/local/boost_1_60_0
 INC_BOOST  = -I$(BOOST_DIR)/include
 LIB_BOOST  = -L$(BOOST_DIR)/lib -lboost_system -lboost_filesystem
 LIB_BOOST += -Wl,-rpath,$(BOOST_DIR)/lib
 
-GSL_DIR  = $(HOME)/local/gsl-1.16
+GSL_DIR  = $(HOME)/local/gsl-2.1
 INC_GSL  = -I$(GSL_DIR)/include
 LIB_GSL  = -L$(GSL_DIR)/lib 
-LIB_GSL += -Wl,-rpath,$(HOME)/local/gsl-1.16/lib
+LIB_GSL += -Wl,-rpath,$(GSL_DIR)/lib
 
 #GRACKLE_DIR is needed for a define statement within cooling
 GRACKLE_DIR  =  $(HOME)/local/grackle
@@ -80,7 +80,7 @@ LIB_GRACKLE += -Wl,-rpath,$(GRACKLE_DIR)/lib
 
 #cfitsio an optional dependency of slug2
 ETC_RPATHS  = -Wl,-rpath,$(HOME)/local/cfitsio/lib
-ETC_RPATHS += -Wl,-rpath,$(HOME)/local/gcc-5.2.0/lib64
+ETC_RPATHS += -Wl,-rpath,$(HOME)/local/gcc-5.3.0/lib64
 LIB += $(ETC_RPATHS)
 
 DYNLIB = -shared
@@ -180,16 +180,15 @@ HEADERS = 	structure.H \
 
 default: all 
 
-all: $(LIB_NAME)
 all: $(EXE)
-all: move_headers
-all: link_inputs
+all: $(LIB_NAME)
+all: copy_headers
 
 
 %.o: %.cxx $(HEADERS)
 	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c $< -o $@
 
-$(EXE): $(OBJ) $(HEADERS) $(LIB_NAME)
+$(EXE): $(OBJ) $(HEADERS)
 	$(CXX) $(CXX_FLAGS) -o $(EXE) $(OBJ) $(LIB)
 	cp $(EXE) ../bin/$(EXE)
 
@@ -201,20 +200,17 @@ $(LIB_NAME): $(OBJ) $(HEADERS)
 	mkdir -p $(LIB_DIR)
 	$(CXX) $(CXX_FLAGS) -o $(LIB_NAME) $(OBJ) $(LIB) $(DYNLIB) $(LIB_FLAGS) -LInitial/
 
-move_headers: 
+copy_headers: 
 	@ mkdir -p $(INC_DIR)
 	@ mkdir -p $(INC_DIR)/Initial
 	@ mkdir -p $(INC_DIR)/Hydro
 	@ mkdir -p $(INC_DIR)/Output
 	@ mkdir -p $(INC_DIR)/Initial
-	@ echo "Moving headers into " $(INC_DIR)
+	@ echo "Copying headers into " $(INC_DIR)
 	@ for HEADER in $(HEADERS); \
 	do \
 		cp -f $$HEADER $(INC_DIR)/$$HEADER ; \
 	done
-
-link_inputs:
-	ln -sf ../src/in.par ../bin/
 
 clean:
 	rm -f *.o $(EXE) $(LIB_NAME) ../bin/$(EXE)

@@ -67,7 +67,7 @@ int Restart_ICs::setICparams( struct domain * theDomain ,
     std::cout << "Restart values:" << std::endl;
     std::cout << "time restart: " << time_restart << std::endl;
     std::cout << "checkpoints_finished: " << checkpoints_finished << std::endl;
-    std::cout << "output_prefix: " << theDomain->output_prefix << std::endl;
+    std::cout << "restarting uuid: " << theDomain->output_prefix << std::endl;
     std::cout << std::endl;
 
 
@@ -257,21 +257,10 @@ void Restart_ICs::setup_grid( struct domain * theDomain )
 
 void Restart_ICs::set_times( struct domain * theDomain )
 {
-    // do basically the same thing as the base class,
-    // except don't change t or t_init
+    // just use the times which were set in setupDomain
+    // (i.e. just evolve for the time given in the parameter file)
 
-    assert( std::is_sorted( theDomain->SNe.rbegin(),
-                            theDomain->SNe.rend(),
-                            sort_by_lifetime) );
-
-    if ( theDomain->SNe.size() > 0 )
-    {
-
-        double t_last_SN  = theDomain->SNe.front().lifetime;
-
-        theDomain->t_fin  += t_last_SN;
-
-    }
+    return;
 
 }
 

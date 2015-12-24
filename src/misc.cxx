@@ -301,6 +301,8 @@ void calc_dr( struct domain * theDomain )
         const double rp = theCells[i ].riph;
         const double dr = rp-rm;
         theCells[i].dr = dr;
+        assert(dr > 0);
+
     }
     // Boundary condition: innermost cell extends to r=0
     theCells[0].dr = theCells[0].riph;
@@ -677,7 +679,7 @@ void AMR( struct domain * theDomain )
         // equal primitives + conservatives between two split cells
         for ( int q=0 ; q<NUM_Q ; ++q)
         {
-            double tol = 1e-3;
+            double tol = 1e-2;
             if ( std::abs((dV_orig/2 - dV) / dV) > tol)
             {
                 printf("-----ERROR in AMR (forge) ------- \n");
@@ -693,11 +695,11 @@ void AMR( struct domain * theDomain )
             {
                 printf("-----ERROR in AMR (forge) ------- \n");
                 printf("just split cell: %d \n", iL);
-                printf("expected cp->prim[%d] == prim_tmp[%d] \n", q, q);
+                printf("expected c->prim[%d] == prim_tmp[%d] \n", q, q);
                 printf("instead found: \n");
                 printf("c->prim[%d]  = %e \n", q, c->prim[q]);
                 printf("prim_tmp[%d] = %e \n", q, prim_tmp[q]);
-                printf("fractional error : %e \n", (cp->prim[q] - prim_tmp[q]) / prim_tmp[q]);
+                printf("fractional error : %e \n", (c->prim[q] - prim_tmp[q]) / prim_tmp[q]);
                 assert(0);
             }
             if ( std::abs((cp->prim[q] - prim_tmp[q]) / prim_tmp[q]) > tol)

@@ -11,6 +11,9 @@ from sqlalchemy import create_engine, Column, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+from scipy.signal import argrelextrema
+
+
 ## import from local files
 ## Boilerplate path hack to give access to full clustered_SNe package
 import sys, os
@@ -293,10 +296,17 @@ class Simulation_Status(Base):
         if run_summary.overview.SNe_times.size > 0:
             if not run_summary.is_time_resolved():
                 warnings.warn("Momentum max not time-resolved; id: " + id, UserWarning)
+                run_summary.status = "Error"
             if not run_summary.is_energy_reasonable():
                 warnings.warn("Energy jumps unreasonably; id: " + id, UserWarning)
-            if run_summary.num_momenta_maxima() > 1:
-                warnings.warn("Multiple momenta maxima; id: " + id, UserWarning)
+                run_summary.status = "Error"
+
+            minima_after_SNe = run_summary.num_momentum_extrema_after_last_SNe(np.less)
+            maxima_after_SNe = run_summary.num_momentum_extrema_after_last_SNe(np.greater)
+
+            if (minima_after_SNe > 0) or (maxima_after_SNe != 1):
+                warnings.warn("Strange momenta extrema after last SNe; id: " + id, UserWarning)
+                run_summary.status = "Unknown"
 
         return simulation_status
 
@@ -330,7 +340,7 @@ class Simulation_Status(Base):
 
         if existing_entry is None:
             self.add_to_table()
-        elif existing_entry.status == "Complete":
+        elif (existing_entry.status == "Complete") and (self.status != "Error"):
             return
         elif existing_entry.status == "Error":
             return
