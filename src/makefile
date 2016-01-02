@@ -1,6 +1,11 @@
 
-EXE      = SNe
+EXE_NAME = SNe
 
+PREFIX = ..
+
+INC_DIR = $(PREFIX)/include
+LIB_DIR = $(PREFIX)/lib
+BIN_DIR = $(PREFIX)/bin
 
 ############# SYSTEM SPECIFIC ########################################
 INC = 
@@ -118,89 +123,48 @@ LIB_GRACKLE = -L$(GRACKLE_DIR)/lib -lgrackle -Wl,-rpath,$(GRACKLE_DIR)/lib
 
 DYNLIB = -dynamiclib
 DYNLIB_EXT = .dylib
-LIB_FLAGS = -install_name @rpath/$(EXE)$(DYNLIB_EXT)
+LIB_FLAGS = -install_name @rpath/$(EXE_NAME)$(DYNLIB_EXT)
 endif
 
 INC +=  $(INC_UUID) $(INC_SLUG) $(INC_BOOST) $(INC_GSL) $(INC_GRACKLE)
 LIB +=  $(LIB_UUID) $(LIB_SLUG) $(LIB_BOOST) $(LIB_GSL) $(LIB_GRACKLE)
 
-PREFIX = ..
-
-INC_DIR = $(PREFIX)/include
-LIB_DIR = $(PREFIX)/lib
-LIB_NAME = $(LIB_DIR)/lib$(EXE)$(DYNLIB_EXT)
+#### General settings after setting system-dependent ones
 
 DEFINES += -DGRACKLE_DIR=\"$(GRACKLE_DIR)\"
 DEFINES += -DSLUG_DIR=\"$(SLUG_DIR)\"
+LIB_NAME = lib$(EXE_NAME)$(DYNLIB_EXT)
 
-############# SYSTEM SPECIFIC ########################################
+##################################################### 
 
-
-OBJ = 	main.o \
-		blast.o boundary.o cooling.o domain.o \
-		geometry.o mass_loss.o misc.o plm.o profiler.o readpar.o \
-		timestep.o riemann.o \
-		Hydro/euler.o \
-		Initial/chevalier_ICs.o \
-		Initial/cluster_SNe_ICs.o \
-		Initial/ejecta_ICs.o \
-		Initial/initial_conditions.o \
-		Initial/isentropic_ICs.o \
-		Initial/messy_ICs.o \
-		Initial/restart_ICs.o \
-		Initial/shocktube_ICs.o \
-		Initial/Thornton_parameter_study_ICs.o \
-		Initial/uniform_ICs.o \
-		Initial/conduction_study_ICs.o \
-		Initial/Sedov_ICs.o \
-		Output/ascii.o 
-
-
-HEADERS = 	structure.H \
-			blast.H boundary.H constants.H cooling.H domain.H \
-			geometry.H mass_loss.H misc.H plm.H profiler.H readpar.H \
-			timestep.H riemann.H \
-			Hydro/euler.H \
-			Initial/chevalier_ICs.H \
-			Initial/cluster_SNe_ICs.H \
-			Initial/ejecta_ICs.H \
-			Initial/initial_conditions.H \
-			Initial/isentropic_ICs.H \
-			Initial/messy_ICs.H \
-			Initial/restart_ICs.H \
-			Initial/shocktube_ICs.H \
-			Initial/Thornton_parameter_study_ICs.H \
-			Initial/uniform_ICs.H \
-			Initial/conduction_study_ICs.H \
-			Initial/Sedov_ICs.H \
-	      	Output/ascii.H 
-
+SRC = $(wildcard *.cxx Initial/*.cxx Hydro/*.cxx Output/*.cxx)
+OBJ = $(SRC:.cxx=.o)
+DEP = $(SRC:.cxx=.d)
+HEADERS = $(wildcard *.H Initial/*.H Hydro/*.H Output/*.H)
 
 ############# RULES ########################################
+.PHONY: all install copy_headers copy_exe copy_lib clean distclean
 
-default: all 
-
-all: $(EXE)
+all: $(EXE_NAME)
 all: $(LIB_NAME)
-all: copy_headers
 
+-include $(DEP)
 
-%.o: %.cxx $(HEADERS)
-	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -c $< -o $@
+%.o: %.cxx
+	$(CXX) $(DEFINES) $(CXX_FLAGS) $(INC) -MMD -MP -c $< -o $@
 
-$(EXE): $(OBJ) $(HEADERS)
-	$(CXX) $(CXX_FLAGS) -o $(EXE) $(OBJ) $(LIB)
-	cp $(EXE) ../bin/$(EXE)
+$(EXE_NAME): $(OBJ)
+	$(CXX) $(CXX_FLAGS) -o $(EXE_NAME) $(OBJ) $(LIB)
 
-exe_from_lib: $(OBJ) $(HEADERS) $(LIB_NAME)
-	$(CXX) $(CXX_FLAGS) -o $(EXE) -L../lib -lSNe -Wl,-rpath,$(PWD)/../lib $(LIB)
-	cp $(EXE) ../bin/$(EXE)
+$(LIB_NAME): $(OBJ)
+	$(CXX) $(CXX_FLAGS) -o $(LIB_NAME) $(OBJ) $(LIB) $(DYNLIB) $(LIB_FLAGS)
 
-$(LIB_NAME): $(OBJ) $(HEADERS)
-	mkdir -p $(LIB_DIR)
-	$(CXX) $(CXX_FLAGS) -o $(LIB_NAME) $(OBJ) $(LIB) $(DYNLIB) $(LIB_FLAGS) -LInitial/
+install: copy_headers copy_exe copy_lib 
 
 copy_headers: 
+# structure needs to be preserved manually,
+# since BSD and GNU version of `cp` don't have 
+# a consistent way of doing it automatically
 	@ mkdir -p $(INC_DIR)
 	@ mkdir -p $(INC_DIR)/Initial
 	@ mkdir -p $(INC_DIR)/Hydro
@@ -212,6 +176,19 @@ copy_headers:
 		cp -f $$HEADER $(INC_DIR)/$$HEADER ; \
 	done
 
+copy_exe: $(EXE_NAME)
+	@ mkdir -p $(INC_DIR)
+	cp $(EXE_NAME) $(BIN_DIR)
+
+copy_lib: $(LIB_NAME)
+	@ mkdir -p $(LIB_DIR)
+	cp $(LIB_NAME) $(LIB_DIR)
+
 clean:
-	rm -f *.o $(EXE) $(LIB_NAME) ../bin/$(EXE)
-	rm -f Hydro/*.o Output/*.o Initial/*.o
+	@ rm -f $(OBJ) $(DEP)
+	@ rm -f $(EXE_NAME) $(LIB_NAME)
+
+distclean: clean
+	@ rm -rf $(INC_DIR)/* 
+	@ rm -f  $(BIN_DIR)/*
+	@ rm -f  $(LIB_DIR)/*
