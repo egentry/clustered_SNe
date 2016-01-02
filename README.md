@@ -11,16 +11,17 @@ Licensed under the GPLv3.
 ##Main Objectives
   - Evolve a spherical symmetric blast wave, incorporating hydrodynamics and radiative cooling
     - Achieve accurate and stable results through Sedov and (thin shell) radiative phases
-  - Incorporate pre-supernova feedback, to create more realistic initial conditions for the background medium
   - Incorporate multiple supernovae, with realistic delay times and energies
-  - Measure the energy and momentum injected into the surrounding medium, to be used as feedback prescriptions in lower resolution galaxy simulations
+  - Measure the energy and momentum injected into the surrounding medium, to be used as feedback prescriptions in low resolution galaxy simulations
 
 
 ##Setup
-This code will generally not run immediately out of the box.  In addition to the installation of the dependencies below, this code requires a few setup steps:
-  - Dependency paths must be set within `src/makefile` (`INC_*` and `LIB_*`)
-  - Within the `sedov` directory, `make` should build the executable `sedov3`
-    - Only required for visualization
+- Install dependencies listed below
+- Adapt `src/makefile` to reflect location of required libraries (`INC_*` and `LIB_*` variables)
+- In the `src` directory, run `make all install clean`
+- In the `sedov` directory, run `make`
+  - Only required for visualization
+
 
 ##Requires
   - c++ compiler (assumes clang for OS X, gcc for Linux)
@@ -35,9 +36,9 @@ This code will generally not run immediately out of the box.  In addition to the
     - gfortran
       - Requires quad precision math, but this can be removed
         - Removing quad precision math will result in not being able to generate a sedov solution at small radii (this problem is purely aesthetic
-    - Python (tested for v.3.4, probably backwards compatible)
-    - IPython/Jupyter (tested for v.4; should be compatible with v.3)
-      - ipywidgets (tested for v.4)
+    - Python (tested for v3.4, probably backwards compatible)
+    - IPython/Jupyter (tested for v4; should be compatible with v3)
+      - ipywidgets (tested for v4)
     - Matplotlib
     - Bokeh
     - Numpy
