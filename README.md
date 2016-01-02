@@ -19,8 +19,6 @@ Licensed under the GPLv3.
 - Install dependencies listed below
 - Adapt `src/makefile` to reflect location of required libraries (`INC_*` and `LIB_*` variables)
 - In the `src` directory, run `make all install clean`
-- In the `sedov` directory, run `make`
-  - Only required for visualization
 
 
 ##Requires
@@ -33,9 +31,6 @@ Licensed under the GPLv3.
   - [grackle cooling](https://bitbucket.org/grackle/grackle)
     - requires [HDF5](https://www.hdfgroup.org/HDF5/release/obtain5.html)
   - For visualization:
-    - gfortran
-      - Requires quad precision math, but this can be removed
-        - Removing quad precision math will result in not being able to generate a sedov solution at small radii (this problem is purely aesthetic
     - Python (tested for v3.4, probably backwards compatible)
     - IPython/Jupyter (tested for v4; should be compatible with v3)
       - ipywidgets (tested for v4)

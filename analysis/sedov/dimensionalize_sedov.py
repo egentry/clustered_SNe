@@ -1,4 +1,4 @@
-from __future__ import print_function, division
+from __future__ import division
 import numpy as np
 import os
 from astropy import constants as const 
@@ -16,27 +16,16 @@ if __package__ is None:
 from clustered_SNe.analysis.constants import hbar, k_b, m_proton, pc, yr, gamma, \
                                    metallicity_solar
 
-nstep = 1000
-raw_filename = 'spherical_standard_omega0p00_nstep_' + str(nstep).zfill(5) + '.dat'
+raw_filename = 'spherical_standard_omega0p00_nstep_01000.dat'
 # make that file name relative to this file
 file_dir     = os.path.dirname(__file__)
 raw_filename = os.path.join(file_dir, raw_filename)
 
-if not os.path.exists(raw_filename):
-    cwd = os.getcwd()
-    os.chdir(file_dir)
-    os.system("./sedov3 " + str(nstep))
-    os.chdir(cwd)
-
 i, x, den, energy, pressure, velocity, cs = np.loadtxt(raw_filename, skiprows=2, unpack=True)
 
-background_density     = m_proton
-background_temperature = 1e4
-
-
 def dimensionalized_sedov(time, metallicity=metallicity_solar, 
-                          background_density=background_density,
-                          background_temperature=background_temperature):
+                          background_density=m_proton,
+                          background_temperature=1e4):
     """ 
         Scale sedov solution at a given time
 
@@ -83,6 +72,3 @@ def dimensionalized_sedov(time, metallicity=metallicity_solar,
     s = 2.5 - np.log( (rho/(mu * m_proton)) * (2*np.pi*hbar**2 / (mu * m_proton * k_b * T))**1.5 )
 
     return (r, u, rho, T, c_ad, ener, P, s, mass)
-
-
-# sedov = dimensionalized_sedov(100 * yr)

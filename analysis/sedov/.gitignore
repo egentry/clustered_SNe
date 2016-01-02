@@ -3,3 +3,6 @@ __pycache__
 .ipynb_checkpoints
 *.dat
 sedov3
+
+# don't ignore this:
+!spherical_standard_omega0p00_nstep_01000.dat
