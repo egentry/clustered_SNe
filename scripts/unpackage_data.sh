@@ -1,9 +1,5 @@
 #!/bin/bash
 
-
 tar -xzvf data.tar.gz
 
-
-# dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-# echo $(dir)
-python $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../analysis/parameter_study_file_structure.py $(pwd)
+python $( dirname "${BASH_SOURCE[0]}")/../analysis/add_id_to_batch_outputs.py $(pwd)
