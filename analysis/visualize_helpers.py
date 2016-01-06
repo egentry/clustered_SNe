@@ -34,7 +34,6 @@ from clustered_SNe.analysis.constants import m_proton, pc, yr, M_solar, \
     
 from clustered_SNe.analysis.sedov.dimensionalize_sedov import dimensionalized_sedov
 from clustered_SNe.analysis.sedov.closed_form_sedov import SedovSolution
-from clustered_SNe.analysis.parameter_study_file_structure import make_dirname_from_properties
 from clustered_SNe.analysis.parse import RunSummary, Overview, cols
 
 
@@ -372,7 +371,7 @@ def conduction_comparisons(mass, H_0, data_dir,
     plt.savefig(plot_filename + ".png")
 
 
-def parameter_study_wrapper(log_n, log_Z, T=1e4, 
+def parameter_study_wrapper(data_dir, log_n, log_Z, T=1e4, 
                             with_cooling=True):
     z_solar = metallicity_solar
     
@@ -380,28 +379,32 @@ def parameter_study_wrapper(log_n, log_Z, T=1e4,
     metallicity            = z_solar * 10**log_Z
     background_temperature = T
     
-    data_dir = make_dirname_from_properties( background_density, 
-                                             metallicity, 
-                                             background_temperature,
-                                             with_cooling)
     run_summary = RunSummary() # default
     if os.path.isdir(data_dir):
-        tmp = glob.glob(os.path.join(data_dir, "*checkpoint*.dat"))        
-        
-        if len(tmp) != 0:
-            basename = os.path.basename(tmp[0])
-            id = basename.split("checkpoint")[0]
-            print(data_dir)
-            run_summary = single_run(data_dir=data_dir, id=id)
+        overview_filenames = glob.glob(os.path.join(data_dir, "*_overview.dat"))
+        overviews = [Overview(filename) for filename in overview_filenames]
+        data_found = False
+        for overview in overviews:
+            if not np.isclose(overview.background_density, 1.33*m_proton*10**log_n, atol=0):
+                continue
+            if not np.isclose(overview.metallicity, metallicity_solar*10**log_Z, atol=0):
+                continue
+            if not np.isclose(overview.background_temperature, T):
+                continue
+            if not (overview.with_cooling == with_cooling):
+                continue
+            
+            run_summary = single_run(data_dir=data_dir, id=overview.id)
+            data_found = True
+            break
 
-                        
-        else:
-            print("No data was found")
+        if data_found is False:
+            print("No data found")
+
     else:
         print("No directory was found")
         print("Directory: ", data_dir)
     return run_summary
-
 
 
 
