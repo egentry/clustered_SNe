@@ -92,6 +92,50 @@ DYNLIB = -shared
 DYNLIB_EXT = .so
 endif
 
+ifneq ( ,$(filter $(HOSTNAME), hyades.ucsc.edu eudora.ucsc.edu))
+# Campus cluster options
+# 	(Overwrite general linux options)
+CXX = g++
+
+CXX_FLAGS = -Wall -g -std=c++11 -fPIC
+
+INC += 
+LIB += -lstdc++
+
+UUID_DIR = $(HOME)/local/miniconda3/envs/hdf
+INC_UUID = -I$(UUID_DIR)/include 
+LIB_UUID = -L$(UUID_DIR)/lib -luuid
+
+SLUG_DIR  = $(HOME)/local/slug2
+INC_SLUG  = -I$(SLUG_DIR)/src
+LIB_SLUG  = -L$(SLUG_DIR)/src -lslug
+LIB_SLUG += -Wl,-rpath,$(SLUG_DIR)/src
+
+BOOST_DIR  = $(HOME)/local/boost_1_60_0
+INC_BOOST  = -I$(BOOST_DIR)/include
+LIB_BOOST  = -L$(BOOST_DIR)/lib -lboost_system -lboost_filesystem
+LIB_BOOST += -Wl,-rpath,$(BOOST_DIR)/lib
+
+GSL_DIR  = $(HOME)/local/gsl-2.1
+INC_GSL  = -I$(GSL_DIR)/include
+LIB_GSL  = -L$(GSL_DIR)/lib 
+LIB_GSL += -Wl,-rpath,$(GSL_DIR)/lib
+
+#GRACKLE_DIR is needed for a define statement within cooling
+GRACKLE_DIR  =  $(HOME)/local/grackle
+INC_GRACKLE  = -I$(GRACKLE_DIR)/include -DCONFIG_BFLOAT_8
+LIB_GRACKLE  = -L$(GRACKLE_DIR)/lib -lgrackle
+LIB_GRACKLE += -Wl,-rpath,$(GRACKLE_DIR)/lib
+
+#cfitsio an optional dependency of slug2
+ETC_RPATHS  = -Wl,-rpath,$(HOME)/local/cfitsio/lib
+# ETC_RPATHS += -Wl,-rpath,$(HOME)/local/gcc-5.3.0/lib64
+LIB += $(ETC_RPATHS)
+
+DYNLIB = -shared
+DYNLIB_EXT = .so
+endif
+
 ifeq ($(shell uname),Darwin)
 # Mac options
 CXX = clang++
