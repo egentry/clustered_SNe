@@ -220,17 +220,11 @@ class RunSummary(dict):
         if self.overview.num_SNe == 0:
             return True
 
-        momenta = self.momentum
-        if (momenta.size < 25):
-            earlier_momentum = momenta[0]
-        else:
-            earlier_momentum = momenta[-25]
-        current_momentum = momenta[-1]
-        tolerance = .01
-        if (current_momentum > ((1+tolerance) * earlier_momentum)):
-            return False
-        else:
-            return True
+        last_checkpoint = self.filenames[-1]
+
+        last_checkpoint_num = int(last_checkpoint.split("_").string(".dat"))
+
+        return (last_checkpoint_num % 100 == 99)
 
     def is_converged(self):
         if self.overview.num_SNe == 0:

@@ -297,13 +297,14 @@ class Simulation_Status(Base):
             minima_after_SNe = run_summary.num_momentum_extrema_after_last_SNe(np.less)
             maxima_after_SNe = run_summary.num_momentum_extrema_after_last_SNe(np.greater)
 
-            if (minima_after_SNe > 0) or (maxima_after_SNe != 1):
+            if (minima_after_SNe > 0) or (maxima_after_SNe > 1):
                 warnings.warn("Strange momenta extrema after last SNe; id: " + id, UserWarning)
-                simulation_status.status = "Unknown"
+                # simulation_status.status = "Unknown"
                 
             if not run_summary.is_time_resolved():
-                warnings.warn("Momentum max not time-resolved; id: " + id, UserWarning)
-                simulation_status.status = "Error"
+                if len(run_summary.filenames) > 2:
+                    warnings.warn("Momentum max not time-resolved; id: " + id, UserWarning)
+                    simulation_status.status = "Error"
             if not run_summary.is_energy_reasonable():
                 warnings.warn("Energy jumps unreasonably; id: " + id, UserWarning)
                 simulation_status.status = "Error"
