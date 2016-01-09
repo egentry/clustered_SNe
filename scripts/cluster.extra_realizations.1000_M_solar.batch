@@ -1,0 +1,13 @@
+#!/bin/bash
+#
+#$ -t 2-196:4
+#
+#$ -M egentry@ucsc.edu
+#$ -m e
+#
+#$ -cwd
+#$ -S /bin/bash
+#
+
+source $HOME/.bashrc
+time ../bin/SNe ../src/in.par $(expr $SGE_TASK_ID - 1)
