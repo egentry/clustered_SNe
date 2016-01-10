@@ -314,8 +314,8 @@ class Simulation_Status(Base):
 
 
     def create_new_batch_file(self, 
-                              scripts_dir     = "../scripts/",
-                              destination_dir = "../scripts/",
+                              scripts_dir     = "../scripts/SGE/",
+                              destination_dir = "../scripts/SGE/",
                               verbose=False):
         with open(os.path.join(scripts_dir, "restart.batch")) as f:
             text = f.read()
@@ -355,8 +355,8 @@ class Simulation_Status(Base):
         self.add_or_update_to_table()
 
     def create_new_batch_file_and_switch_to_running(self,
-        scripts_dir     = "../scripts/",
-        destination_dir = "../scripts/",
+        scripts_dir     = "../scripts/SGE/",
+        destination_dir = "../scripts/SGE/",
         verbose = False):
 
         self.create_new_batch_file(scripts_dir = scripts_dir,

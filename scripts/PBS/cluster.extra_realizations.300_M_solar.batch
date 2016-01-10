@@ -1,0 +1,16 @@
+#!/bin/bash
+#
+# this is ugly. If I wasn't in the middle of runs, 
+# I'd change this so this runs followed the previous pattern
+#PBS -t 197-245
+#PBS -l ncpus=1
+#
+#PBS -M egentry@ucsc.edu
+#PBS -m e
+#
+#PBS -S /bin/bash
+#
+cd $PBS_O_WORKDIR
+
+source $HOME/.bashrc
+time ../bin/SNe ../src/in.par $(( $PBS_ARRAYID - 1))
