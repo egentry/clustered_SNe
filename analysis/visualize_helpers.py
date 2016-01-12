@@ -65,8 +65,6 @@ label_dict = {"Radius"       : r"$R$ [pc]",
 
 
 def plotter(run_summary,
-            checkpoint_filenames, 
-            metallicity, background_density, background_temperature,
             sedov_solution,
             x_axis_variable  = "Radius",
             y_axis_variable  = "Density",
@@ -76,7 +74,7 @@ def plotter(run_summary,
             checkpoint_index = 0):
     df_tmp = run_summary.df.loc[checkpoint_index]
 
-    checkpoint_filename = checkpoint_filenames[checkpoint_index]
+    checkpoint_filename = run_summary.filenames[checkpoint_index]
     time = run_summary.times[checkpoint_index]
     
     E_kin = sedov_solution.E_kin
@@ -164,7 +162,9 @@ def plotter(run_summary,
     
     if with_Sedov:
         plot_sedov(run_summary, time, x_axis_variable, y_axis_variable, 
-                   metallicity, background_density, background_temperature)
+                   run_summary.overview.metallicity, 
+                   run_summary.overview.background_density,
+                   run_summary.overview.background_temperature)
     
     plt.xlabel(label_dict[x_axis_variable])
     plt.ylabel(label_dict[y_axis_variable])
@@ -232,10 +232,6 @@ def single_run(data_dir="", id=""):
 
     w = interactive(plotter,
         run_summary            = fixed(run_summary),
-        checkpoint_filenames   = fixed(run_summary.filenames),
-        metallicity            = fixed(run_summary.overview.metallicity),
-        background_density     = fixed(run_summary.overview.background_density),
-        background_temperature = fixed(run_summary.overview.background_temperature),
         sedov_solution         = fixed(sedov_solution),
         outer_limit_log        = FloatSlider(min=log_R_min, 
                                              max=log_R_max, 
@@ -341,10 +337,6 @@ def conduction_comparisons(mass, H_0, data_dir,
         plt.title("Num " + SN_or_SNe + ": {0}".format(run_summary.overview.num_SNe))
 
         plotter(run_summary,
-                run_summary.filenames, 
-                run_summary.overview.metallicity, 
-                run_summary.overview.background_density, 
-                run_summary.overview.background_temperature,
                 sedov_solution,
                 x_axis_variable  = "Radius",
                 y_axis_variable  = "Temperature",
