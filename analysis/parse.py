@@ -222,7 +222,7 @@ class RunSummary(dict):
 
         last_checkpoint = self.filenames[-1]
 
-        last_checkpoint_num = int(last_checkpoint.split("_").string(".dat"))
+        last_checkpoint_num = int(last_checkpoint.split("_")[-1].strip(".dat"))
 
         return (last_checkpoint_num % 100 == 99)
 
