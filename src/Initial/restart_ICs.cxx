@@ -85,9 +85,9 @@ void Restart_ICs::add_SNe( struct domain * theDomain ,
                             SNe.rend(),
                             sort_by_lifetime) );
 
-    
+    const double tolerance = 1e-5;
     while ( (SNe.size() > 0) && 
-            (SNe.back().lifetime < theDomain->t) )
+            (SNe.back().lifetime <= theDomain->t*(1+tolerance)) )
     {
         SNe.pop_back();
     }
