@@ -10,4 +10,4 @@
 #
 
 source $HOME/.bashrc
-time ../bin/SNe ../src/in.par.thornton $(expr $SGE_TASK_ID - 1)
+time ../bin/SNe ../src/in.par.thornton $(( $SGE_TASK_ID - 1 ))

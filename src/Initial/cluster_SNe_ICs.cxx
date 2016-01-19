@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <vector>
 #include <random>
+#include <stdexcept>
 
 #include "../misc.H" // get_mean_molecular_weight
 #include "../structure.H"
@@ -91,7 +92,7 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
     // ============================================= //
     //
     //  Sets up the initial conditions of each processor 
-    //     to match the parameter space explored by 
+    //     to roughly match the parameter space explored by 
     //     Thornton et al. (1998), ApJ, 500, 95
     //
     //  Inputs:
@@ -126,31 +127,27 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
                                        metallicity_solar * pow(10, -1.0),
                                        metallicity_solar * pow(10, -1.5),
                                        metallicity_solar * pow(10, -2.0),
-                                       metallicity_solar * pow(10, -3.0)};
-    const int    n_background_densities   = 7;
+                                       metallicity_solar * pow(10, -3.0) };
+
+    const int    n_background_densities   = 6;
     const double   background_densities[] = { m_proton*1.33e0,
                                               m_proton*1.33e+1,
                                               m_proton*1.33e+2,
-                                              m_proton*1.33e+3,
                                               m_proton*1.33e-1,
                                               m_proton*1.33e-2,
-                                              m_proton*1.33e-3};
+                                              m_proton*1.33e-3 };
 
-    const int    n_cluster_masses   = 4;
+    const int    n_cluster_masses   = 5;
     const double   cluster_masses[] = { pow(10, 2),
+                                        pow(10, 2.5),
                                         pow(10, 3),
                                         pow(10, 4),
-                                        pow(10, 5)};
+                                        pow(10, 5) };
 
-
-    if( completed_runs >= (n_metallicities * n_background_densities 
-                                          * n_cluster_masses)      )
+    if ( completed_runs >= (n_metallicities * n_background_densities 
+                                            * n_cluster_masses) )
     {
-        // just add more seeds to the lowest mass case
-        theDomain->metallicity            = metallicities[0];
-        theDomain->background_density     = background_densities[0];
-        theDomain->background_temperature = 1e4;
-        theDomain->cluster_mass           = cluster_masses[0];
+        throw std::out_of_range("`completed_runs` exceeds possible values ");
     }
 
     int run=0;
@@ -172,24 +169,8 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
         }
     }
 
-    if (completed_runs >= 196)
-    {
-        int run=196;
-        for( int i=0 ; i<n_metallicities ; ++i )
-        {
-            for( int j=0 ; j<n_background_densities ; ++j )
-            {
-                if( completed_runs == run )
-                {
-                    theDomain->metallicity            = metallicities[i];
-                    theDomain->background_density     = background_densities[j];
-                    theDomain->background_temperature = 1e4;
-                    theDomain->cluster_mass           = pow(10, 2.5);
-                }
-                ++run;
-            }
-        }
-    }
+
+
 
 
     // Assumes E_blast = 1e51

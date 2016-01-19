@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#PBS -t 1-49
+#PBS -t 1-42
 #PBS -l ncpus=1
 #
 #PBS -M egentry@ucsc.edu
@@ -11,5 +11,5 @@
 cd $PBS_O_WORKDIR
 
 source $HOME/.bashrc
-time ../bin/SNe ../src/in.par $(( ($PBS_ARRAYID-1)*4 + 1 ))
+time ../bin/SNe ../src/in.par $(( ($PBS_ARRAYID-1)*5 + 2 ))
 
