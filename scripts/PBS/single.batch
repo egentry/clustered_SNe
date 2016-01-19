@@ -1,6 +1,9 @@
 #!/bin/bash
 #
 #PBS -l ncpus=1
+#PBS -l walltime=96:00:00
+#
+#PBS -q hyper
 #
 #PBS -M egentry@ucsc.edu
 #PBS -m e
