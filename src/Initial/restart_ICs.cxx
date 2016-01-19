@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <string>
+#include <stdexcept>
 #include "../structure.H"
 
 #include "initial_conditions.H"
@@ -28,11 +29,11 @@ Restart_ICs::Restart_ICs() : Initial_Conditions( class_name )
     vr  = nullptr;
     Z   = nullptr;
 
-    restart_filename = std::string("init");
+    restart_filename = std::string("");
     restart_id = std::string("");
 
     time_restart = 0.0;
-    checkpoints_finished = 0;
+    last_finished_checkpoint = 0;
 }
 
 bool Restart_ICs::trust_LogZoning_flag() const
@@ -50,26 +51,49 @@ int Restart_ICs::setICparams( struct domain * theDomain ,
         return 1;
     }
 
-    const double delta_time = theDomain->t_fin - theDomain->t_init;
+
+    std::cout << std::endl;
+    std::cout << "Restart values: " << std::endl;
+
+
+    // Overwrite using command line args
+    int N_chk_tmp = theDomain->N_chk;
+    if ( N_chk > 0 )
+    {
+        N_chk_tmp = N_chk;
+        std::cout << "Overwriting number of checkpoints to: " << N_chk << std::endl;
+    }
+
+    double delta_time_tmp = theDomain->t_fin - theDomain->t_init;
+    if ( delta_time > 0 )
+    {
+        delta_time_tmp = delta_time;
+        std::cout << "Overwriting delta_time to: " << delta_time << std::endl;
+    }
+
+    if ( CFL > 0 )
+    {
+        theDomain->theParList.CFL = CFL;
+        std::cout << "Overwriting CFL to: " << CFL << std::endl;
+    }
+
+    // Set values
 
     theDomain->t      = time_restart;
     theDomain->t_init = time_restart;
-    theDomain->t_fin  = time_restart + delta_time;
-    theDomain->nchk_0 = checkpoints_finished ;
-    theDomain->nchk   = checkpoints_finished ;
-    theDomain->N_chk += 1; // since we don't do a checkpoint when starting
+    theDomain->t_fin  = time_restart + delta_time_tmp;
+    theDomain->nchk_0 = last_finished_checkpoint ;
+    theDomain->nchk   = last_finished_checkpoint ;
+    theDomain->N_chk  = N_chk_tmp + 1; // since we don't do a checkpoint when starting
 
     this->set_output_prefix( theDomain );
     this->add_SNe( theDomain , mass_loss );
     this->set_times( theDomain );
 
-    std::cout << std::endl;
-    std::cout << "Restart values:" << std::endl;
-    std::cout << "time restart: " << time_restart << std::endl;
-    std::cout << "checkpoints_finished: " << checkpoints_finished << std::endl;
+    std::cout << "time restart:   " << time_restart << std::endl;
+    std::cout << "last_finished_checkpoint: " << last_finished_checkpoint << std::endl;
     std::cout << "restarting uuid: " << theDomain->output_prefix << std::endl;
     std::cout << std::endl;
-
 
     return 0;
 }
@@ -117,6 +141,24 @@ int Restart_ICs::parse_command_line_args (  struct domain * theDomain ,
 
     restart_filename = this->get_restart_filename(partial_ID);
 
+    N_chk = -1;
+    if ( argc > 3 )
+    {
+        N_chk = std::stoi(argv[3]);
+    }  
+
+    delta_time = -1;
+    if ( argc > 4 )
+    {
+        delta_time = std::stod(argv[4]);
+    }  
+
+    CFL = -1;
+    if ( argc > 5 )
+    {
+        CFL = std::stod(argv[5]);
+    }  
+
     return 0;
 }
 
@@ -133,6 +175,8 @@ std::string Restart_ICs::get_restart_filename( const std::string partial_ID )
     fs::path current_dir("."); // make this an input parameter?
 
     fs::directory_iterator end_itr;
+
+    std::string output_prefix;
 
     for ( fs::directory_iterator dir_itr{current_dir} ;
           dir_itr != end_itr ; 
@@ -156,11 +200,25 @@ std::string Restart_ICs::get_restart_filename( const std::string partial_ID )
         int checkpoint = std::stoi(tmp_filename.substr(pos_left, 
                                                        pos_right-pos_left));
 
+        std::string tmp_output_prefix = this->filename_to_prefix(tmp_filename);
+        if ( output_prefix.empty() )
+        {
+            output_prefix = tmp_output_prefix;
+        }
+
+        if ( output_prefix.compare(tmp_output_prefix) != 0)
+        {
+            throw std::runtime_error(std::string("partial_ID: '") 
+                                     + partial_ID
+                                     + std::string("' not sufficiently unique"));
+        }
+
         if ( checkpoint > highest_checkpoint_seen )
         {
             restart_filename.swap(tmp_filename);
             highest_checkpoint_seen = checkpoint;
         }
+
     }
 
     // check that file exists
@@ -169,7 +227,7 @@ std::string Restart_ICs::get_restart_filename( const std::string partial_ID )
 
     if ( highest_checkpoint_seen >= 0 )
     {
-        checkpoints_finished = highest_checkpoint_seen;
+        last_finished_checkpoint = highest_checkpoint_seen;
     }
 
     return restart_filename;
@@ -199,17 +257,6 @@ int Restart_ICs::get_table( const std::string filename )
     {
         fscanf(pFile,"%le %le %le %le %le %le %le\n",
                 &(rr[l]),&dr,&dV,&(rho[l]),&(Pp[l]),&(vr[l]),&(Z[l]));
-        // if(l==1)
-        // {
-        //    printf("r = %le \n", rr[l]);
-        //    printf("dr = %le \n", dr);
-        //    printf("dV = %le \n", dV);
-        //    printf("rho = %le \n", rho[l]);
-        //    printf("P = %le \n", Pp[l]);
-        //    printf("vr = %le \n", vr[l]);
-        //    printf("Z = %le \n", Z[l]);         
-        // }
-
     }
     fclose(pFile);
     return nL;
@@ -266,18 +313,23 @@ void Restart_ICs::set_times( struct domain * theDomain )
 
 void Restart_ICs::set_output_prefix( struct domain * theDomain )
 {
+    theDomain->output_prefix = this->filename_to_prefix(restart_filename);
+}
 
-    if (restart_filename.find("checkpoint_") != std::string::npos )
+std::string Restart_ICs::filename_to_prefix( const std::string filename ) const
+{
+
+    if (filename.find("checkpoint_") != std::string::npos )
     {
-        const std::string restart_basename = fs::basename(restart_filename);
-        const unsigned int id_start = restart_basename.find("checkpoint_");
+        const std::string basename = fs::basename(filename);
+        const unsigned int id_start = basename.find("checkpoint_");
 
-        theDomain->output_prefix = restart_basename.substr(0,id_start);
+        return basename.substr(0,id_start);
     }
     else
     {
-        std::cerr << "Couldn't find an output prefix using restart_filename: "
-                  << restart_filename << std::endl;
+        throw std::runtime_error(std::string("Couldn't find an output prefix using filename: ")
+                                 + filename);
     }
 
 }
@@ -296,5 +348,4 @@ Restart_ICs::~Restart_ICs()
 {
     this->free_table();
 }
-
 

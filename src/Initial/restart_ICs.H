@@ -43,11 +43,17 @@ private:
     std::string restart_filename;
     std::string restart_id;
 
+    int N_chk;
+    double delta_time;
+    double CFL;
+
+
     double time_restart;
-    unsigned int checkpoints_finished;
+    unsigned int last_finished_checkpoint;
 
     int get_table( const std::string filename );
     std::string get_restart_filename( const std::string partial_ID );
+    std::string filename_to_prefix( const std::string filename ) const;
 
     void free_table();
 };
