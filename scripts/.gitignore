@@ -1,2 +1,3 @@
 exclude_rsync.txt
 sync.sh
+!restart.batch.env_variables
