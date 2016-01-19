@@ -222,7 +222,7 @@ class RunSummary(dict):
 
         last_checkpoint = self.filenames[-1]
 
-        last_checkpoint_num = int(last_checkpoint.split("_")[-1].strip(".dat"))
+        last_checkpoint_num = checkpoint_num_from_filename(last_checkpoint)
 
         return (last_checkpoint_num % 100 == 99)
 
@@ -617,3 +617,7 @@ def get_full_id_from_partial_id(data_dir, partial_id):
             raise ValueError("partial id not unique in directory")
     return full_id
 
+def checkpoint_num_from_filename(checkpoint_filename):
+    if "checkpoint" not in checkpoint_filename:
+        raise ValueError("checkpoint filename '" + checkpoint_filename + "' not valid checkpoint file")
+    return int(checkpoint_filename.split("_")[-1].strip(".dat"))
