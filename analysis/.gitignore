@@ -3,5 +3,6 @@ __pycache__
 .ipynb_checkpoints
 *.db
 plots_for_paper
-submit_all
+submit_script
 delete_script
+copy_script

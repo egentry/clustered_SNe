@@ -1,11 +1,11 @@
 
 from __future__ import print_function, division
 
-import os, sys
+import os, sys, shutil
 import glob
 import numpy as np
 import datetime
-
+import platform
 
 from sqlalchemy import create_engine, Column, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
@@ -40,7 +40,15 @@ import warnings
 warnings.warn("`session' from database_helpers can only write using 1 process at a time",
     UserWarning)
 
-engine = create_engine('sqlite:///clustered_SNe.db', echo=False)
+database_file_basename = "clustered_SNe.db"
+if ("hyades" in platform.node()) or ("eudora" in platform.node()):
+    database_filename = "/scratch/" + database_file_basename
+    if os.path.exists(database_file_basename):
+        if not os.path.exists(database_filename):
+            shutil.copy(database_file_basename, database_filename)
+else:
+    database_filename = database_file_basename
+engine = create_engine('sqlite:///'+database_filename, echo=False)
 Base = declarative_base()
 
 
