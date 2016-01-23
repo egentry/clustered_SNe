@@ -5,7 +5,6 @@ import os, sys, shutil
 import glob
 import numpy as np
 import datetime
-import platform
 
 from sqlalchemy import create_engine, Column, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
@@ -24,6 +23,7 @@ if __package__ is None:
                                         os.pardir, 
                                         os.pardir))
 
+from clustered_SNe import is_hyades, data_dir_default
 from clustered_SNe.analysis.constants import m_proton, pc, yr, M_solar, \
                                     metallicity_solar
     
@@ -41,7 +41,7 @@ warnings.warn("`session' from database_helpers can only write using 1 process at
     UserWarning)
 
 database_file_basename = "clustered_SNe.db"
-if ("hyades" in platform.node()) or ("eudora" in platform.node()):
+if is_hyades:
     database_filename = "/scratch/" + database_file_basename
     if os.path.exists(database_file_basename):
         if not os.path.exists(database_filename):
