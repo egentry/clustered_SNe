@@ -26,7 +26,7 @@ Max_Aspect_Long     10.0     //Aspect Ratio AMR Refinement Criteria
 
 //Numerical Parameters//
 
-CFL                 0.1
+CFL                 0.05
 PLM                 1
 RK2                 1
 H_0                 0.0
