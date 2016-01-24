@@ -275,12 +275,14 @@ class Simulation_Status(Base):
                              "Ready",
                              "Error",
                              "Running",
-                             "Unknown"])
+                             "Unknown",
+                             "Unphysical"])
     # Complete = finished AND converged
     # Ready = Can be restarted, but isn't restarted yet
     #         - might not NEED to be restarted, but could be
     # Error = failed -- needs to be reinitialized and deleted
     # Running = restarted (or in queue...)
+    # Unphysical - wall effects begin dominating *before* all SNe injected
     # Unknown = everything else...
 
 
