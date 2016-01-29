@@ -31,7 +31,7 @@ Licensed under the GPLv3.
   - [grackle cooling](https://bitbucket.org/grackle/grackle)
     - requires [HDF5](https://www.hdfgroup.org/HDF5/release/obtain5.html)
   - For visualization:
-    - Python (tested for v3.4, probably backwards compatible)
+    - Python (tested for v3.5, probably backwards compatible)
     - IPython/Jupyter (tested for v4; should be compatible with v3)
       - ipywidgets (tested for v4)
     - Matplotlib
@@ -41,6 +41,7 @@ Licensed under the GPLv3.
     - Pandas
     - Seaborn
     - Numba
+    - SQLAlchemy
 
 ##Acknowledgements
 This project built upon [RT1D](https://github.com/duffell/RT1D), an open-source riemann solver from [Paul Duffell](http://duffell.org/).
