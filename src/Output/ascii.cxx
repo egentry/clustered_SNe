@@ -131,11 +131,7 @@ void main_overview(  struct domain * theDomain ,
     fprintf(oFile, "mass loss:              %s \n",
             mass_loss->name.c_str());
 
-
-    if ( theDomain->SNe.size() > 0 )
-    {
-        fprintf(oFile, "Number of SNe:          %lu \n", theDomain->SNe.size());
-    }
+    fprintf(oFile, "Number of SNe:          %lu \n", theDomain->SNe.size());
 
     time_t current_time = time(NULL);
     fprintf(oFile, "Created at: %s \n", ctime(&current_time));
@@ -149,48 +145,45 @@ void SNe_overview( struct domain * theDomain )
 {
     // prints the initial state of the SNe vector into a data file
 
-    if ( theDomain->SNe.size() > 0 )
+    char SNe_filename[256] = "";
+    strcat(SNe_filename, theDomain->output_prefix.c_str());
+    strcat(SNe_filename, "SNe.dat");
+
+    fs::path SNe_path(SNe_filename);
+    if ( fs::exists(SNe_path) )
     {
-        char SNe_filename[256] = "";
-        strcat(SNe_filename, theDomain->output_prefix.c_str());
-        strcat(SNe_filename, "SNe.dat");
-
-        fs::path SNe_path(SNe_filename);
-        if ( fs::exists(SNe_path) )
+        std::cerr << "Warning: SNe overview already exists; not overwriting" 
+                  << std::endl;
+        if ( theDomain->theParList.ICs.compare("restart") == 0 )
         {
-            std::cerr << "Warning: SNe overview already exists; not overwriting" 
-                      << std::endl;
-            if ( theDomain->theParList.ICs.compare("restart") == 0 )
-            {
-                // if we're just restarting, we expect SNe overview to already exist
-                return;
-            }
-            else
-            {
-                // the SNe overview file already existing might lead to some problems
-                // exit now, and figure out what's happening.
-                throw std::runtime_error("SNe Overview already exists");
-            }
+            // if we're just restarting, we expect SNe overview to already exist
+            return;
         }
-
-        FILE * SNe_oFile = fopen(SNe_filename,"w");
-        fprintf(SNe_oFile, "# SNe times [s]     ");
-        fprintf(SNe_oFile, " initial mass [g]    ");
-        fprintf(SNe_oFile, " ejecta mass [g]    ");
-        fprintf(SNe_oFile, " ejecta mass (Z) [g] ");
-        fprintf(SNe_oFile, " wind mass [g] \n");
-        for (auto SN : theDomain->SNe)
+        else
         {
-            fprintf(SNe_oFile, "%e         ", SN.lifetime);
-            fprintf(SNe_oFile, "%e         ", SN.mass);
-            fprintf(SNe_oFile, "%e         ", SN.mass_ejecta);
-            fprintf(SNe_oFile, "%e         ", SN.mass_ejecta_Z);
-            fprintf(SNe_oFile, "%e         ", SN.mass_winds);
-            fprintf(SNe_oFile, "\n");
+            // the SNe overview file already existing might lead to some problems
+            // exit now, and figure out what's happening.
+            throw std::runtime_error("SNe Overview already exists");
         }
-
-        fclose(SNe_oFile);
     }
+
+    FILE * SNe_oFile = fopen(SNe_filename,"w");
+    fprintf(SNe_oFile, "# SNe times [s]     ");
+    fprintf(SNe_oFile, " initial mass [g]    ");
+    fprintf(SNe_oFile, " ejecta mass [g]    ");
+    fprintf(SNe_oFile, " ejecta mass (Z) [g] ");
+    fprintf(SNe_oFile, " wind mass [g] \n");
+    for (auto SN : theDomain->SNe)
+    {
+        fprintf(SNe_oFile, "%e         ", SN.lifetime);
+        fprintf(SNe_oFile, "%e         ", SN.mass);
+        fprintf(SNe_oFile, "%e         ", SN.mass_ejecta);
+        fprintf(SNe_oFile, "%e         ", SN.mass_ejecta_Z);
+        fprintf(SNe_oFile, "%e         ", SN.mass_winds);
+        fprintf(SNe_oFile, "\n");
+    }
+
+    fclose(SNe_oFile);
 
     return;
 }

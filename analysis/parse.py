@@ -1,5 +1,6 @@
 import os
 import glob
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -468,11 +469,11 @@ class Overview(object):
         # Add trailing slash (if dirname isn't empty)
         self.dirname = os.path.join(self.dirname, "")
         
-        inputs_filename = filename.replace("overview", "inputs")
+        inputs_filename = os.path.join(os.path.dirname( filename),
+                                       os.path.basename(filename).replace("overview", "inputs"))
         self.inputs = Inputs(inputs_filename)
 
          # default, since earlier runs won't have this saved
-        self.num_SNe = 0
         self.cluster_mass = 0
         self.cooling_type = "equilibrium"
         self.mass_loss = "none"
@@ -499,31 +500,27 @@ class Overview(object):
                 self.mass_loss = line.split()[-1]
         f.close()
 
-        SNe_filename = filename.replace("overview", "SNe") 
-        if os.path.exists(SNe_filename):
+        SNe_filename = os.path.join(os.path.dirname( filename),
+                                    os.path.basename(filename).replace("overview", "SNe"))
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message='loadtxt: Empty input file: "*"')
             SNe = np.loadtxt(SNe_filename, ndmin=2)
-            if (SNe.shape[0] != self.num_SNe):
-                raise ValueError("Number of SNe in datafile " +
-                                 "doesn't match number listed in overview file" +
-                                 " for file: " + filename)
-            self.SNe_times          = SNe[:,0]
-            self.SNe_initial_mass   = SNe[:,1]
-            self.SNe_ejecta_mass    = SNe[:,2]
-            self.SNe_ejecta_mass_Z  = SNe[:,3]
-            self.SNe_wind_mass      = SNe[:,4]
+        if (SNe.shape[0] != self.num_SNe):
+            raise ValueError("Number of SNe in datafile " +
+                             "doesn't match number listed in overview file" +
+                             " for file: " + filename)
+        self.SNe_times          = SNe[:,0]
+        self.SNe_initial_mass   = SNe[:,1]
+        self.SNe_ejecta_mass    = SNe[:,2]
+        self.SNe_ejecta_mass_Z  = SNe[:,3]
+        self.SNe_wind_mass      = SNe[:,4]
 
-            sorted_indices = np.argsort(self.SNe_times)
-            self.SNe_times          = self.SNe_times[         sorted_indices]
-            self.SNe_initial_mass   = self.SNe_initial_mass[  sorted_indices]
-            self.SNe_ejecta_mass    = self.SNe_ejecta_mass[   sorted_indices]
-            self.SNe_ejecta_mass_Z  = self.SNe_ejecta_mass_Z[ sorted_indices]
-            self.SNe_wind_mass      = self.SNe_wind_mass[     sorted_indices]
-        else:
-            self.SNe_times          = np.array([])
-            self.SNe_initial_mass   = np.array([])
-            self.SNe_ejecta_mass    = np.array([])
-            self.SNe_ejecta_mass_Z  = np.array([])
-            self.SNe_wind_mass      = np.array([])
+        sorted_indices = np.argsort(self.SNe_times)
+        self.SNe_times          = self.SNe_times[         sorted_indices]
+        self.SNe_initial_mass   = self.SNe_initial_mass[  sorted_indices]
+        self.SNe_ejecta_mass    = self.SNe_ejecta_mass[   sorted_indices]
+        self.SNe_ejecta_mass_Z  = self.SNe_ejecta_mass_Z[ sorted_indices]
+        self.SNe_wind_mass      = self.SNe_wind_mass[     sorted_indices]
 
         return
 
