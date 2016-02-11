@@ -283,6 +283,21 @@ class RunSummary(dict):
     def num_momenta_minima(self):
         return len(argrelextrema(self.momentum, np.less)[0])
 
+    def momentum_peaks_too_early(self):
+        if len(self.times) == 1:
+            return False
+
+        if len(self.overview.SNe_times) <= 1:
+            return False
+
+        last_SN_time = self.overview.SNe_times.max()
+        last_checkpoint_time = self.times.max()
+        momentum_peak_time = self.times[np.argmax(self.momentum)]
+
+        past_last_SN        = (last_SN_time < last_checkpoint_time)
+        peak_before_last_SN = (last_SN_time > momentum_peak_time)
+
+        return (past_last_SN & peak_before_last_SN)
 
 #####################
 
@@ -504,23 +519,30 @@ class Overview(object):
                                     os.path.basename(filename).replace("overview", "SNe"))
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message='loadtxt: Empty input file: "*"')
-            SNe = np.loadtxt(SNe_filename, ndmin=2)
+            SNe = np.loadtxt(SNe_filename, ndmin=2, usecols=range(5))
         if (SNe.shape[0] != self.num_SNe):
             raise ValueError("Number of SNe in datafile " +
                              "doesn't match number listed in overview file" +
                              " for file: " + filename)
-        self.SNe_times          = SNe[:,0]
-        self.SNe_initial_mass   = SNe[:,1]
-        self.SNe_ejecta_mass    = SNe[:,2]
-        self.SNe_ejecta_mass_Z  = SNe[:,3]
-        self.SNe_wind_mass      = SNe[:,4]
+        if self.num_SNe > 0:
+            self.SNe_times          = SNe[:,0]
+            self.SNe_initial_mass   = SNe[:,1]
+            self.SNe_ejecta_mass    = SNe[:,2]
+            self.SNe_ejecta_mass_Z  = SNe[:,3]
+            self.SNe_wind_mass      = SNe[:,4]
 
-        sorted_indices = np.argsort(self.SNe_times)
-        self.SNe_times          = self.SNe_times[         sorted_indices]
-        self.SNe_initial_mass   = self.SNe_initial_mass[  sorted_indices]
-        self.SNe_ejecta_mass    = self.SNe_ejecta_mass[   sorted_indices]
-        self.SNe_ejecta_mass_Z  = self.SNe_ejecta_mass_Z[ sorted_indices]
-        self.SNe_wind_mass      = self.SNe_wind_mass[     sorted_indices]
+            sorted_indices = np.argsort(self.SNe_times)
+            self.SNe_times          = self.SNe_times[         sorted_indices]
+            self.SNe_initial_mass   = self.SNe_initial_mass[  sorted_indices]
+            self.SNe_ejecta_mass    = self.SNe_ejecta_mass[   sorted_indices]
+            self.SNe_ejecta_mass_Z  = self.SNe_ejecta_mass_Z[ sorted_indices]
+            self.SNe_wind_mass      = self.SNe_wind_mass[     sorted_indices]
+        else:
+            self.SNe_times          = np.array([])
+            self.SNe_initial_mass   = np.array([])
+            self.SNe_ejecta_mass    = np.array([])
+            self.SNe_ejecta_mass_Z  = np.array([])
+            self.SNe_wind_mass      = np.array([])
 
         return
 
@@ -561,6 +583,8 @@ def extract_masses_momenta_raw(data_dir, density, metallicity,
     
     for overview_filename in overview_filenames:
         overview = Overview(overview_filename)
+        if extract_at_last_SN and (overview.num_SNe < 2):
+            continue
         
         
         # apply filters

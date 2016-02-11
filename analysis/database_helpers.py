@@ -307,9 +307,8 @@ class Simulation_Status(Base):
             minima_after_SNe = run_summary.num_momentum_extrema_after_last_SNe(np.less)
             maxima_after_SNe = run_summary.num_momentum_extrema_after_last_SNe(np.greater)
 
-            if (minima_after_SNe > 0) or (maxima_after_SNe > 1):
-                warnings.warn("Strange momenta extrema after last SNe; id: " + id, UserWarning)
-                # simulation_status.status = "Unknown"
+            # if (minima_after_SNe > 0) or (maxima_after_SNe > 1):
+                # warnings.warn("Strange momenta extrema after last SNe; id: " + id, UserWarning)
                 
             if not run_summary.is_time_resolved():
                 if len(run_summary.filenames) > 2:
@@ -319,21 +318,12 @@ class Simulation_Status(Base):
                 warnings.warn("Energy jumps unreasonably; id: " + id, UserWarning)
                 simulation_status.status = "Error"
 
+            if run_summary.momentum_peaks_too_early():
+                warnings.warn("Momentum peaks too early; id: " + id, UserWarning)
+                simulation_status.status = "Unphysical"
+
+
         return simulation_status
-
-
-
-    def create_new_batch_file(self, 
-                              scripts_dir     = "../scripts/SGE/",
-                              destination_dir = "../scripts/SGE/",
-                              verbose=False):
-        with open(os.path.join(scripts_dir, "restart.batch")) as f:
-            text = f.read()
-        with open(os.path.join(destination_dir, "restart.batch."+self.id), mode="w") as f2:
-            text2 = text[:-1] + self.id
-            if verbose:
-                print(text2)
-            f2.write(text2)
 
     def add_to_table(self):
         session.add(self)
@@ -351,34 +341,19 @@ class Simulation_Status(Base):
 
         if existing_entry is None:
             self.add_to_table()
-        elif (existing_entry.status == "Complete") and (self.status != "Error"):
+        elif (existing_entry.status == "Complete") and \
+             (self.status not in ("Error", "Unphysical")):
             return
-        elif existing_entry.status == "Error":
+        elif existing_entry.status in ("Error", "Unphysical"):
             return
         elif (existing_entry.status == "Running") and (self.status == "Unknown"):
             return
         else:
             self.update_to_table()
 
-    def switch_to_running(self):
-        self.status = "Running"
-        self.add_or_update_to_table()
-
-    def create_new_batch_file_and_switch_to_running(self,
-        scripts_dir     = "../scripts/SGE/",
-        destination_dir = "../scripts/SGE/",
-        verbose = False):
-
-        self.create_new_batch_file(scripts_dir = scripts_dir,
-            destination_dir = destination_dir,
-            verbose = verbose)
-
-        self.switch_to_running()
-
     def __repr__(self):
         return "<{0} for id: {1}>".format(self.__class__.__name__,
                                           self.id)
-
 
 
 
@@ -401,8 +376,6 @@ def extract_masses_momenta(density, metallicity):
     ids = []
     masses = []
     momenta = []
-    print("density: ", density)
-    print("metallicity: ", metallicity)
 
     for simulation in session.query(Simulation).\
                     filter(Simulation.metallicity==metallicity):
