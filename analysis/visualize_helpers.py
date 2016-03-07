@@ -507,7 +507,7 @@ def plot_energy(run_summary, x_axis):
         plt.xlim(xmin=0)
 
 
-def plot_momentum(run_summary, x_axis, clear_previous=True, distplot=True):
+def plot_momentum(run_summary, x_axis, y_axis_scaling = "mass", clear_previous=True, distplot=True):
     if run_summary.overview.cluster_mass <= 0:
         raise ValueError("Cluster mass doesn't allow valid normalization of momentum")
     
@@ -516,7 +516,7 @@ def plot_momentum(run_summary, x_axis, clear_previous=True, distplot=True):
 
     if x_axis == "time":
         x_variable = run_summary.times / yr
-        xlabel = "Time [yr]"
+        xlabel = "$t$ [yr]"
         xscale = "linear"
         plt.xscale(xscale)
         xfmt = plt.gca().get_xaxis().get_major_formatter() # needs to be set AFTER plt.xscale()
@@ -542,14 +542,23 @@ def plot_momentum(run_summary, x_axis, clear_previous=True, distplot=True):
     if distplot:
         SNe_distplot(run_summary, x_axis)
 
+    if y_axis_scaling == "mass":
+        y_variable = run_summary.momentum \
+            / (run_summary.overview.cluster_mass * 100*1000)
+        ylabel = r"Momentum / M$_\mathrm{cluster}$ [km s$^{-1}$]"
+    elif y_axis_scaling == "SNe":
+        y_variable = run_summary.momentum \
+            / (run_summary.overview.num_SNe * 100 * M_solar * 100*1000)
+        ylabel = r"$p / (100$ $M_\odot$ $N_\mathrm{SNe})$ " + "" + r"[km s$^{-1}$]"
 
-    plt.plot(x_variable[mask], 
-             run_summary.momentum[mask] / (run_summary.overview.cluster_mass * 100*1000))
+
+    plt.plot(x_variable[mask], y_variable[mask])
+
     plt.xscale(xscale)
     plt.xlabel(xlabel)   
     plt.gca().xaxis.set_major_formatter(xfmt)
-    plt.ylabel(r"Momentum / M$_\mathrm{cluster}$ [km s$^{-1}$]")
-    
+
+    plt.ylabel(ylabel)
     plt.ylim(ymin=0)
     if x_axis == "checkpoints":
         plt.xlim(xmin=0)
