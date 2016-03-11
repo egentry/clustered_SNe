@@ -93,36 +93,64 @@ class RunSummary(dict):
         
         Luminosity = np.empty(num_checkpoints)
 
-
+        zones_for_each_checkpoint = [get_num_zones_in_checkpoint(checkpoint_filename)
+                                     for checkpoint_filename in checkpoint_filenames]
+        dataframe_columns = ["Radius",
+                             "dR",
+                             "dV",
+                             "Density",
+                             "Pressure",
+                             "Velocity",
+                             "Z",
+                             "Mass",
+                             "M_int",
+                             "Temperature",
+                             "Energy",
+                             "Entropy",
+                             "C_ad",
+                             "Crossing_time",
+                            ]
+        tuples = [(k,i) 
+                  for k,zones in enumerate(zones_for_each_checkpoint) 
+                  for i in range(zones)]
+        index = pd.MultiIndex.from_tuples(tuples, names=["k", "i"])
+        df = pd.DataFrame(index=index, 
+                          columns=dataframe_columns,
+                          dtype=float)
+        
 
         #### PARSE DATAFILES INTO DATAFRAME
-        df = pd.DataFrame()
         for k, checkpoint_filename in enumerate(checkpoint_filenames):
-            array_tmp = np.loadtxt(checkpoint_filename, usecols=range(len(cols_in)))
-            array_tmp = array_tmp[1:-1] # ignore guard cells
-            index     = pd.MultiIndex.from_product([k, np.arange(array_tmp.shape[0])],
-                                                   names=["k","i"])
-            df_tmp    = pd.DataFrame(array_tmp, columns=cols_in, index = index)
+            
+            df_tmp = df.loc[k]
 
-            df_tmp["Mass"]        = calculate_mass(df_tmp.Density.values,
+            df_tmp[cols_in] = pd.read_csv(checkpoint_filename,
+                        delim_whitespace=True,
+                        engine="c",
+                        dtype=np.float64,
+                        skiprows=2, 
+                        names=cols_in,
+                        header=None
+                       )[1:-1].values
+
+            df_tmp.Mass        = calculate_mass(df_tmp.Density.values,
                                                    df_tmp.dV.values)
-            df_tmp["M_int"]       = df_tmp.Mass.cumsum()
-            df_tmp["Temperature"] = calculate_temperature(df_tmp.Pressure.values,
+            df_tmp.M_int       = df_tmp.Mass.cumsum()
+            df_tmp.Temperature = calculate_temperature(df_tmp.Pressure.values,
                                                           df_tmp.Density.values, mu)
-            df_tmp["Energy"]      = calculate_internal_energy(df_tmp.Mass.values,
+            df_tmp.Energy      = calculate_internal_energy(df_tmp.Mass.values,
                                                               df_tmp.Pressure.values,
                                                               df_tmp.Density.values) \
                                                                / df_tmp.Mass.values
-            df_tmp["Entropy"]     = calculate_entropy(df_tmp.Temperature.values, 
+            df_tmp.Entropy     = calculate_entropy(df_tmp.Temperature.values, 
                                                       df_tmp.Density.values, mu)
-            df_tmp["C_ad"]        = calculate_c_ad(df_tmp.Pressure.values,
+            df_tmp.C_ad        = calculate_c_ad(df_tmp.Pressure.values,
                                                    df_tmp.Density.values)
             w_cell = calculate_w_cell(df_tmp.Velocity.values)
-            df_tmp["Crossing_time"] = calculate_crossing_time(df_tmp.C_ad.values,
+            df_tmp.Crossing_time = calculate_crossing_time(df_tmp.C_ad.values,
                                                               df_tmp.Velocity.values,
                                                               w_cell,
                                                               df_tmp.dR.values )
-            df_tmp["zones"]       = np.arange(array_tmp.shape[0])
             
             E_kin[k]    = calculate_kinetic_energy(df_tmp.Mass.values,
                                                    df_tmp.Velocity.values).sum()
@@ -132,23 +160,20 @@ class RunSummary(dict):
             momentum[k] = calculate_momentum(df_tmp.Mass.values,
                                              df_tmp.Velocity.values).sum()
             E_tot[k]    = E_kin[k] + E_int[k]
-            M_tot[k]    = df_tmp.M_int[-1]
+            M_tot[k]    = df_tmp.M_int.iloc[-1]
             Z_tot[k]    = np.sum(df_tmp.Mass * df_tmp.Z)
             zones[k]    = df_tmp.shape[0]
             
-            over_dense = df_tmp.Density > overview.background_density * 1.0001
-            if np.any(over_dense):
-                R_shock[k] = np.max(df_tmp.Radius[over_dense])
-                M_R[k]     = np.max(df_tmp.M_int[over_dense])  
-            else:    
-                R_shock[k] = df_tmp.Radius.iloc[0]
-                M_R[k]     = df_tmp.M_int.iloc[0]
-            remnant = df_tmp.Radius <= R_shock[k]
-            E_R_kin[k] = calculate_kinetic_energy(df_tmp.Mass[remnant].values,
-                                                  df_tmp.Velocity[remnant].values).sum()
-            E_R_int[k] = calculate_internal_energy(df_tmp.Mass[remnant].values, 
-                                                   df_tmp.Pressure[remnant].values,
-                                                   df_tmp.Density[remnant].values).sum()
+            over_dense = np.argmax(df_tmp.Density > overview.background_density * 1.0001)
+            R_shock[k] = df_tmp.iloc[over_dense].Radius
+            M_R[k]     = df_tmp.iloc[over_dense].M_int
+
+            remnant = np.argmin(df_tmp.Radius <= R_shock[k])
+            E_R_kin[k] = calculate_kinetic_energy(df_tmp.loc[ slice(None,remnant), "Mass"].values,
+                                                  df_tmp.loc[ slice(None,remnant), "Velocity"].values).sum()
+            E_R_int[k] = calculate_internal_energy(df_tmp.loc[slice(None,remnant), "Mass"].values, 
+                                                   df_tmp.loc[slice(None,remnant), "Pressure"].values,
+                                                   df_tmp.loc[slice(None,remnant), "Density"].values).sum()
             E_R_tot[k] = E_R_int[k] + E_R_kin[k]
             
             if k == 0:
@@ -156,7 +181,6 @@ class RunSummary(dict):
             else:
                 Luminosity[k] = -(E_R_tot[k] - E_R_tot[k-1]) / (times[k] - times[k-1])
 
-            df = pd.concat([df, df_tmp])
 
         df.Radius /= pc
         df.Mass   /= M_solar
@@ -191,7 +215,7 @@ class RunSummary(dict):
         smoothing_kernel  = Gaussian1DKernel(smoothing_width)
         smoothed_lums     = convolve(valid_lums, smoothing_kernel)
         max_lum           = valid_lums[np.argmax(smoothed_lums)]
-        self.t_0          = times[Luminosity == max_lum][0]
+        self.t_0          = times[np.isclose(Luminosity, max_lum, atol=0)][0]
         self.t_f          = 13 * self.t_0 # to match with t_f given by Thornton
 
     def __repr__(self):
@@ -642,3 +666,13 @@ def checkpoint_num_from_filename(checkpoint_filename):
     if "checkpoint" not in checkpoint_filename:
         raise ValueError("checkpoint filename '" + checkpoint_filename + "' not valid checkpoint file")
     return int(checkpoint_filename.split("_")[-1].strip(".dat"))
+
+
+def get_num_zones_in_checkpoint(checkpoint_filename):
+    num_header_lines = 2
+    num_guard_cells = 2
+    with open(checkpoint_filename) as f:
+        for i, l in enumerate(f):
+            pass
+    return i - num_header_lines - num_guard_cells + 1
+
