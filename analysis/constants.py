@@ -13,6 +13,9 @@ pc       = units.pc.to(units.cm)
 yr       = units.yr.to(units.s)
 M_solar  = units.solMass.to(units.g)
 gamma    = 5/3
+kg       = units.kg.to(units.g)
+meters   = units.m.to(units.cm)
+joules   = units.Joule.to(units.erg)
 
 metallicity_solar = .02
 
