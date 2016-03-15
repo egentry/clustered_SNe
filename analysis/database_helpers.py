@@ -271,12 +271,12 @@ class Simulation_Status(Base):
     status   = Column(String)
 
     # It'd be really nice to enforce these options
-    possible_statuses = set(["Complete",
-                             "Ready",
-                             "Error",
-                             "Running",
-                             "Unknown",
-                             "Unphysical"])
+    possible_statuses = {"Complete",
+                         "Ready",
+                         "Error",
+                         "Running",
+                         "Unknown",
+                         "Unphysical"}
     # Complete = finished AND converged
     # Ready = Can be restarted, but isn't restarted yet
     #         - might not NEED to be restarted, but could be

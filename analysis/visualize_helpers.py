@@ -71,7 +71,14 @@ def plotter(run_summary,
             with_Sedov       = True,
             highlight_timestep_limiting_cell = False,
             outer_limit_log  = 0, 
-            checkpoint_index = 0):
+            checkpoint_index = 0,
+            verbose = True):
+    if verbose:
+        print_device = sys.stdout
+    else:
+        print_device = open(os.devnull, mode="w")
+
+
     df_tmp = run_summary.df.loc[checkpoint_index]
 
     checkpoint_filename = run_summary.filenames[checkpoint_index]
@@ -79,51 +86,66 @@ def plotter(run_summary,
     
     E_kin = sedov_solution.E_kin
     E_int = sedov_solution.E_int
-    print("E_kin: ", format(E_kin, general_string_format))
-    print("E_int: ", format(E_int, general_string_format))
+    print("E_kin: ", format(E_kin, general_string_format), file=print_device)
+    print("E_int: ", format(E_int, general_string_format), file=print_device)
     momentum = sedov_solution.get_momentum(time=time - run_summary.times[0])
 
     print("checkpoint: ",
-          checkpoint_filename)
+          checkpoint_filename,
+          file=print_device)
     print("time:                      ",
         format(time / yr, general_string_format), "[yr]",
-        "\t", format(time, general_string_format), "[s]")
+        "\t", format(time, general_string_format), "[s]", 
+        file=print_device)
     print("time elapsed:              ",
           format((time - run_summary.times[0]) / yr, general_string_format), "[yr]",
-          "\t", format((time - run_summary.times[0]), general_string_format), "[s]")
+          "\t", format((time - run_summary.times[0]), general_string_format), "[s]", 
+          file=print_device)
 
     if run_summary.overview.SNe_times.size == 1:
         print("energy conserved to:       ", 
               format( (   run_summary.E_tot[checkpoint_index]
                         - run_summary.E_tot[0])
-                      / run_summary.E_tot[0], general_string_format) )
+                      / run_summary.E_tot[0], general_string_format), 
+              file=print_device)
         print("E_kin    accurate to:      ", 
               format( (run_summary.E_kin[checkpoint_index]
                               - E_kin)
-                      / E_kin, general_string_format) )
+                      / E_kin, general_string_format), 
+              file=print_device)
         print("momentum accurate to:      ", 
               format( (run_summary.momentum[checkpoint_index]
                              - momentum)
-                      / momentum, general_string_format) )
+                      / momentum, general_string_format), 
+              file=print_device)
         print("Peak luminosity at checkpoint",
-              np.argmax(run_summary.times == run_summary.t_0) )
+              np.argmax(run_summary.times == run_summary.t_0), 
+              file=print_device)
         print("Peak luminosity at t_0 =   ",
-              format(run_summary.t_0 / yr, general_string_format), "[yr]")
+              format(run_summary.t_0 / yr, general_string_format), "[yr]", 
+              file=print_device)
         print("t_f = 13 * t_0 =           ",
-              format(run_summary.t_f / yr, general_string_format), "[yr]")
+              format(run_summary.t_f / yr, general_string_format), "[yr]", 
+              file=print_device)
         print("R_shock =                  ",
-              format(run_summary.R_shock[checkpoint_index] / pc, "3.2f"), "[pc]")
+              format(run_summary.R_shock[checkpoint_index] / pc, "3.2f"), "[pc]", 
+              file=print_device)
         print("E_R_tot =                  ",
               format(run_summary.E_R_tot[checkpoint_index], general_string_format),
-              "[ergs]")
+              "[ergs]", 
+              file=print_device)
     print("background_density:        ", 
-        format(run_summary.overview.background_density, general_string_format))
+        format(run_summary.overview.background_density, general_string_format),
+        file=print_device)
     print("Cluster mass:              ", 
         format(run_summary.overview.cluster_mass / M_solar, general_string_format),
-        "M_sol")
+        "M_sol",
+        file=print_device)
     print("Number of SNe so far:      ",
-          np.sum(run_summary.overview.SNe_times <= time))
-    print("mass loss prescription:    ", run_summary.overview.mass_loss)
+          np.sum(run_summary.overview.SNe_times <= time),
+          file=print_device)
+    print("mass loss prescription:    ", run_summary.overview.mass_loss,
+        file=print_device)
     
     if x_axis_variable == "Radius":
         plt.xlim((0,10**outer_limit_log))
@@ -245,7 +267,8 @@ def single_run(data_dir="", id=""):
                                           value="Density"),
         x_axis_variable        = RadioButtons(options=["Radius",
                                                        "M_int",
-                                                       "zones"]))
+                                                       "zones"]),
+        verbose                = fixed(True))
     single_run.previous_widget = w
     display(w)
     return run_summary
@@ -343,7 +366,8 @@ def conduction_comparisons(mass, H_0, data_dir,
                 with_Sedov       = False,
                 highlight_timestep_limiting_cell = True,
                 outer_limit_log  = log_R_max, 
-                checkpoint_index = plot_checkpoint)
+                checkpoint_index = plot_checkpoint,
+                verbose          = False)
     
     ax = plt.gca()
     handles_tmp, labels_tmp = ax.get_legend_handles_labels()

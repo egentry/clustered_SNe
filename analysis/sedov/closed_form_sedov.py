@@ -14,7 +14,7 @@ if __package__ is None:
                                         os.pardir, 
                                         os.pardir,))
 
-from clustered_SNe.analysis.helper_functions import calculate_mean_molecular_weight, \
+from clustered_SNe.analysis.hydro_helpers import calculate_mean_molecular_weight, \
                                           calculate_entropy, \
                                           calculate_temperature
 

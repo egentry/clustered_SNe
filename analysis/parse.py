@@ -22,7 +22,7 @@ from clustered_SNe.analysis.constants import m_proton, pc, M_solar, \
                                              gamma, E_0, \
                                              metallicity_solar, yr
 
-from clustered_SNe.analysis.helper_functions import calculate_mass, \
+from clustered_SNe.analysis.hydro_helpers import calculate_mass, \
                                           calculate_mean_molecular_weight, \
                                           calculate_kinetic_energy, \
                                           calculate_internal_energy, \
