@@ -164,16 +164,20 @@ class RunSummary(dict):
             Z_tot[k]    = np.sum(df_tmp.Mass * df_tmp.Z)
             zones[k]    = df_tmp.shape[0]
             
-            over_dense = np.argmax(df_tmp.Density > overview.background_density * 1.0001)
-            R_shock[k] = df_tmp.iloc[over_dense].Radius
-            M_R[k]     = df_tmp.iloc[over_dense].M_int
+            over_dense = np.where(df_tmp.Density > overview.background_density * 1.0001)[0]
+            if over_dense.size > 0:
+                shock_index = over_dense.max()
+            else:
+                shock_index = 0
 
-            remnant = np.argmin(df_tmp.Radius <= R_shock[k])
-            E_R_kin[k] = calculate_kinetic_energy(df_tmp.loc[ slice(None,remnant), "Mass"].values,
-                                                  df_tmp.loc[ slice(None,remnant), "Velocity"].values).sum()
-            E_R_int[k] = calculate_internal_energy(df_tmp.loc[slice(None,remnant), "Mass"].values, 
-                                                   df_tmp.loc[slice(None,remnant), "Pressure"].values,
-                                                   df_tmp.loc[slice(None,remnant), "Density"].values).sum()
+            R_shock[k] = df_tmp.iloc[shock_index].Radius
+            M_R[k]     = df_tmp.iloc[shock_index].M_int
+
+            E_R_kin[k] = calculate_kinetic_energy(df_tmp.iloc[0:shock_index+1].Mass.values,
+                                                  df_tmp.iloc[0:shock_index+1].Velocity.values).sum()
+            E_R_int[k] = calculate_internal_energy(df_tmp.iloc[0:shock_index+1].Mass.values, 
+                                                   df_tmp.iloc[0:shock_index+1].Pressure.values,
+                                                   df_tmp.iloc[0:shock_index+1].Density.values).sum()
             E_R_tot[k] = E_R_int[k] + E_R_kin[k]
             
             if k == 0:
