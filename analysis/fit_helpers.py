@@ -1,5 +1,8 @@
 from __future__ import print_function, division
 
+from matplotlib import pyplot as plt
+
+
 import numpy as np
 from scipy import optimize
 
@@ -14,7 +17,8 @@ if __package__ is None:
 
 from clustered_SNe.analysis.constants import m_proton, pc, yr, M_solar, \
                                    metallicity_solar
-from clustered_SNe.analysis.parse import Overview, RunSummary
+from clustered_SNe.analysis.parse import Overview, RunSummary, \
+                                         parse_into_scientific_notation
 
 from clustered_SNe.analysis.database_helpers import session, \
                                                 Simulation, \
@@ -42,6 +46,7 @@ class Aggregated_Results(object):
         statuses        = []
         usable          = []
         num_SNe         = []
+        ids             = []
 
         for simulation in session.query(Simulation):
             status = session.query(Simulation_Status).get(simulation.id).status
@@ -51,6 +56,7 @@ class Aggregated_Results(object):
             momenta.append(simulation.momentum)
             statuses.append(simplify_status(status))
             num_SNe.append(simulation.num_SNe)
+            ids.append(simulation.id)
             
         self.metallicities   = np.array(metallicities)
         self.densities       = np.array(densities)
@@ -58,13 +64,14 @@ class Aggregated_Results(object):
         self.momenta         = np.array(momenta)
         self.statuses        = np.array(statuses)
         self.num_SNe         = np.array(num_SNe)
+        self.ids             = np.array(ids)
 
         self.usable = np.full_like(self.masses, False, dtype=bool)
         self.excluded = (  (self.densities > m_proton) \
                          & (self.masses < 10**3.1 * M_solar))
 
-        self.momenta = self.momenta / self.masses / 1e5 # [km / s]
-        self.masses = self.masses / M_solar # [M_solar]
+        self.momenta = self.momenta / 1e5 # [g km / s]
+        self.masses  = self.masses  / M_solar # [M_solar]
 
         self.metallicities_1D = np.sort(list(set(self.metallicities)))
         self.densities_1D     = np.sort(list(set(self.densities)))
@@ -99,10 +106,108 @@ class Aggregated_Results(object):
                            & good_masses \
                            & self.usable
                     
-                    self.momenta_3D[i,j,k] = np.average(self.momenta[good])
+                    self.momenta_3D[i,j,k] = np.average(self.momenta[good] / self.masses[good])
 
 
         self.momenta_3D[self.momenta_3D == 0] = 1 # in case we take the log...
+
+        self.add_overall_fit()
+
+    def add_overall_fit(self, verbose=False):
+        if verbose:
+            print_device = sys.stdout
+        else:
+            print_device = open(os.devnull, mode="w")
+
+        self.model_overall = Momentum_Model(1e3, 1e4,
+                                            0, 0, 
+                                           .25, .2,
+                                           2, -.12)
+
+        fixed = np.array([False, False, 
+                          False, False, 
+                          False, False, 
+                          False, True])
+
+        mask = self.usable & (self.momenta>0)
+        xs = (self.metallicities[mask],
+              self.densities[mask],
+              self.num_SNe[mask])
+        ys = self.momenta[mask] / (self.num_SNe[mask] * 100 * M_solar)
+
+
+        popt, pcov = self.model_overall.fit(xs, ys, fixed=fixed)
+        print("Overall Model:", file=print_device)
+        print("params_0: ", self.model_overall.params_0, file=print_device)
+        print("params:   ", self.model_overall.params, file=print_device)
+        print(file=print_device)
+        print("overall model: ", str(self.model_overall), file=print_device)
+
+    def plot_slice(self, metallicity_index, density_index, 
+                   fitted=False, verbose=False):
+        if verbose:
+            print_device = sys.stdout
+        else:
+            print_device = open(os.devnull, mode="w")
+
+        metallicity = self.metallicities_1D[metallicity_index]
+        density     = self.densities_1D[density_index]
+        mask = np.isclose(self.densities, density, atol=0) \
+             & np.isclose(self.metallicities, metallicity, atol=0) \
+             & self.usable & (self.momenta>0) & ~self.excluded
+
+        print(file=print_device)
+        print("=================", file=print_device )
+        print("metallicity: ", metallicity, file=print_device)
+        print("density:     ", density, file=print_device)
+        
+        x_fit = np.logspace(0, 3.25, num=100)
+        y_fit_overall = self.model_overall(metallicity, density, x_fit)
+
+        if fitted:
+            model_tmp = Momentum_Model(1e3, 1e4, 
+                                       0, 0, 
+                                       0, 0,
+                                       2, -.12)
+
+            fixed = np.array([False, False, 
+                              True, True, 
+                              True, True, 
+                              False, True])
+            
+            x = (self.metallicities[mask], self.densities[mask], self.num_SNe[mask])
+            y = self.momenta[mask] / (self.num_SNe[mask] * 100 * M_solar)
+
+            fitted = False
+            if len(x[0]) >= (~fixed).sum():
+                fitted = True
+                model_tmp.fit(x,y, fixed=fixed)
+            models.append(model_tmp)
+            fitted = False
+            
+            y_fit = model_tmp(metallicity, density, x_fit)
+                                      
+            print(str(models_tmp), file=print_device)
+
+        plt.figure()
+     
+        print("number plotted: ", sum(mask), file=print_device)
+        plt.scatter(self.num_SNe[mask], 
+                    self.momenta[mask] / (self.num_SNe[mask] * 100 * M_solar),
+                    marker= "o",
+                    s=100,
+                    label="data")
+        
+        plt.xlim(np.min(x_fit)/3 , np.max(x_fit)*3)
+        
+        plt.plot(x_fit, y_fit_overall, 
+                 label="overall fit")
+        if fitted:
+            plt.plot(x_fit, y_fit,  label="fit", linestyle="--")
+        plt.xscale("log")
+        plt.legend(loc="best", frameon=True, shadow=True)
+        plt.xlabel(r"$N_{SNe}$ ")
+        plt.ylabel(r"$p / (100$ $M_\odot$ $N_\mathrm{SNe})$ " + "" + r"[km s$^{-1}$]")
 
 #####################
 
@@ -154,6 +259,26 @@ class Momentum_Model(object):
                      self.params[1], self.params[3], self.params[5], self.params[7])
         
         return s
+
+    def print_latex_version(self, filename="plots_for_paper/equations/best_fit_equation.tex"):
+        with open(filename, mode="w") as f:
+            s = r"""\begin{{align}}
+        \frac{{p}}{{100 M_\odot N_\mathrm{{SNe}} }}& = f\left(  \right. \nonumber
+        \\ & {0} \left(\frac{{Z}}{{Z_\odot}} \right)^{{{1:.2f}}} \left( \frac{{\rho}}{{m_p \text{{ cm}}^{{-3}}}}\right)^{{{2:.2f}}} \left( N_\mathrm{{SNe}} \right)^{{{3:.2f}}}, \nonumber
+        \\  & \left. {4} \left(\frac{{Z}}{{Z_\odot}} \right)^{{{5:.2f}}} \left( \frac{{\rho}}{{m_p \text{{ cm}}^{{-3}}}}\right)^{{{6:.2f}}} \left( N_\mathrm{{SNe}} \right)^{{{7:.2f}}}  \right)
+    \end{{align}}""".format(
+                parse_into_scientific_notation(self.params[0]),
+                self.params[2], 
+                self.params[4], 
+                self.params[6],
+                parse_into_scientific_notation(self.params[1]), 
+                self.params[3], 
+                self.params[5], 
+                self.params[7])
+            print(s,file=f)
+
+
+
     def fit(self, x, y, fixed=None, **kwargs):
         """Fits the model using its initial self.params_0;
         Stores result as self.params

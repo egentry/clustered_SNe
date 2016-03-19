@@ -644,3 +644,4 @@ def plot_momentum_scaling(masses, momenta):
     x_min, x_max = plt.xlim()
     plt.xlim( x_min / 5, x_max * 5)
     plt.ylim(ymin=0)
+

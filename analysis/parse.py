@@ -680,3 +680,12 @@ def get_num_zones_in_checkpoint(checkpoint_filename):
             pass
     return i - num_header_lines - num_guard_cells + 1
 
+
+def parse_into_scientific_notation(number, prefix_format="{:.2e}"):
+    """Doesn't include the bounding $ for the math mode"""
+    scientific_notation_parts = prefix_format.format(number).split("e")
+    scientific_notation_parts[1] = int(scientific_notation_parts[1])
+
+    return r"{0} \cdot 10^{{{1}}}".format(scientific_notation_parts[0],
+                                         scientific_notation_parts[1])
+
