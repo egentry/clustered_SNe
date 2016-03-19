@@ -1,5 +1,5 @@
-# SNe
-Riemann solver with cooling, for the Sedov and cooling phases of a supernova remnant
+# Clustered SNe
+Riemann solver with cooling, for evolving a superbubble produced by 1-1000 SNe from a single cluster
 -------
 
 Author: Eric Gentry   (gentry.e@gmail.com; egentry@ucsc.edu)   
@@ -12,7 +12,7 @@ Licensed under the GPLv3.
   - Evolve a spherical symmetric blast wave, incorporating hydrodynamics and radiative cooling
     - Achieve accurate and stable results through Sedov and (thin shell) radiative phases
   - Incorporate multiple supernovae, with realistic delay times and energies
-  - Measure the energy and momentum injected into the surrounding medium, to be used as feedback prescriptions in low resolution galaxy simulations
+  - Measure the energy and momentum injected into the surrounding medium, to be used as feedback prescriptions in low resolution galaxy/cosmology simulations
 
 
 ##Setup
@@ -26,13 +26,14 @@ Licensed under the GPLv3.
     - should (must?) be c++11 capable
   - [slug2](https://bitbucket.org/krumholz/slug2)
     - slug2 must be built as a shared library (change into the `src` directory and call `make lib`; if you enabled FITS at compile time, then keep it enabled at link time. For simplicity, use `make all && make lib` in the `src` directory.)
+    - A fork frozen to the version used in my simulations can be found at: https://bitbucket.org/egentry/slug2
     - requires the [GSL](https://www.gnu.org/software/gsl/), [Boost](http://www.boost.org/)
   - libuuid
   - [grackle cooling](https://bitbucket.org/grackle/grackle)
     - requires [HDF5](https://www.hdfgroup.org/HDF5/release/obtain5.html)
   - For visualization:
-    - Python (tested for v3.5, probably backwards compatible)
-    - IPython/Jupyter (tested for v4; should be compatible with v3)
+    - Python (tested for v3.5, maybe backwards compatible)
+    - Jupyter notebook (tested for v4)
       - ipywidgets (tested for v4)
     - Matplotlib
     - Bokeh
@@ -42,6 +43,7 @@ Licensed under the GPLv3.
     - Seaborn
     - Numba
     - SQLAlchemy
+
 
 ##Acknowledgements
 This project built upon [RT1D](https://github.com/duffell/RT1D), an open-source riemann solver from [Paul Duffell](http://duffell.org/).
