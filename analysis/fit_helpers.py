@@ -154,7 +154,7 @@ class Aggregated_Results(object):
         density     = self.densities_1D[density_index]
         mask = np.isclose(self.densities, density, atol=0) \
              & np.isclose(self.metallicities, metallicity, atol=0) \
-             & self.usable & (self.momenta>0) & ~self.excluded
+             & self.usable & (self.momenta>0) # & ~self.excluded
 
         print(file=print_device)
         print("=================", file=print_device )
@@ -262,11 +262,14 @@ class Momentum_Model(object):
 
     def print_latex_version(self, filename="plots_for_paper/equations/best_fit_equation.tex"):
         with open(filename, mode="w") as f:
-            s = r"""\begin{{align}}
-        \frac{{p}}{{100 M_\odot N_\mathrm{{SNe}} }}& = f\left(  \right. \nonumber
-        \\ & {0} \left(\frac{{Z}}{{Z_\odot}} \right)^{{{1:.2f}}} \left( \frac{{\rho}}{{m_p \text{{ cm}}^{{-3}}}}\right)^{{{2:.2f}}} \left( N_\mathrm{{SNe}} \right)^{{{3:.2f}}}, \nonumber
-        \\  & \left. {4} \left(\frac{{Z}}{{Z_\odot}} \right)^{{{5:.2f}}} \left( \frac{{\rho}}{{m_p \text{{ cm}}^{{-3}}}}\right)^{{{6:.2f}}} \left( N_\mathrm{{SNe}} \right)^{{{7:.2f}}}  \right)
-    \end{{align}}""".format(
+            s = r"""\begin{{equation}}
+        \frac{{p}}{{100 M_\odot N_\mathrm{{SNe}} }} = f\left( y_1, y_2 \right) \nonumber
+\end{{equation}}
+        where
+\begin{{align}}
+        y_1 &= {0} \left(\frac{{Z}}{{Z_\odot}} \right)^{{{1:.2f}}} \left( \frac{{\rho}}{{m_p \text{{ cm}}^{{-3}}}}\right)^{{{2:.2f}}} \left( N_\mathrm{{SNe}} \right)^{{{3:.2f}}} \\
+        y_2 &= {4} \left(\frac{{Z}}{{Z_\odot}} \right)^{{{5:.2f}}} \left( \frac{{\rho}}{{m_p \text{{ cm}}^{{-3}}}}\right)^{{{6:.2f}}} \left( \frac{{N_\mathrm{{SNe}}}}{{10^3}} \right)^{{{7:.2f}}}
+\end{{align}}""".format(
                 parse_into_scientific_notation(self.params[0]),
                 self.params[2], 
                 self.params[4], 
@@ -373,9 +376,3 @@ class Momentum_Model(object):
         p_M = (p_M_low * p_M_high) / (p_M_low + p_M_high)
             
         return p_M
-
-        
-
-
-
-
