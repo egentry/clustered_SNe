@@ -207,7 +207,7 @@ class Aggregated_Results(object):
         plt.xscale("log")
         plt.legend(loc="best", frameon=True, shadow=True)
         plt.xlabel(r"$N_{SNe}$ ")
-        plt.ylabel(r"$p / (100$ $M_\odot$ $N_\mathrm{SNe})$ " + "" + r"[km s$^{-1}$]")
+        plt.ylabel(r"$p / (100$ $M_\odot$ $N_\mathrm{SNe})$ $[\mathrm{km}$ $\mathrm{s}^{-1}]$")
 
 #####################
 
@@ -263,7 +263,7 @@ class Momentum_Model(object):
     def print_latex_version(self, filename="plots_for_paper/equations/best_fit_equation.tex"):
         with open(filename, mode="w") as f:
             s = r"""\begin{{equation}}
-        \frac{{p}}{{100 M_\odot N_\mathrm{{SNe}} }} = f\left( y_1, y_2 \right) \nonumber
+        \frac{{p}}{{100 M_\odot N_\mathrm{{SNe}} }} = f\left( y_1, y_2 \right)
 \end{{equation}}
         where
 \begin{{align}}

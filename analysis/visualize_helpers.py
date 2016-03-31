@@ -44,22 +44,22 @@ general_string_format = ".2e"
 cols_plot = cols 
 cols_plot_linear = [cols[i] for i in [6, 9]]
 
-label_dict = {"Radius"       : r"$R$ [pc]", 
-              "Velocity"     : r"$U$ [cm s$^{-1}$]",
-              "Density"      : r"$\rho$  [g cm$^{-3}$]",
-              "Temperature"  : r"$T$ [K]",
-              "Mass"         : r"$M$ [$M_\odot$]",
-              "M_int"        : r"$M_\mathrm{int}$ [$M_\odot$]",
-              "C_ad"         : r"$C_{ad}$ [cm s$^{-1}$]",
-              "Crossing_time": r"$dt_{\mathrm{crossing}}$",
-              "Energy"       : r"$E_{int}$ [erg g$^{-1}$]",
-              "Pressure"     : r"$P$ [dyne cm$^{-2}$]",
-              "Entropy"      : r"$S$ [$k_B$ / particle]",
-              "M_int"        : r"$M_{int}$ [$M_\odot$]",
-              "dR"           : r"$\Delta R$ [cm]",
-              "dV"           : r"$\Delta V$ [cm$^3$]",
-              "Z"            : r"$Z$ (metallicity)",
-              "zones"        : r"zones"
+label_dict = {"Radius"       : r"$R$ $[\mathrm{pc}]$", 
+              "Velocity"     : r"$U$ $[\mathrm{cm}$ $\mathrm{s}^{-1}]$",
+              "Density"      : r"$\rho$  $[\mathrm{g}$ $\mathrm{cm}^{-3}]$",
+              "Temperature"  : r"$T$ $[\mathrm{K}]$",
+              "Mass"         : r"$M$ $[M_\odot]$",
+              "M_int"        : r"$M_\mathrm{int}$ $[M_\odot]$",
+              "C_ad"         : r"$C_\mathrm{ad}$ $[\mathrm{cm} $ $\mathrm{s}^{-1}]$",
+              "Crossing_time": r"$dt_{\mathrm{crossing}}$ $[\mathrm{s}]$",
+              "Energy"       : r"$E_\mathrm{int}$ $[\mathrm{erg}$ $\mathrm{g}^{-1}]$",
+              "Pressure"     : r"$P$ $[\mathrm{dyne}$ $\mathrm{cm}^{-2}]$",
+              "Entropy"      : r"$S$ $[k_B / \mathrm{particle}]$",
+              "M_int"        : r"$M_\mathrm{int}$ $[M_\odot]$",
+              "dR"           : r"$\Delta R$ $[\mathrm{pc}]$",
+              "dV"           : r"$\Delta V$  $[\mathrm{cm}^3]$",
+              "Z"            : r"$Z$ $(\mathrm{metallicity})$",
+              "zones"        : r"$\mathrm{zones}$"
              }
 
 
@@ -573,7 +573,7 @@ def plot_momentum(run_summary, x_axis, y_axis_scaling = "mass", clear_previous=T
     elif y_axis_scaling == "SNe":
         y_variable = run_summary.momentum \
             / (run_summary.overview.num_SNe * 100 * M_solar * 100*1000)
-        ylabel = r"$p / (100$ $M_\odot$ $N_\mathrm{SNe})$ " + "" + r"[km s$^{-1}$]"
+        ylabel = r"$p / (100$ $M_\odot$ $N_\mathrm{SNe})$ $[\mathrm{km}$ $\mathrm{s}^{-1}]$"
 
 
     plt.plot(x_variable[mask], y_variable[mask])

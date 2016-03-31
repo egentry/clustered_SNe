@@ -185,7 +185,7 @@ class RunSummary(dict):
             else:
                 Luminosity[k] = -(E_R_tot[k] - E_R_tot[k-1]) / (times[k] - times[k-1])
 
-
+        df.dR /= pc
         df.Radius /= pc
         df.Mass   /= M_solar
         df.M_int  /= M_solar
