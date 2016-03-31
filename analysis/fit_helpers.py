@@ -122,12 +122,12 @@ class Aggregated_Results(object):
         self.model_overall = Momentum_Model(1e3, 1e4,
                                             0, 0, 
                                            .25, .2,
-                                           2, -.12)
+                                           2, -.08)
 
         fixed = np.array([False, False, 
                           False, False, 
                           False, False, 
-                          False, True])
+                          False, False])
 
         mask = self.usable & (self.momenta>0)
         xs = (self.metallicities[mask],
