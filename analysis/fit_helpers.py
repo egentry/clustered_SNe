@@ -4,7 +4,8 @@ from matplotlib import pyplot as plt
 
 
 import numpy as np
-from scipy import optimize
+import pandas as pd
+from scipy import optimize, stats
 
 ## Boilerplate path hack to give access to full clustered_SNe package
 import sys, os
@@ -35,7 +36,7 @@ def simplify_status(status):
         return "good"
 
 
-class Aggregated_Results(object):
+class AggregatedResults(object):
     """For use in fitting the momentum model"""
     def __init__(self):        
 
@@ -111,137 +112,240 @@ class Aggregated_Results(object):
 
         self.momenta_3D[self.momenta_3D == 0] = 1 # in case we take the log...
 
-        self.add_overall_fit()
-
-    def add_overall_fit(self, verbose=False):
+    def get_MLE_fit(self, verbose=False):
         if verbose:
             print_device = sys.stdout
         else:
             print_device = open(os.devnull, mode="w")
-
-        self.model_overall = Momentum_Model(1e3, 1e4,
-                                            0, 0, 
-                                           .25, .2,
-                                           2, -.08)
-
-        fixed = np.array([False, False, 
-                          False, False, 
-                          False, False, 
-                          False, False])
 
         mask = self.usable & (self.momenta>0)
         xs = (self.metallicities[mask],
               self.densities[mask],
               self.num_SNe[mask])
-        ys = self.momenta[mask] / (self.num_SNe[mask] * 100 * M_solar)
+        momenta = self.momenta[mask] / (self.num_SNe[mask] * 100 * M_solar)
 
+        MLE_fit = MLEFit()
+        MLE_fit.fit(self.metallicities[mask],
+                    self.densities[mask],
+                    self.num_SNe[mask],
+                    momenta)
 
-        popt, pcov = self.model_overall.fit(xs, ys, fixed=fixed)
-        print("Overall Model:", file=print_device)
-        print("params_0: ", self.model_overall.params_0, file=print_device)
-        print("params:   ", self.model_overall.params, file=print_device)
-        print(file=print_device)
-        print("overall model: ", str(self.model_overall), file=print_device)
+        return MLE_fit
 
-    def plot_slice(self, metallicity_index, density_index, 
-                   fitted=False, verbose=False):
+    def get_Bayesian_fit(self, 
+            generate_new_samples=False):
+
+        Bayesian_fit = BayesianFit(self)
+        if generate_new_samples:
+            Bayesian_fit.generate_df()
+        else:
+            Bayesian_fit.load_df()
+
+        return Bayesian_fit
+
+    def plot_slice(self, metallicity, density,
+                   with_MLE_fit = False, MLE_fit = None,
+                   with_Bayesian_fit = False, Bayesian_fit = None,
+                   verbose=False):
+        """Plots a slice of momentum vs. N_SNe, at fixed density, metallicity
+
+        Parameters
+        ----------
+        metallicity : float
+            - gas metallicity (mass fraction)
+        density : float
+            - gas density [g cm**-3]
+            
+        with_MLE_fit : Optional[bool]
+            - Should the plot include the MLE line-of-best fit?
+            - If True, requires MLE_fit of type MLEFit
+        MLE_fit : Optional[None or MLEFit (see with_MLE_fit)]
+
+        with_Bayesian_fit : Optional[bool]
+            - Should the plot include the Bayesian predictive median 
+              and 1 sigma contours?
+            - If True, requires Bayesian_fit of type BayesianFit
+        Bayesian_fit : Optional[None or BayesianFit]
+
+        verbose : Optional[bool]
+            - print basic information about the plot
+        """
         if verbose:
             print_device = sys.stdout
         else:
             print_device = open(os.devnull, mode="w")
 
-        metallicity = self.metallicities_1D[metallicity_index]
-        density     = self.densities_1D[density_index]
         mask = np.isclose(self.densities, density, atol=0) \
              & np.isclose(self.metallicities, metallicity, atol=0) \
              & self.usable & (self.momenta>0) # & ~self.excluded
 
         print(file=print_device)
-        print("=================", file=print_device )
-        print("metallicity: ", metallicity, file=print_device)
-        print("density:     ", density, file=print_device)
+        print("=================",             file=print_device )
+        print("metallicity:    ", metallicity, file=print_device)
+        print("density:        ", density,     file=print_device)
+        print("number plotted: ", sum(mask),   file=print_device)
         
-        x_fit = np.logspace(0, 3.25, num=100)
-        y_fit_overall = self.model_overall(metallicity, density, x_fit)
-
-        if fitted:
-            model_tmp = Momentum_Model(1e3, 1e4, 
-                                       0, 0, 
-                                       0, 0,
-                                       2, -.12)
-
-            fixed = np.array([False, False, 
-                              True, True, 
-                              True, True, 
-                              False, True])
-            
-            x = (self.metallicities[mask], self.densities[mask], self.num_SNe[mask])
-            y = self.momenta[mask] / (self.num_SNe[mask] * 100 * M_solar)
-
-            fitted = False
-            if len(x[0]) >= (~fixed).sum():
-                fitted = True
-                model_tmp.fit(x,y, fixed=fixed)
-            models.append(model_tmp)
-            fitted = False
-            
-            y_fit = model_tmp(metallicity, density, x_fit)
-                                      
-            print(str(models_tmp), file=print_device)
-
         plt.figure()
      
-        print("number plotted: ", sum(mask), file=print_device)
         plt.scatter(self.num_SNe[mask], 
                     self.momenta[mask] / (self.num_SNe[mask] * 100 * M_solar),
                     marker= "o",
                     s=100,
                     label="data")
+
+        if with_MLE_fit:
+            x_fit = np.logspace(-.5, 3.5, num=100)
+            y_fit = MLE_fit(metallicity, density, x_fit)
+            plt.plot(x_fit, y_fit, label="MLE Fit")
+
+        if with_Bayesian_fit:
+            x_fit = np.logspace(-.5, 3.5, num=100)
+            y_fit = Bayesian_fit.generate_predictive_percentiles(metallicity, density, x_fit)
+            plt.plot(x_fit, y_fit[:,2], label="median( predictive )")
+            plt.fill_between(x_fit, y_fit[:,1], y_fit[:,3], alpha=.5)
         
-        plt.xlim(np.min(x_fit)/3 , np.max(x_fit)*3)
+        plt.xlim(10**-.5 , 10**3.5)
+        plt.ylim(ymin=0)
         
-        plt.plot(x_fit, y_fit_overall, 
-                 label="overall fit")
-        if fitted:
-            plt.plot(x_fit, y_fit,  label="fit", linestyle="--")
         plt.xscale("log")
         plt.legend(loc="best", frameon=True, shadow=True)
         plt.xlabel(r"$N_{SNe}$ ")
         plt.ylabel(r"$p / (100$ $M_\odot$ $N_\mathrm{SNe})$ $[\mathrm{km}$ $\mathrm{s}^{-1}]$")
 
+
 #####################
 
 
-class Momentum_Model(object):
+def momentum_model(metallicity, density, N_SNe,
+                   model_parameters):
+    """A two-power law parameterization of our momentum results
+
+    This function only *evaluates* the model.
+    To fit the model, or save the best-fit parameters, see MLEFit and BayesianFit
+
+    Parameters
+    ----------
+    metallicity : array-like, size N
+        - gas metallicity (mass fraction)
+    density : array-like, size N
+        - gas density, in terms of [g cm**-3]
+    N_SNe : array-like, size N
+        - total number of SNe
+    model_parameters : ModelParameters
+        - ModelParameters.sigma_squared is not used here
+
+    Returns
+    -------
+    momentum : array-like, size N
+        - in the units of log10_norm_* (probably [km s**-1])
+    """
+
+    log10_norm_low,      log10_norm_high, \
+    eta_metallicity_low, eta_metallicity_high, \
+    eta_density_low,     eta_density_high, \
+    eta_N_SNe_low,       eta_N_SNe_high = model_parameters.get_primary_parameters()
     
+    norm_low  = 10**log10_norm_low
+    norm_high = 10**log10_norm_high
+            
+    momentum_low  = norm_low  \
+                * (metallicity / metallicity_solar)**eta_metallicity_low \
+                * (density / m_proton)**eta_density_low \
+                * (N_SNe / (1))**eta_N_SNe_low
+    
+    momentum_high = norm_high \
+                * (metallicity / metallicity_solar)**eta_metallicity_high \
+                * (density / m_proton)**eta_density_high \
+                * (N_SNe / (1000))**eta_N_SNe_high
+    
+    momentum = (momentum_low * momentum_high) / (momentum_low + momentum_high)
+        
+    return momentum
+
+
+#########################################
+
+
+class ModelParameters(object):
+    """Container for the model parameters of our 2 power law fit"""
     def __init__(self, 
-                 norm_low,            norm_high,
-                 eta_metallicity_low, eta_metallicity_high, 
-                 eta_density_low,     eta_density_high, 
-                 eta_N_SNe_low,       eta_N_SNe_high):
+                 log10_norm_low, log10_norm_high,
+                 eta_metallicity_low, eta_metallicity_high,
+                 eta_density_low, eta_density_high,
+                 eta_N_SNe_low, eta_N_SNe_high,
+                 sigma_squared=0):
+        """
+        Parameters
+        (Note: *_low refers to low SNe power law, *_high refers to high SNe power law)
+        All are type float
+        ----------
+        log10_norm_low  : normalization of power law
+        log10_norm_high : normalization of power law
+        eta_metallicity_low  : power law index on metallicity dependence
+        eta_metallicity_high : power law index on metallicity dependence
+        eta_density_low  : power law index on ISM density dependence
+        eta_density_high : power law index on ISM density dependence
+        eta_N_SNe_low  : power law index on N_SNe dependence
+        eta_N_SNe_high : power law index on N_SNe dependence
         
-        params_0 = (norm_low,            norm_high,
-                    eta_metallicity_low, eta_metallicity_high,
-                    eta_density_low,     eta_density_high,
-                    eta_N_SNe_low,       eta_N_SNe_high)
+        sigma_squared : [Optional] variance of uncertainty added to model"""
+                
+        self.log10_norm_low  = log10_norm_low
+        self.log10_norm_high = log10_norm_high
+        self.eta_metallicity_low  = eta_metallicity_low
+        self.eta_metallicity_high = eta_metallicity_high
+        self.eta_density_low  = eta_density_low
+        self.eta_density_high = eta_density_high
+        self.eta_N_SNe_low  = eta_N_SNe_low
+        self.eta_N_SNe_high = eta_N_SNe_high
+        self.sigma_squared = sigma_squared
         
-        self.params_0 = params_0
-        self.params   = params_0
+    def get_primary_parameters(self):
+        return [self.log10_norm_low,      self.log10_norm_high,
+                self.eta_metallicity_low, self.eta_metallicity_high,
+                self.eta_density_low,     self.eta_density_high,
+                self.eta_N_SNe_low,       self.eta_N_SNe_high]
+
+    def get_nuisance_parameters(self):
+        return [self.sigma_squared,]
+
+    def get_parameters(self):
+        return [*self.get_primary_parameters(), *self.get_nuisance_parameters()]
+
+    def copy(self):
+        return self.__class__(*self.get_parameters())
+
+
+#########################################
+
+
+class MLEFit(object):
+    """Maximum Likelihood Estimated (MLE) fit to our momentum_model"""
+
+    def __init__(self,
+                model_parameters=ModelParameters(
+                    np.log10(1e3), np.log10(1e4), # log10_norm
+                    0,             0,             # eta_metallicity
+                    .25,           .2,            # eta_density
+                    2,             -.08           # eta_N
+                )):
+        """
+        Parameters
+        (Note: *_low refers to low SNe power law, *_high refers to high SNe power law)
+        All are type float; All are initial guesses
+        ----------
+        model_parameters : ModelParameters
+            - ModelParameters.sigma_squared is not used here
+        """
+        
+        params_0 = model_parameters
+        
+        self.model_parameters_initial = model_parameters
+        self.model_parameters         = model_parameters.copy()
     
-    def __call__(self, metallicity, density, N_SNe):
-        
-        norm_low,            norm_high, \
-        eta_metallicity_low, eta_metallicity_high, \
-        eta_density_low,     eta_density_high, \
-        eta_N_SNe_low,       eta_N_SNe_high = self.params
-        
-        x = (metallicity, density, N_SNe)
-        
-        return self.evaluate(x,
-                             np.log10(norm_low),  np.log10(norm_high),
-                             eta_metallicity_low, eta_metallicity_high,
-                             eta_density_low,     eta_density_high,
-                             eta_N_SNe_low,       eta_N_SNe_high)
+    def __call__(self, metallicity, density, N_SNe):        
+        return momentum_model(metallicity, density, N_SNe,
+                              self.model_parameters)
         
     def __str__(self):
         s  = "p/(100 * M_sun * N_SNe) ~ min("
@@ -255,8 +359,14 @@ class Momentum_Model(object):
         s +=       " * (rho / m_p)**{6:.2f}"
         s +=       " * (N_SNe/1000)**{7:.2f}"
         s += ")"
-        s = s.format(self.params[0], self.params[2], self.params[4], self.params[6],
-                     self.params[1], self.params[3], self.params[5], self.params[7])
+        s = s.format(10**self.model_parameters.log10_norm_low, 
+                         self.model_parameters.eta_metallicity_low, 
+                         self.model_parameters.eta_density_low, 
+                         self.model_parameters.eta_N_SNe_low,
+                     10**self.model_parameters.log10_norm_high, 
+                         self.model_parameters.eta_metallicity_high, 
+                         self.model_parameters.eta_density_high, 
+                         self.model_parameters.eta_N_SNe_high)
         
         return s
 
@@ -267,34 +377,35 @@ class Momentum_Model(object):
 \end{{equation}}
         where
 \begin{{align}}
-        y_1 &= {0} \left(\frac{{Z}}{{Z_\odot}} \right)^{{{1:.2f}}} \left( \frac{{\rho}}{{m_p \text{{ cm}}^{{-3}}}}\right)^{{{2:.2f}}} \left( N_\mathrm{{SNe}} \right)^{{{3:.2f}}} \\
-        y_2 &= {4} \left(\frac{{Z}}{{Z_\odot}} \right)^{{{5:.2f}}} \left( \frac{{\rho}}{{m_p \text{{ cm}}^{{-3}}}}\right)^{{{6:.2f}}} \left( \frac{{N_\mathrm{{SNe}}}}{{10^3}} \right)^{{{7:.2f}}}
+        y_1 &= {0} \left(\frac{{Z}}{{Z_\odot}} \right)^{{{1:.2f}}} \left( \frac{{\rho}}{{m_p \text{{ cm}}^{{-3}}}}\right)^{{{2:.2f}}} \left( N_\mathrm{{SNe}} \right)^{{{3:.2f}}} \label{{eq:model:fewSNe}} \\
+        y_2 &= {4} \left(\frac{{Z}}{{Z_\odot}} \right)^{{{5:.2f}}} \left( \frac{{\rho}}{{m_p \text{{ cm}}^{{-3}}}}\right)^{{{6:.2f}}} \left( \frac{{N_\mathrm{{SNe}}}}{{10^3}} \right)^{{{7:.2f}}} \label{{eq:model:manySNe}}
 \end{{align}}""".format(
-                parse_into_scientific_notation(self.params[0]),
-                self.params[2], 
-                self.params[4], 
-                self.params[6],
-                parse_into_scientific_notation(self.params[1]), 
-                self.params[3], 
-                self.params[5], 
-                self.params[7])
-            print(s,file=f)
+                parse_into_scientific_notation(10**self.model_parameters.log10_norm_low),
+                self.model_parameters.eta_metallicity_low, 
+                self.model_parameters.eta_density_low, 
+                self.model_parameters.eta_N_SNe_low,
+                parse_into_scientific_notation(10**self.model_parameters.log10_norm_high), 
+                self.model_parameters.eta_metallicity_high, 
+                self.model_parameters.eta_density_high, 
+                self.model_parameters.eta_N_SNe_high)
+            print(s, file=f)
 
 
 
-    def fit(self, x, y, fixed=None, **kwargs):
-        """Fits the model using its initial self.params_0;
-        Stores result as self.params
-        
+    def fit(self, metallicity, density, N_SNe, momenta, fixed=None, **kwargs):
+        """Fits the momentum using the initial self.model_parameters_initial;
+        Saves the best-fit parameters into self.model_parameters
 
         Parameters
-        --------
-            x : locations of initial N data points; array: N x 3
-                - metallicity 
-                - density [g cm**-3]
-                - number of SNe 
-                - momentum efficiency [km / s]
-            y : momentum efficiency [g cm**-3] at those N data points; array: Nx1
+        ----------
+            metallicity : array-like, size N
+                - gas metallicity (mass fraction)
+            density : array-like, size N
+                - gas density, in terms of [g cm**-3]
+            N_SNe : array-like, size N
+                - total number of SNe
+            momenta : momentum efficiency (observed), array-like, size N
+                - momentum / (100*M_solar*N_SNe) in units of [km s**-1]
             fixed : mask of values to be held fixed; None or np.ndarray (dtype=bool)
                 - fixed values set to True
                 - free  values set to False
@@ -302,30 +413,15 @@ class Momentum_Model(object):
             **kwargs : to be passed to optimize.curve_fit; dict
                 - does NOT get passed to the fitted function
 
-
-        Returns
-        -------
-        popt : best-fit parameters; array: 8x1
-        pcov : estimated parameter covariance; array: n_free x n_free
-            - where: n_free = sum(~fixed)
-
-
         Side effects
         ------------
-        Overwrites self.params with latest fit results
+        Overwrites self.model_parameters with latest fit results
         
         Notes
         -----
-        Fits self.evaluate
-        
-        covariance for normalizations is covariance in the *log*
-        
-        Doesn't return pcov entries corresponding to fixed values.
-        This might cause errors if you forget to check if a parameter was fixed.
-        In the future this should be fixed.
+        Fits momentum_model, using a simple least-squares frequentist method
         """
-        p0 = np.array(self.params_0)
-        p0[0:2] = np.log10(p0[0:2])
+        p0 = np.array(self.model_parameters_initial.get_primary_parameters())
         
         if fixed is None:
             fixed = np.full_like(p0, False, dtype=bool)
@@ -336,43 +432,228 @@ class Momentum_Model(object):
             raise TypeError("fixed must be type None or np.ndarray")
             
         def _f(x, *args):
+            metallicity, density, N_SNe = x
             p0[~fixed] = args
-            return self.evaluate(x, *p0)
+            return momentum_model(metallicity, density, N_SNe,
+                                  ModelParameters(*p0))
         
-        popt, pcov = optimize.curve_fit(_f, x, y, p0=p0[~fixed],
-                                        xtol=.01,
-                                        **kwargs)
+        popt, _ = optimize.curve_fit(_f, (metallicity, density, N_SNe),
+                                     momenta, 
+                                     p0=p0[~fixed],
+                                     xtol=.01,
+                                     **kwargs)
         p0[~fixed] = popt
-        popt = p0
-        popt[0:2] = 10**popt[0:2] # we fit the log of the normalization
-        self.params = tuple(popt)
-        return popt, pcov
+        self.model_parameters = ModelParameters(*p0)
 
+
+#########################################
+
+
+class BayesianFit(object):
+    """Creates, and holds the Bayesian fit to our momentum_model"""
+    def __init__(self, aggregated_results):
+        self.aggregated_results = aggregated_results
+        
+        self.mask =  self.aggregated_results.usable & (self.aggregated_results.momenta>0)
+
+        self.model_inputs = (self.aggregated_results.metallicities[self.mask],
+                             self.aggregated_results.densities[self.mask],
+                             self.aggregated_results.num_SNe[self.mask])
+        
+        self.momentum_measured = self.aggregated_results.momenta[self.mask] \
+            / (self.aggregated_results.num_SNe[self.mask] * 100 * M_solar)
+        
+        self.n_measurements = self.momentum_measured.size 
+        
+        self.generate_initial_parameters()
+        
+    def save_df(self, filename="posterior_samples.h5"):
+        with pd.HDFStore(filename) as store:
+            store["df"] = self.df
     
-    @staticmethod
-    def evaluate(x,
-                log_norm_low,        log_norm_high,
-                eta_metallicity_low, eta_metallicity_high,
-                eta_density_low,     eta_density_high,
-                eta_N_SNe_low,       eta_N_SNe_high):
+    def load_df(self, filename="posterior_samples.h5"):
+        with pd.HDFStore(filename) as store:
+            self.df = store["df"]
+    
+    def generate_initial_parameters(self):
+        """Use the MLE parameters, and estimate sigma_squared from the variance of the errors"""
+        MLE_fit = self.aggregated_results.get_MLE_fit()
+        self.model_parameters_initial = MLE_fit.model_parameters
+
+        momentum_modeled = MLE_fit(*self.model_inputs)
+        sigma_squared = np.var(momentum_modeled - self.momentum_measured)
+
+        self.model_parameters_initial.sigma_squared = sigma_squared 
         
-        norm_low  = 10**log_norm_low
-        norm_high = 10**log_norm_high
+    def log_prior(self, model_parameters):
+        return -np.log(model_parameters.sigma_squared)
+    
+    def log_likelihood(self, model_parameters):
+        momentum_modeled  = momentum_model(*self.model_inputs,
+                                           model_parameters)
+
+        return np.sum(- .5 * (momentum_modeled - self.momentum_measured)**2\
+                              /model_parameters.sigma_squared \
+                      - .5 * np.log(model_parameters.sigma_squared))
+    
+    def log_posterior(self, model_parameters):
+        return self.log_prior(model_parameters) + self.log_likelihood(model_parameters)
+    
+    def draw_new_samples(self, model_parameters):
+
+        # Use Metropolis-Hastings for primary parameters
+        step_size = [.05, .05, # log10_norm_*
+                     .05, .05, # eta_metallicity_*
+                     .05, .05, # eta_density_*
+                     .5, .05,  # eta_N_SNe_*
+                     0]
+
+        acceptances = np.empty_like(model_parameters.get_parameters(), dtype=int)
+        model_parameters_new = model_parameters.copy()
+
+        for i, parameter_i in enumerate(model_parameters.get_parameters()[:-1]):
+            parameters_tmp = np.array(model_parameters_new.get_parameters())
+            parameters_tmp[i] = stats.norm.rvs(loc=parameter_i, scale=step_size[i])
+            model_parameters_tmp = ModelParameters(*parameters_tmp)
+
+            log_prob_ratio =    self.log_posterior(model_parameters_tmp) \
+                              - self.log_posterior(model_parameters_new)
+
+            if log_prob_ratio > np.log(stats.uniform.rvs()):
+                model_parameters_new = model_parameters_tmp
+                acceptances[i] = 1
+            else:
+                acceptances[i] = 0
         
-        metallicity, density, N_SNe = x
         
-        # Normalize p_M_low at M=10**2 M_solar
-        p_M_low  = norm_low  \
-                    * (metallicity / metallicity_solar)**eta_metallicity_low \
-                    * (density / m_proton)**eta_density_low \
-                    * (N_SNe / (1))**eta_N_SNe_low
+        # Gibbs sample a new sigma_squared value
+        momentum_modeled  = momentum_model(*self.model_inputs,
+                                           model_parameters_new)
+        shape = self.n_measurements/2
+        scale = np.sum(.5*(momentum_modeled - self.momentum_measured)**2)
+        sigma_squared_new = stats.invgamma.rvs(shape, scale=scale)
+        model_parameters_new = ModelParameters(*model_parameters_new.get_primary_parameters(),
+                                               sigma_squared_new)
+        acceptances[-1] = 1
+
+        return model_parameters_new, acceptances
+
+    def generate_df(self, n_samples=100000, verbose=False):
+        n_burn  = n_samples//10
+        n_draws = n_samples + n_burn
         
-        # Normalize p_M_low at M=10**5 M_solar
-        p_M_high = norm_high \
-                    * (metallicity / metallicity_solar)**eta_metallicity_high \
-                    * (density / m_proton)**eta_density_high \
-                    * (N_SNe / (1000))**eta_N_SNe_high
+        samples = np.empty((n_draws, 
+                            len(self.model_parameters_initial.get_parameters())))
+        samples[0] = self.model_parameters_initial.get_parameters()
         
-        p_M = (p_M_low * p_M_high) / (p_M_low + p_M_high)
+        acceptances_total = np.zeros(len(self.model_parameters_initial.get_parameters()),
+                                     dtype=int)
+        for i in range(1, n_draws):
+            model_parameters_new, acceptances = self.draw_new_samples(ModelParameters(*samples[i-1]))
             
-        return p_M
+            samples[i] = model_parameters_new.get_parameters()
+            
+            if i >= n_burn:
+                acceptances_total += acceptances
+        
+        samples = samples[n_burn:]
+        
+        columns = ["log10_norm_low",      "log10_norm_high",
+                   "eta_metallicity_low", "eta_metallicity_high",
+                   "eta_density_low",     "eta_density_high",
+                   "eta_N_SNe_low",       "eta_N_SNe_high",
+                   "sigma_squared"]
+        
+        if verbose:
+            print(acceptances_total/n_samples)
+                
+        self.df =  pd.DataFrame(samples, columns=columns)
+        
+    def create_trace_plots(self):
+        for i, column in enumerate(self.df):
+            plt.figure()
+            self.df[column].plot(label="MCMC")
+            plt.ylabel(column)
+            plt.title("Trace Plot")
+            plt.axhline(self.model_parameters_initial.get_parameters()[i], c="r", label="MLE")
+            plt.legend(loc="best")
+    
+    def create_autocorrelation_plots(self):
+        for column in self.df:
+            plt.figure()
+            plt.acorr(self.df[column], 
+                      maxlags=min(1000, self.df.shape[0]), usevlines=False, linestyle="-", label=column)
+            plt.legend(loc="best")
+            plt.xlabel("Lag")
+            plt.ylabel("Autocorrelation")
+            
+    def create_corner_plots(self):
+        import corner
+        labels = [r"$\log p_\mathrm{low}$", r"$\log p_\mathrm{high}$",
+          r"$\eta_{Z,low}$", r"$\eta_{Z, high}$",
+          r"$\eta_{\rho, low}$", r"$\eta_{\rho, high}$",
+          r"$\eta_{N,low}$", r"$\eta_{N, high}$",
+          r"$\sigma^2$"]
+        figure = corner.corner(self.df, 
+                       label_kwargs={"fontsize":40},
+                       labels=labels,
+                       show_titles = True)
+        return figure
+    
+    def generate_predictive_percentiles(self, metallicity, density, num_SNe, 
+                                        percentiles=np.array([2.28, 15.87, 50, 84.13, 97.72]),
+                                        subsample_factor = 100, num_noise_realizations=100):
+        """For the given metallicity, density, SNe this generates the predictive distribution,
+        and returns the momentum corresponding to a certain percentile
+        
+        Parameters
+        ----------
+        metallicity : 1D array_like, size N or 1 
+            - gas mass fraction
+        density : 1D array_like, size N or 1 
+            - units of [g cm**-3]
+        num_SNe : 1D array_like, size N or 1 
+        percentiles : Optional[array-like (Mx1)]
+            - return the momenta corresponding to these percentiles for each metallicity,density,num_SNe
+            - default relative to median: -2 sigma, -1 sigma, 0, +1 sigma, +2 sigma
+        subsample_factor : Optional[int]
+            - when iterating through the MCMC samples, take steps of size subsample_factor
+        num_noise_realizations : Optional[int]
+            - for a given MCMC sample, we need to create `num_noise_realizations` of the noise
+        
+        Returns
+        -------
+        momenta : arraylike (NxM)
+            - momentum / (100 * M_solar * num_SNe)
+            - units of [km s**-1] momentum / (100 * M_solar * num_SNe)
+        """
+        metallicity = np.array(metallicity).flatten()
+        density     = np.array(density).flatten()
+        num_SNe     = np.array(num_SNe).flatten()
+        
+        N = max(metallicity.size, density.size, num_SNe.size)
+        
+        metallicity = metallicity * np.ones(N)
+        density     = density     * np.ones(N)
+        num_SNe     = num_SNe     * np.ones(N)
+            
+        M = len(percentiles)
+        
+        df_tmp = self.df.loc[::subsample_factor]
+        J = df_tmp.shape[0]
+        
+        momenta = np.empty((N,M))
+        for i in range(N):            
+            ys = np.empty((J, num_noise_realizations))
+            for j, row in enumerate(df_tmp.iterrows()):
+                parameters = list(row[1])
+                sigma_squared = parameters[8]
+                ys[j] = momentum_model(metallicity[i], density[i], num_SNe[i],
+                                       ModelParameters(*parameters))
+                ys[j] += stats.norm.rvs(scale=np.sqrt(sigma_squared), size=num_noise_realizations)
+            momenta[i] = np.percentile(ys, percentiles)
+                
+        return momenta
+        
+
+        

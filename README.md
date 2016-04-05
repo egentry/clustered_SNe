@@ -38,11 +38,14 @@ Licensed under the GPLv3.
     - Matplotlib
     - Bokeh
     - Numpy
+    - Scipy
     - Astropy
     - Pandas
     - Seaborn
     - Numba
     - SQLAlchemy
+    - corner
+      - Only needed if you call `BayesianFit.create_corner_plots`
 
 
 ##Acknowledgements
