@@ -36,7 +36,6 @@ class ThorntonParameterStudy(object):
     """
     Holds the reduced and fitted results for a full parameter study 
     in the style of Thornton et al. (1998)
-
     """
 
     formatter = LogFormatterMathtext(labelOnlyBase=False)
@@ -170,8 +169,8 @@ class ThorntonParameterStudy(object):
         plt.legend(loc="best")
         plt.xscale("log")
         plt.yscale("log")
-        plt.xlabel(r"$n$ [cm$^{-3}$]")
-        plt.ylabel(r"$E_{{R, \mathrm{{ {0} }} }}$ [ergs]".format(energy))
+        plt.xlabel(r"$n$ $[\mathrm{cm}^{-3}]$")
+        plt.ylabel(r"$E_{{R, \mathrm{{ {0} }} }}$ $[\mathrm{{ergs}}]$".format(energy))
 
         xmin, xmax = plt.xlim()
         plt.xlim(xmin/5, xmax*5)
@@ -207,7 +206,7 @@ class ThorntonParameterStudy(object):
         plt.xscale("log")
         plt.yscale("log")
         plt.xlabel(r"$\log[Z / Z_\odot]$")
-        plt.ylabel(r"$E_{{R, {0} }}$ [ergs]".format(energy))
+        plt.ylabel(r"$E_{{R, {0} }}$ $[\mathrm{{ergs}}]$".format(energy))
 
         xmin, xmax = plt.xlim()
         plt.xlim(xmin/5, xmax*5)
@@ -265,7 +264,7 @@ class SimultaneousModel(object):
         
 
 class NumberDensityModel(object):
-    """Eventually I should make this a real astropy model subclass"""
+    """Power law fit, as a function of number density"""
     def __init__(self, number_densities, energies):
         super(NumberDensityModel, self).__init__()
         self.model  = self.fit(number_densities, energies)
@@ -297,7 +296,7 @@ class NumberDensityModel(object):
     
     
 class MetallicityModel(object):
-    """Eventually I should make this a real astropy model subclass"""
+    """Power law fit, as a function of number density"""
     def __init__(self, metallicities, energies):
         super(MetallicityModel, self).__init__()
         self.model  = self.fit(metallicities, energies)

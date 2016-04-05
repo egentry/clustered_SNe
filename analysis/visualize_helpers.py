@@ -540,7 +540,7 @@ def plot_momentum(run_summary, x_axis, y_axis_scaling = "mass", clear_previous=T
 
     if x_axis == "time":
         x_variable = run_summary.times / yr
-        xlabel = "$t$ [yr]"
+        xlabel = r"$t$ $[\mathrm{yr}]$"
         xscale = "linear"
         plt.xscale(xscale)
         xfmt = plt.gca().get_xaxis().get_major_formatter() # needs to be set AFTER plt.xscale()
@@ -618,7 +618,7 @@ def plot_luminosity(run_summary, x_axis):
     plt.plot(x_variable[mask], -y_data, label="net heating + accretion", color="r")
     plt.xlabel(xlabel)
     plt.xscale(xscale)
-    plt.ylabel(r"dE/dt [erg s$^{-1}$]")
+    plt.ylabel(r"$dE/dt$ $[\mathrm{erg}$ $\mathrm{s}^{-1}]$")
     plt.yscale("log")
     plt.legend(loc="best")
     
