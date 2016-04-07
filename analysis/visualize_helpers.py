@@ -72,7 +72,8 @@ def plotter(run_summary,
             highlight_timestep_limiting_cell = False,
             outer_limit_log  = 0, 
             checkpoint_index = 0,
-            verbose = True):
+            verbose = True,
+            label = "numeric"):
     if verbose:
         print_device = sys.stdout
     else:
@@ -156,13 +157,13 @@ def plotter(run_summary,
     
     plt.plot(df_tmp[x_axis_variable], df_tmp[y_axis_variable], 
              marker=marker,
-             label="numeric",
+             label=label,
              drawstyle="steps")
     if y_axis_variable == "Velocity":
         plt.plot(df_tmp[x_axis_variable], -1*df_tmp[y_axis_variable],
           color="r",
           drawstyle="steps",
-          label="numeric (inward velocity)")
+          label=label + " (inward velocity)")
     if highlight_timestep_limiting_cell:
         timestep_limiting_index = df_tmp.Crossing_time.argmin()
         plt.plot(df_tmp[x_axis_variable].loc[timestep_limiting_index],
@@ -268,7 +269,8 @@ def single_run(data_dir="", id=""):
         x_axis_variable        = RadioButtons(options=["Radius",
                                                        "M_int",
                                                        "zones"]),
-        verbose                = fixed(True))
+        verbose                = fixed(True),
+        label                  = fixed("numeric"))
     single_run.previous_widget = w
     display(w)
     return run_summary
@@ -531,7 +533,8 @@ def plot_energy(run_summary, x_axis):
         plt.xlim(xmin=0)
 
 
-def plot_momentum(run_summary, x_axis, y_axis_scaling = "mass", clear_previous=True, distplot=True):
+def plot_momentum(run_summary, x_axis, y_axis_scaling = "mass", 
+    clear_previous=True, distplot=True, label=""):
     if run_summary.overview.cluster_mass <= 0:
         raise ValueError("Cluster mass doesn't allow valid normalization of momentum")
     
@@ -576,7 +579,7 @@ def plot_momentum(run_summary, x_axis, y_axis_scaling = "mass", clear_previous=T
         ylabel = r"$p / (100$ $M_\odot$ $N_\mathrm{SNe})$ $[\mathrm{km}$ $\mathrm{s}^{-1}]$"
 
 
-    plt.plot(x_variable[mask], y_variable[mask])
+    plt.plot(x_variable[mask], y_variable[mask], label=label)
 
     plt.xscale(xscale)
     plt.xlabel(xlabel)   
