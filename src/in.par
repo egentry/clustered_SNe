@@ -41,6 +41,7 @@ Pressure_Floor      1e-40
 
 With_Cooling        true
 Cooling_Type        equilibrium
+Cooling_Redshift    0.0
 
 
 //Hydro Parameters//

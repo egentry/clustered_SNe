@@ -46,6 +46,7 @@ private:
     int N_chk;
     double delta_time;
     double CFL;
+    double Cooling_Redshift;
 
 
     double time_restart;

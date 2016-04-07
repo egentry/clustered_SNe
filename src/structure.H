@@ -44,8 +44,9 @@ struct param_list{
     int     Mesh_Motion;
     double  Density_Floor, Pressure_Floor;
 
-    bool     With_Cooling;
+    bool    With_Cooling;
     std::string cooling_type;
+    double  Cooling_Redshift;
     
     double  Adiabatic_Index;
 

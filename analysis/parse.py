@@ -33,6 +33,14 @@ from clustered_SNe.analysis.hydro_helpers import calculate_mass, \
                                           calculate_w_cell, \
                                           calculate_crossing_time
 
+
+cols = ["Radius", "dR", "dV", "Density", 
+        "Pressure", "Velocity", "Z", 
+        "Temperature", "Energy", "Entropy", 
+        "Mass", "M_int", "C_ad", "Crossing_time"]
+cols_in   = cols[:-7]
+
+
 def string_to_bool(string):
     string = string.lower()
     if string in ["true", "1"]:
@@ -124,14 +132,14 @@ class RunSummary(dict):
             
             df_tmp = df.loc[k]
 
-            df_tmp[cols_in] = pd.read_csv(checkpoint_filename,
+            df_tmp.loc[:,cols_in] = pd.read_csv(checkpoint_filename,
                         delim_whitespace=True,
                         engine="c",
                         dtype=np.float64,
                         skiprows=2, 
                         names=cols_in,
                         header=None
-                       )[1:-1].values
+                       ).iloc[1:-1].values
 
             df_tmp.Mass        = calculate_mass(df_tmp.Density.values,
                                                    df_tmp.dV.values)
@@ -185,6 +193,7 @@ class RunSummary(dict):
             else:
                 Luminosity[k] = -(E_R_tot[k] - E_R_tot[k-1]) / (times[k] - times[k-1])
 
+        df["zones"] = df.index.get_level_values(1)
         df.dR /= pc
         df.Radius /= pc
         df.Mass   /= M_solar
@@ -336,11 +345,6 @@ class Inputs(object):
     def __init__(self, filename):
         super(Inputs, self).__init__()
 
-        # set defaults, if applicable:
-        # don't set defaults unless you need to!
-        # it's probably better to fail, rather than silently give a default
-
-
         # read inputs properly
         self.read_inputs_from_file(filename)
 
@@ -390,6 +394,8 @@ class Inputs(object):
             elif "With_Cooling" in line:
                 self.With_Cooling = string_to_bool(line.split()[-1])
             elif "Cooling_Type" in line:
+                self.Cooling_Type = line.split()[-1]
+            elif "Cooling_Redshift" in line:
                 self.Cooling_Type = line.split()[-1]
 
             elif "Adiabatic_Index" in line:
@@ -444,6 +450,7 @@ class Inputs(object):
 
         f.write("With_Cooling: " + "{0}".format(self.With_Cooling) + "\n")
         f.write("Cooling_Type: " + "{0}".format(self.Cooling_Type) + "\n")
+        f.write("Cooling_Redshift: " + "{0}".format(self.Cooling_Redshift) + "\n")
 
         f.write("\n")
 
@@ -583,13 +590,6 @@ class Overview(object):
 
 
 #####################
-
-
-cols = ["Radius", "dR", "dV", "Density", 
-        "Pressure", "Velocity", "Z", 
-        "Temperature", "Energy", "Entropy", 
-        "Mass", "M_int", "C_ad", "Crossing_time"]
-cols_in   = cols[:-7]
 
 
 
