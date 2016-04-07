@@ -396,7 +396,7 @@ class Inputs(object):
             elif "Cooling_Type" in line:
                 self.Cooling_Type = line.split()[-1]
             elif "Cooling_Redshift" in line:
-                self.Cooling_Type = line.split()[-1]
+                self.Cooling_Redshift = float(line.split()[-1])
 
             elif "Adiabatic_Index" in line:
                 self.Adiabatic_Index = float(line.split()[-1])
