@@ -280,8 +280,11 @@ void inputs_overview( struct domain * theDomain ,
              theDomain->theParList.With_Cooling);
     fprintf(oFile, "Cooling_Type:     %s \n",
              cooling->name.c_str());
+    fprintf(oFile, "Cooling_Redshift: %f \n",
+             theDomain->theParList.Cooling_Redshift);
 
     fprintf(oFile, "\n");
+
 
     fprintf(oFile, "Adiabatic_Index:  %e \n",
              theDomain->theParList.Adiabatic_Index);
