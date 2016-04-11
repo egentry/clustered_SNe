@@ -44,10 +44,8 @@ def string_to_bool(string):
 
 #####################
 
-class RunSummary(dict):
-    """Extended dict to hold useful reduced variables.
-
-        At some point, it might be worth making this cleaner.
+class RunSummary(object):
+    """Stores raw information of an entire simulation, and a few reduced results
     """
     def __init__(self, data_dir = None, id = None):
         super(RunSummary, self).__init__()
@@ -224,26 +222,20 @@ class RunSummary(dict):
 
     def __repr__(self):
         """Overwrite dict.__repr__ to give the default object repr"""
-        return '<%s.%s object at %s>' % (
+        return '<{0}.{1} object at {2}>'.format(
             self.__class__.__module__,
             self.__class__.__name__,
             hex(id(self))
         )
 
-    def __getattr__(self, name):
-        return self[name]
-
-    def __setattr__(self, name, value):
-        self[name] = value
-
     def replace_with(self, copy_this):
         if not isinstance(copy_this, RunSummary):
             raise TypeError("Object passed to `replace_with' must be RunSummary instance")
 
-        self.clear()
-        keys = copy_this.keys()
+        self.__dict__.clear()
+        keys = copy_this.__dict__.keys()
         for key in keys:
-            self[key] = copy_this[key]
+            self.__dict__[key] = copy_this.__dict__[key]
 
     def is_last_checkpoint_x99(self):
         if self.overview.num_SNe == 0:
