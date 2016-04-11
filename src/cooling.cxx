@@ -58,9 +58,7 @@ Equilibrium_Cooling::Equilibrium_Cooling( bool with_cooling )
     :   Cooling(with_cooling,
         class_name),
         grid_rank(1),
-        field_size(1),
-        z_redshift(0.0),
-        a_value(1. / (1. + z_redshift))
+        field_size(1)
 {
 
     for ( int i=0 ; i<3 ; ++i )
@@ -106,7 +104,6 @@ double Equilibrium_Cooling::calc_cooling( const double * prim , const double * c
         metal_density[i]    = prim[ZZZ] * density[i];
     }
 
-
     if (solve_chemistry_table(&cooling_units,
                                 a_value, dt,
                                 grid_rank, grid_dimension,
@@ -146,9 +143,12 @@ void Equilibrium_Cooling::setup_cooling( const struct domain * theDomain )
     }
 
 
+
     char grackle_data_file[80] = "";
     strcat(grackle_data_file, GRACKLE_DIR);  // "GRACKLE_DIR" set by preprocessor
-    strcat(grackle_data_file, "/input/CloudyData_UVB=HM2012.h5"); 
+    strcat(grackle_data_file, "/input/CloudyData_UVB=HM2012.h5");
+    // strcat(grackle_data_file, "/input/CloudyData_noUVB.h5");
+
     // check that file exists
     fs::path grackle_data_path(grackle_data_file);
     assert(fs::exists(grackle_data_path));
@@ -177,6 +177,7 @@ void Equilibrium_Cooling::setup_cooling( const struct domain * theDomain )
     cooling_units.velocity_units       = cooling_units.length_units / cooling_units.time_units;
     cooling_units.a_units              = 1.0;
 
+    a_value = 1. / (1. + theDomain->theParList.Cooling_Redshift);
 
     if (initialize_chemistry_data(&cooling_units, a_value) == 0)
     {

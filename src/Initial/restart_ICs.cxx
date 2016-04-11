@@ -77,6 +77,12 @@ int Restart_ICs::setICparams( struct domain * theDomain ,
         std::cout << "Overwriting CFL to: " << CFL << std::endl;
     }
 
+    if (Cooling_Redshift > 0 )
+    {
+        theDomain->theParList.Cooling_Redshift = Cooling_Redshift;
+        std::cout << "Overwriting Cooling_Redshift to: " << Cooling_Redshift << std::endl;
+    }
+
     // Set values
 
     theDomain->t      = time_restart;
@@ -157,6 +163,12 @@ int Restart_ICs::parse_command_line_args (  struct domain * theDomain ,
     if ( argc > 5 )
     {
         CFL = std::stod(argv[5]);
+    }  
+
+    Cooling_Redshift = -1;
+    if ( argc > 6 )
+    {
+        Cooling_Redshift = std::stod(argv[6]);
     }  
 
     return 0;

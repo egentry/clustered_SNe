@@ -2,7 +2,7 @@
 //Time Range//
 
 T_Start             1e0
-T_End               3.5e15
+T_End               3e15
 
 
 //Output Frequency//
@@ -41,7 +41,7 @@ Pressure_Floor      1e-40
 
 With_Cooling        true
 Cooling_Type        equilibrium
-Cooling_Redshift    0.0
+Cooling_Redshift    2.0
 
 
 //Hydro Parameters//
@@ -51,7 +51,7 @@ Adiabatic_Index     1.666666667
 
 //Initial Conditions//
 
-ICs                 restart
+ICs                 cluster_SNe
 
 
 //Feedback//

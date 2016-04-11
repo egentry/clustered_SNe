@@ -196,9 +196,9 @@ int read_par_file( struct domain * theDomain , int argc , char * argv [] )
     error += read_var( par_filename , 
                     "RK2"              , &(theList->RK2) , 1 );
     error += read_var( par_filename , 
-                    "H_0"              , &(theList->H_0) , 10.0 );
+                    "H_0"              , &(theList->H_0) , 0.0 );
     error += read_var( par_filename , 
-                    "H_1"              , &(theList->H_1) , 0.0 );
+                    "H_1"              , &(theList->H_1) , 1.0 );
     error += read_var( par_filename , 
                     "Riemann_Solver"   , &(theList->Riemann_Solver) , 1 );
     error += read_var( par_filename , 
@@ -211,6 +211,8 @@ int read_par_file( struct domain * theDomain , int argc , char * argv [] )
                     "With_Cooling"     , &(theList->With_Cooling) , 1 );
     error += read_var( par_filename , 
                     "Cooling_Type"     , &(theList->cooling_type) , std::string("equilibrium") );
+    error += read_var( par_filename , 
+                    "Cooling_Redshift" , &(theList->Cooling_Redshift) , 0.0 );
     error += read_var( par_filename , 
                     "Adiabatic_Index"  , &(theList->Adiabatic_Index) , 1.666666667 );
     error += read_var( par_filename , 

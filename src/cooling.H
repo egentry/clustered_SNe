@@ -49,9 +49,7 @@ private:
     const int grid_rank;
     const int field_size;
 
-    const double z_redshift;
-    const double a_value;
-
+    double a_value;
 
     // these can't be constantified due to grackle
     int grid_start[3];
