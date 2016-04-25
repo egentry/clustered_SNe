@@ -186,24 +186,25 @@ class AggregatedResults(object):
         print("number plotted: ", sum(mask),   file=print_device)
         
         plt.figure()
-     
+
+        if with_Bayesian_fit:
+            x_fit = np.logspace(-.5, 3.5, num=100)
+            y_fit = Bayesian_fit.generate_predictive_percentiles(metallicity, density, x_fit)
+            plt.plot(x_fit, y_fit[:,2], label="model")
+            # alpha doesn't work in eps plots, so contour needs to look "transparent"
+            plt.fill_between(x_fit, y_fit[:,1], y_fit[:,3], color="#a5b8d7")
+
+        if with_MLE_fit:
+            x_fit = np.logspace(-.5, 3.5, num=100)
+            y_fit = MLE_fit(metallicity, density, x_fit)
+            plt.plot(x_fit, y_fit, label="MLE Fit")
+        
         plt.scatter(self.num_SNe[mask], 
                     self.momenta[mask] / (self.num_SNe[mask] * 100 * M_solar),
                     marker= "o",
                     s=100,
                     label="data")
 
-        if with_MLE_fit:
-            x_fit = np.logspace(-.5, 3.5, num=100)
-            y_fit = MLE_fit(metallicity, density, x_fit)
-            plt.plot(x_fit, y_fit, label="MLE Fit")
-
-        if with_Bayesian_fit:
-            x_fit = np.logspace(-.5, 3.5, num=100)
-            y_fit = Bayesian_fit.generate_predictive_percentiles(metallicity, density, x_fit)
-            plt.plot(x_fit, y_fit[:,2], label="median( predictive )")
-            plt.fill_between(x_fit, y_fit[:,1], y_fit[:,3], alpha=.5)
-        
         plt.xlim(10**-.5 , 10**3.5)
         plt.ylim(ymin=0)
         
@@ -377,8 +378,8 @@ class MLEFit(object):
 \end{{equation}}
         where
 \begin{{align}}
-        y_1 &= {0} \left(\frac{{Z}}{{Z_\odot}} \right)^{{{1:.2f}}} \left( \frac{{\rho}}{{m_p \text{{ cm}}^{{-3}}}}\right)^{{{2:.2f}}} \left( N_\mathrm{{SNe}} \right)^{{{3:.2f}}} \label{{eq:model:fewSNe}} \\
-        y_2 &= {4} \left(\frac{{Z}}{{Z_\odot}} \right)^{{{5:.2f}}} \left( \frac{{\rho}}{{m_p \text{{ cm}}^{{-3}}}}\right)^{{{6:.2f}}} \left( \frac{{N_\mathrm{{SNe}}}}{{10^3}} \right)^{{{7:.2f}}} \label{{eq:model:manySNe}}
+        y_1 &= {0} \left(\frac{{Z}}{{Z_\odot}} \right)^{{{1:.2f}}} \left( \frac{{\rho}}{{m_\mathrm{{H}} \text{{ cm}}^{{-3}}}}\right)^{{{2:.2f}}} \left( N_\mathrm{{SNe}} \right)^{{{3:.2f}}} \label{{eq:model:fewSNe}} \\
+        y_2 &= {4} \left(\frac{{Z}}{{Z_\odot}} \right)^{{{5:.2f}}} \left( \frac{{\rho}}{{m_\mathrm{{H}} \text{{ cm}}^{{-3}}}}\right)^{{{6:.2f}}} \left( \frac{{N_\mathrm{{SNe}}}}{{10^3}} \right)^{{{7:.2f}}} \label{{eq:model:manySNe}}
 \end{{align}}""".format(
                 parse_into_scientific_notation(10**self.model_parameters.log10_norm_low),
                 self.model_parameters.eta_metallicity_low, 
@@ -654,6 +655,79 @@ class BayesianFit(object):
             momenta[i] = np.percentile(ys, percentiles)
                 
         return momenta
-        
+
+    def print_latex_credibility_intervals(self, filename="plots_for_paper/equations/bayesian_fit_intervals.tex"):
+        with open(filename, mode="w") as f:
+            norm_low_estimate     = PointAndIntervalEstimate(10**self.df.log10_norm_low)
+            eta_Z_low_estimate    = PointAndIntervalEstimate(self.df.eta_metallicity_low)
+            eta_rho_low_estimate  = PointAndIntervalEstimate(self.df.eta_density_low)
+            eta_N_low_estimate    = PointAndIntervalEstimate(self.df.eta_N_SNe_low)
+            norm_high_estimate    = PointAndIntervalEstimate(10**self.df.log10_norm_high)
+            eta_Z_high_estimate   = PointAndIntervalEstimate(self.df.eta_metallicity_high)
+            eta_rho_high_estimate = PointAndIntervalEstimate(self.df.eta_density_high)
+            eta_N_high_estimate   = PointAndIntervalEstimate(self.df.eta_N_SNe_high)
+            sigma_estimate        = PointAndIntervalEstimate(self.df.sigma_squared**.5)
+
+            s = r"""
+            \begin{{align}}
+                \left( \frac{{p}}{{N_\mathrm{{SNe}}}} \right)_{{0,\mathrm{{few}}}} &= {0:.0f}^{{+{1:.0f}}}_{{-{2:.0f}}} \cdot 100 \; M_\odot \text{{ km s}}^{{-1}}
+                \\
+                \eta_{{Z,\mathrm{{few}}}} &= {3:.2f}^{{+{4:.2f}}}_{{-{5:.2f}}}
+                \\
+                \eta_{{\rho,\mathrm{{few}}}} &= {6:.2f}^{{+{7:.2f}}}_{{-{8:.2f}}}
+                \\
+                 \eta_{{N,\mathrm{{few}}}} &= {9:.2f}^{{+{10:.2f}}}_{{-{11:.2f}}}
+                \\
+                \left( \frac{{p}}{{N_\mathrm{{SNe}}}} \right)_{{0,\mathrm{{many}}}} &= {12:.0f}^{{+{13:.0f}}}_{{-{14:.0f}}} \cdot 100 \; M_\odot \text{{ km s}}^{{-1}}
+                \\
+                \eta_{{Z,\mathrm{{many}}}} &= {15:.2f}^{{+{16:.2f}}}_{{-{17:.2f}}}
+                \\
+                \eta_{{\rho,\mathrm{{many}}}} &= {18:.2f}^{{+{19:.2f}}}_{{-{20:.2f}}}
+                \\
+                \eta_{{N,\mathrm{{many}}}} &= {21:.2f}^{{+{22:.2f}}}_{{-{23:.2f}}}
+                \\
+                \sigma &= {24:.0f}^{{+{25:.0f}}}_{{-{26:.0f}}} \cdot 100 \; M_\odot \text{{ km s}}^{{-1}}
+            \end{{align}}
+            """.format(
+                norm_low_estimate.median,
+                norm_low_estimate.upper,
+                norm_low_estimate.lower,
+                eta_Z_low_estimate.median,
+                eta_Z_low_estimate.upper,
+                eta_Z_low_estimate.lower,
+                eta_rho_low_estimate.median,
+                eta_rho_low_estimate.upper,
+                eta_rho_low_estimate.lower,
+                eta_N_low_estimate.median,
+                eta_N_low_estimate.upper,
+                eta_N_low_estimate.lower,
+                norm_high_estimate.median,
+                norm_high_estimate.upper,
+                norm_high_estimate.lower,
+                eta_Z_high_estimate.median,
+                eta_Z_high_estimate.upper,
+                eta_Z_high_estimate.lower,
+                eta_rho_high_estimate.median,
+                eta_rho_high_estimate.upper,
+                eta_rho_high_estimate.lower,
+                eta_N_high_estimate.median,
+                eta_N_high_estimate.upper,
+                eta_N_high_estimate.lower,
+                sigma_estimate.median,
+                sigma_estimate.upper,
+                sigma_estimate.lower,
+                )
+
+            print(s, file=f)
+
+
+class PointAndIntervalEstimate(object):
+    """A point and interval estimation for an array of posterior samples of parameter"""
+    def __init__(self, parameter_samples,
+                percentiles=np.array([15.87, 84.13])):
+        super(PointAndIntervalEstimate, self).__init__()
+        self.median = np.median(parameter_samples)
+        self.lower  = self.median - np.percentile(parameter_samples, percentiles[0])
+        self.upper  = np.percentile(parameter_samples, percentiles[1]) - self.median
 
         
