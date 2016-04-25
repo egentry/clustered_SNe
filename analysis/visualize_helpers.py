@@ -426,9 +426,13 @@ def parameter_study_wrapper(data_dir, log_n, log_Z, T=1e4,
 
 
 
-def SNe_distplot(run_summary, x_axis):
+def SNe_distplot(run_summary, x_axis, x_axis_in_Myr = False):
     if x_axis == "time":
-        x_data = run_summary.overview.SNe_times / yr
+        if x_axis_in_Myr:
+            x_data = run_summary.overview.SNe_times / (1e6*yr)
+        else:
+            x_data = run_summary.overview.SNe_times / yr
+
         rug=True
         hist=False
     elif x_axis == "checkpoints":
@@ -533,8 +537,9 @@ def plot_energy(run_summary, x_axis):
         plt.xlim(xmin=0)
 
 
-def plot_momentum(run_summary, x_axis, y_axis_scaling = "mass", 
-    clear_previous=True, distplot=True, label=""):
+def plot_momentum(run_summary, x_axis="time", y_axis_scaling = "SNe", 
+    clear_previous=True, distplot=True, label="",
+    plot_times_in_Myr=True, with_momentum_axvline=True):
     if run_summary.overview.cluster_mass <= 0:
         raise ValueError("Cluster mass doesn't allow valid normalization of momentum")
     
@@ -542,32 +547,33 @@ def plot_momentum(run_summary, x_axis, y_axis_scaling = "mass",
         plt.figure()
 
     if x_axis == "time":
-        x_variable = run_summary.times / yr
-        xlabel = r"$t$ $[\mathrm{yr}]$"
+        if plot_times_in_Myr:
+            x_variable = run_summary.times / (1e6*yr)
+            xlabel = r"$t$ $[\mathrm{Myr}]$"
+        else:
+            x_variable = run_summary.times / yr
+            xlabel = r"$t$ $[\mathrm{yr}]$"
         xscale = "linear"
         plt.xscale(xscale)
-        xfmt = plt.gca().get_xaxis().get_major_formatter() # needs to be set AFTER plt.xscale()
         if xscale == "log":
             mask = x_variable > 1
         elif xscale == "linear":
             mask = np.full_like(x_variable, True, dtype=bool) 
-            xfmt.set_powerlimits((-2, 2)) # force scientific notation outside this range
 
     elif x_axis == "checkpoints":
         x_variable = np.arange(len(run_summary.times))
-        xlabel = "Checkpoint"
+        xlabel = r"$\mathrm{Checkpoint}$"
         xscale = "linear"
         mask = np.full_like(x_variable, True, dtype=bool) 
 
         plt.xscale(xscale)
-        # needs to be set AFTER plt.xscale():
-        xfmt = plt.gca().get_xaxis().get_major_formatter() 
 
     else:
         raise NotImplementedError("can't recognize x_axis value: " + x_axis)
 
     if distplot:
-        SNe_distplot(run_summary, x_axis)
+        SNe_distplot(run_summary, x_axis, x_axis_in_Myr=plot_times_in_Myr)
+
 
     if y_axis_scaling == "mass":
         y_variable = run_summary.momentum \
@@ -581,9 +587,23 @@ def plot_momentum(run_summary, x_axis, y_axis_scaling = "mass",
 
     plt.plot(x_variable[mask], y_variable[mask], label=label)
 
+    if with_momentum_axvline:
+        if x_axis == "time":
+            if plot_times_in_Myr:
+                plt.axvline(run_summary.times[run_summary.momentum.argmax()] \
+                    / (1e6*yr),
+                    linestyle="dashed", color="k")
+            else:
+                plt.axvline(run_summary.times[run_summary.momentum.argmax()] \
+                    / (yr),
+                    linestyle="dashed", color="k")
+        if x_axis == "checkpoints":
+            plt.axvline(run_summary.momentum.argmax(),
+                linestyle="dashed", color="k")
+
+
     plt.xscale(xscale)
     plt.xlabel(xlabel)   
-    plt.gca().xaxis.set_major_formatter(xfmt)
 
     plt.ylabel(ylabel)
     plt.ylim(ymin=0)
@@ -648,3 +668,114 @@ def plot_momentum_scaling(masses, momenta):
     plt.xlim( x_min / 5, x_max * 5)
     plt.ylim(ymin=0)
 
+
+def rbf_interpolate_logloglog(xin, yin, zin, xout, yout, spacing_x, spacing_y):
+    """Interpolate zin(xin, yin) to the points xout, yout, 
+    using a radial basis function and a log10,log10,log10 metric
+    
+    Expects all values to be 1D arrays"""
+    
+
+    zzout = np.empty((yout.size, xout.size))
+    for j in range(xout.size):
+        for i in range(yout.size):
+            weights = np.exp(-.5*distance_metric_squared(xin, yin, xout[j], yout[i], spacing_x, spacing_y))
+            weights /= weights.sum()
+            zzout[i,j] = 10**(weights * np.log10(zin)).sum()
+    
+    return zzout
+    
+def rbf_interpolate_loglog(xin, yin, zin, xout, yout, spacing_x, spacing_y):
+    """Interpolate zin(xin, yin) to the points xout, yout, 
+    using a radial basis function and a log10,log10,log10 metric
+    
+    Expects all values to be 1D arrays"""
+    
+
+    zzout = np.empty((yout.size, xout.size))
+    for j in range(xout.size):
+        for i in range(yout.size):
+            weights = np.exp(-.5*distance_metric_squared(xin, yin, xout[j], yout[i], spacing_x, spacing_y))
+            weights /= weights.sum()
+            zzout[i,j] = (weights * (zin)).sum()
+    
+    return zzout
+    
+def distance_metric_squared(x_a, y_a, x_b, y_b, spacing_x, spacing_y):
+    log_x_a = np.log10(x_a)
+    log_x_b = np.log10(x_b)
+    log_y_a = np.log10(y_a)
+    log_y_b = np.log10(y_b)
+    return ((log_x_a - log_x_b)/spacing_x)**2 \
+          + ((log_y_a - log_y_b)/spacing_y)**2
+
+
+def get_energies_radiated_net(run_summary):
+
+    outermost_cell_i = run_summary.df.loc[0].iloc[-1]
+    outermost_cell_f = run_summary.df.iloc[-1]
+    M_tot = outermost_cell_f.M_int * M_solar
+
+    E_i = outermost_cell_i.Energy * M_tot
+    E_f = outermost_cell_f.Energy * M_tot
+
+    radii = run_summary.df.Radius.max(level=0)
+    masses = 4/3*np.pi*run_summary.overview.background_density \
+                * (pc*run_summary.df.Radius.max(level=0))**3
+
+    background_specific_energy = np.array([run_summary.df.Energy.loc[i].iloc[-1] 
+                                    for i in range(len(run_summary.times))])
+
+    energies_no_SNe = M_tot * background_specific_energy
+
+    energies_if_full_sized = run_summary.E_tot + (M_tot-masses)*background_specific_energy
+    energies_added_by_SNe = 1e51*np.array([(time >= run_summary.overview.SNe_times).sum()
+                                           for time in run_summary.times])
+
+    energies_radiated_net = energies_no_SNe-(energies_if_full_sized-energies_added_by_SNe)
+    return energies_radiated_net.values
+
+
+def plot_energy_budget(run_summary, with_momentum_axvline=True,
+                                    with_SNe_ticks=True):
+    current_color_palette = sns.color_palette(palette="Set1")
+
+    energies_radiated_net = get_energies_radiated_net(run_summary)
+    SNe_so_far = np.array([(time >= run_summary.overview.SNe_times).sum()
+                           for time in run_summary.times])
+
+    plt.fill_between(run_summary.times / (1e6*yr),
+                     1-(energies_radiated_net)/(1e51*SNe_so_far),
+                     1,
+                     color = current_color_palette[2],
+                     label=r"$\mathrm{radiated}$"
+    )
+
+
+    plt.fill_between(run_summary.times / (1e6*yr),
+                     (run_summary.E_R_kin)/(1e51*SNe_so_far),
+                     1-(energies_radiated_net)/(1e51*SNe_so_far),
+                     color = current_color_palette[0],
+                     label=r"$\mathrm{thermal}$"
+    )
+
+    plt.fill_between(run_summary.times / (1e6*yr),
+                     0,
+                     (run_summary.E_R_kin)/(1e51*SNe_so_far),
+                     color = current_color_palette[1],
+                     label=r"$\mathrm{kinetic}$"
+    )
+
+    if with_momentum_axvline:
+        plt.axvline(run_summary.times[run_summary.momentum.argmax()] / (1e6 * yr),
+                    linestyle="dashed",
+                    color="k")
+
+    if with_SNe_ticks:
+        SNe_distplot(run_summary, "time", x_axis_in_Myr=True)
+
+    plt.xlim(0,run_summary.times.max()/(1e6*yr))
+    plt.ylim(0,1)
+    plt.xlabel(r"$t$ $[\mathrm{Myr}]$")
+    plt.ylabel(r"$\mathrm{Fractional}$ $\mathrm{SNe}$ $\mathrm{Energy}$ $\mathrm{Budget}$")
+    plt.legend(loc="upper right",frameon=True)
