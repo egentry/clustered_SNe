@@ -32,7 +32,7 @@ RK2                 1
 H_0                 0.0
 H_1                 0.1
 Riemann_Solver      1       //0=HLL, 1=HLLC
-Mesh_Motion         1       //0=Fixed, 1=Moving
+Mesh_Motion         0       //0=Fixed, 1=Moving
 Density_Floor       1e-60
 Pressure_Floor      1e-40 
 
