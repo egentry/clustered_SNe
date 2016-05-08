@@ -678,6 +678,6 @@ def parse_into_scientific_notation(number, prefix_format="{:.2e}"):
     scientific_notation_parts = prefix_format.format(number).split("e")
     scientific_notation_parts[1] = int(scientific_notation_parts[1])
 
-    return r"{0} \cdot 10^{{{1}}}".format(scientific_notation_parts[0],
+    return r"{0} \times 10^{{{1}}}".format(scientific_notation_parts[0],
                                          scientific_notation_parts[1])
 

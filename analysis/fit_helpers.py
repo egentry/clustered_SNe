@@ -146,6 +146,7 @@ class AggregatedResults(object):
     def plot_slice(self, metallicity, density,
                    with_MLE_fit = False, MLE_fit = None,
                    with_Bayesian_fit = False, Bayesian_fit = None,
+                   new_figure=True,
                    verbose=False):
         """Plots a slice of momentum vs. N_SNe, at fixed density, metallicity
 
@@ -185,7 +186,8 @@ class AggregatedResults(object):
         print("density:        ", density,     file=print_device)
         print("number plotted: ", sum(mask),   file=print_device)
         
-        plt.figure()
+        if new_figure:
+            plt.figure()
 
         if with_Bayesian_fit:
             x_fit = np.logspace(-.5, 3.5, num=100)
@@ -203,7 +205,7 @@ class AggregatedResults(object):
                     self.momenta[mask] / (self.num_SNe[mask] * 100 * M_solar),
                     marker= "o",
                     s=100,
-                    label="data")
+                    label="simulations")
 
         plt.xlim(10**-.5 , 10**3.5)
         plt.ylim(ymin=0)

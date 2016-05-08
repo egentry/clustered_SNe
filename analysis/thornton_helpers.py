@@ -44,7 +44,7 @@ class ThorntonParameterStudy(object):
     metallicity_fit_label    = r"Fit($Z$)"
     number_density_fit_label = r"Fit($n$)"
     simultaneous_fit_label   = r"Fit($Z$, $n$)"
-    my_label = "Numeric Results"
+    my_label = "our simulations"
     Thornton_label = "Thornton et al. (1998)"
 
 
@@ -152,20 +152,20 @@ class ThorntonParameterStudy(object):
         self.number_density_models[energy].print_model()
 
         plt.figure()
-        plt.plot(self.df.number_density[mask], self.df[y_variable][mask],
-                 marker="o", linestyle="",
-                 label=self.my_label)
-        plt.plot(self.df.number_density[mask],
-                 self.number_density_models[energy](self.df.number_density[mask]),
-                 label=self.number_density_fit_label)
-        plt.plot(self.df.number_density[mask],
-                 self.simultaneous_models[energy](self.df.metallicity[mask],
-                                             self.df.number_density[mask]),
-                 label=self.simultaneous_fit_label)
+        plt.scatter(self.df.number_density[mask], self.df[y_variable][mask],
+                 label=self.my_label, s=100, marker="o")
         plt.plot(self.df.number_density[mask],
                  self.thornton_models[energy](self.df.metallicity[mask],
                                 self.df.number_density[mask]),
-                 label=self.Thornton_label, linestyle="--")
+                 label=self.Thornton_label)
+        plt.plot(self.df.number_density[mask],
+                 self.number_density_models[energy](self.df.number_density[mask]),
+                 label=self.number_density_fit_label, linestyle="dashed")
+        plt.plot(self.df.number_density[mask],
+                 self.simultaneous_models[energy](self.df.metallicity[mask],
+                                             self.df.number_density[mask]),
+                 label=self.simultaneous_fit_label, linestyle="dashed")
+
         plt.legend(loc="best")
         plt.xscale("log")
         plt.yscale("log")
@@ -188,20 +188,21 @@ class ThorntonParameterStudy(object):
         self.metallicity_models[energy].print_model()
         
         plt.figure()
-        plt.plot(self.df.metallicity[mask] / metallicity_solar,
+        plt.scatter(self.df.metallicity[mask] / metallicity_solar,
                  self.df[y_variable][mask],
-                 marker="o", linestyle="", label="Numeric Results")
-        plt.plot(self.df.metallicity[mask] / metallicity_solar,
-                 self.metallicity_models[energy](self.df.metallicity[mask]),
-                 label=self.metallicity_fit_label)
-        plt.plot(self.df.metallicity[mask] / metallicity_solar,
-                 self.simultaneous_models[energy](self.df.metallicity[mask],
-                                             self.df.number_density[mask]),
-                 label=self.simultaneous_fit_label)
+                 label=self.my_label, s=100, marker="o")
         plt.plot(self.df.metallicity[mask] / metallicity_solar,
                  self.thornton_models[energy](self.df.metallicity[mask],
                                 self.df.number_density[mask]),
-                 label=self.Thornton_label, linestyle="--")
+                 label=self.Thornton_label)
+        plt.plot(self.df.metallicity[mask] / metallicity_solar,
+                 self.metallicity_models[energy](self.df.metallicity[mask]),
+                 label=self.metallicity_fit_label, linestyle="dashed")
+        plt.plot(self.df.metallicity[mask] / metallicity_solar,
+                 self.simultaneous_models[energy](self.df.metallicity[mask],
+                                             self.df.number_density[mask]),
+                 label=self.simultaneous_fit_label, linestyle="dashed")
+
         plt.legend(loc="best")
         plt.xscale("log")
         plt.yscale("log")
