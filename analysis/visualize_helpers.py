@@ -72,8 +72,9 @@ def plotter(run_summary,
             highlight_timestep_limiting_cell = False,
             outer_limit_log  = 0, 
             checkpoint_index = 0,
-            verbose = True,
-            label = "numeric"):
+            label = "numeric",
+            density_in_mH_cm3 = False,
+            verbose = True):
     if verbose:
         print_device = sys.stdout
     else:
@@ -155,19 +156,22 @@ def plotter(run_summary,
 
     marker = "."
     
-    plt.plot(df_tmp[x_axis_variable], df_tmp[y_axis_variable], 
+    y_variable_scale = 1
+    if density_in_mH_cm3 and (y_axis_variable=="Density"):
+      y_variable_scale = m_proton
+    plt.plot(df_tmp[x_axis_variable], df_tmp[y_axis_variable] / y_variable_scale, 
              marker=marker,
              label=label,
              drawstyle="steps")
     if y_axis_variable == "Velocity":
-        plt.plot(df_tmp[x_axis_variable], -1*df_tmp[y_axis_variable],
+        plt.plot(df_tmp[x_axis_variable], -1*df_tmp[y_axis_variable] / y_variable_scale,
           color="r",
           drawstyle="steps",
           label=label + " (inward velocity)")
     if highlight_timestep_limiting_cell:
         timestep_limiting_index = df_tmp.Crossing_time.argmin()
         plt.plot(df_tmp[x_axis_variable].loc[timestep_limiting_index],
-                 df_tmp[y_axis_variable].loc[timestep_limiting_index], 
+                 df_tmp[y_axis_variable].loc[timestep_limiting_index] / y_variable_scale, 
                  marker=marker,
                  linestyle="",
                  label="Timestep limiting cell",
@@ -191,12 +195,16 @@ def plotter(run_summary,
     
     plt.xlabel(label_dict[x_axis_variable])
     plt.ylabel(label_dict[y_axis_variable])
+    if density_in_mH_cm3 and (y_axis_variable=="Density"):
+        plt.ylabel(r"$\rho$ $[m_\mathrm{H}$ $\mathrm{cm}^{-3}]$")
 
     plt.legend(loc="best")
     
 
 def plot_sedov(run_summary, time, x_axis_variable, y_axis_variable, 
-               metallicity, background_density, background_temperature):
+               metallicity, background_density, background_temperature,
+               density_in_mH_cm3 = False,
+               ):
 
     sedov_x_axes = ["Radius", "M_int"]
     if x_axis_variable not in sedov_x_axes:
@@ -230,7 +238,12 @@ def plot_sedov(run_summary, time, x_axis_variable, y_axis_variable,
     df_sedov.Mass    /= M_solar
     df_sedov["M_int"] = df_sedov.Mass.cumsum()
 
-    plt.plot(df_sedov[x_axis_variable], df_sedov[y_axis_variable], 
+    y_axis_scaling = 1
+    if density_in_mH_cm3 and (y_axis_variable=="Density"):
+        y_axis_scaling = m_proton
+
+    plt.plot(df_sedov[x_axis_variable], 
+             df_sedov[y_axis_variable] / y_axis_scaling, 
              label="analytic (no cooling)")
     
 def single_run(data_dir="", id=""):
@@ -269,8 +282,10 @@ def single_run(data_dir="", id=""):
         x_axis_variable        = RadioButtons(options=["Radius",
                                                        "M_int",
                                                        "zones"]),
+        label                  = fixed("numeric"),
+        density_in_mH_cm3      = fixed(False),
         verbose                = fixed(True),
-        label                  = fixed("numeric"))
+        )
     single_run.previous_widget = w
     display(w)
     return run_summary

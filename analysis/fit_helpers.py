@@ -212,7 +212,7 @@ class AggregatedResults(object):
         
         plt.xscale("log")
         plt.legend(loc="best", frameon=True, shadow=True)
-        plt.xlabel(r"$N_{SNe}$ ")
+        plt.xlabel(r"$N_\mathrm{SNe}$ ")
         plt.ylabel(r"$p / (100$ $M_\odot$ $N_\mathrm{SNe})$ $[\mathrm{km}$ $\mathrm{s}^{-1}]$")
 
 
