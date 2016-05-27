@@ -96,7 +96,10 @@ void possiblyOutput( struct domain * theDomain , int override )
     if( theDomain->nrpt < n0 || override )
     {
         theDomain->nrpt = n0;
-        printf("t = %.3e\n",t);
+        if( theDomain->rank == 0 )
+        {
+            printf("t = %.3e\n",t);
+        }
     }
 
     n0 = static_cast<int> ( (t-t_min)*Nchk / (t_fin-t_min) );
@@ -109,13 +112,19 @@ void possiblyOutput( struct domain * theDomain , int override )
         char filename[256];
         if( !override )
         {
-            printf("Creating Checkpoint #%04d...\n",n0);
+            if( theDomain->rank == 0)
+            {
+                printf("Creating Checkpoint #%04d...\n",n0);
+            }
             sprintf(filename,"checkpoint_%04d",n0);
             create_checkpoint( theDomain , filename, t );
         }
         else
         {
-            printf("Creating Final Checkpoint...\n");
+            if( theDomain->rank == 0)
+            {
+                printf("Creating Final Checkpoint...\n");
+            }
             create_checkpoint( theDomain , "output", t );
         }
     }

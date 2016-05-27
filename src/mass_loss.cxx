@@ -291,6 +291,8 @@ void Uniform_Mass_Loss::add_mass_loss( struct domain * theDomain ,
     //
     // ============================================= //
 
+    if( theDomain->rank != 0) return;
+
     const double wind_velocity = 1000 * (1000 * 100); // 1000 km / s
 
 

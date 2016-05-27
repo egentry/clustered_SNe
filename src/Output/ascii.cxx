@@ -18,6 +18,8 @@ extern "C" {
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
+#include <mpi.h>
+
 
 void create_checkpoint( struct domain * theDomain , const char * filestart , 
                  const double t )
@@ -25,44 +27,64 @@ void create_checkpoint( struct domain * theDomain , const char * filestart ,
 
     const struct cell * theCells = theDomain->theCells;
     const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
+    int rank = theDomain->rank;
+    int size = theDomain->size;
 
     char filename[256] = "";
     strcat(filename, theDomain->output_prefix.c_str());
     strcat(filename, filestart);
     strcat(filename, ".dat");
 
-    FILE * pFile = fopen( filename , "w" );
-    fprintf(pFile,"# time = %le [s] \n", t);
-    fprintf(pFile,"# r                  dr                 dV                 Density            Pressure           Velocity           Z\n");
-
-    const int i_min = 0;
-    const int i_max = Nr;
-
-    for( int i=i_min ; i<i_max ; ++i )
+    if( rank==0 )
     {
-        const struct cell * c = &(theCells[i]);
-        const double rp = c->riph;
-        const double dr = c->dr; 
-        const double rm = rp-dr;
-        const double dV = get_dV( rp , rm );
-        fprintf(pFile,"%18.10e %18.10e %18.10e ",rp,dr,dV);
-        for( int q=0 ; q<NUM_Q ; ++q )
-        {
-            fprintf(pFile,"%18.10e ",c->prim[q]);
-        }
-        #ifndef NDEBUG
-        if(c->prim[PPP] < theDomain->theParList.Pressure_Floor)
-        {
-            printf("-------ERROR--------- \n");
-            printf("In create_checkpoint() \n");
-            printf("c->prim[PPP] = %e at i=%d \n", c->prim[PPP], i);
-            printf("Pressure floor should be = %e \n", theDomain->theParList.Pressure_Floor);
-            assert(0);
-        }
-        #endif
-        fprintf(pFile,"\n");
+        FILE * pFile = fopen( filename , "w" );
+        fprintf(pFile,"# time = %le [s] \n", t);
+        fprintf(pFile,"# r                  dr                 dV                 Density            Pressure           Velocity           Z\n");
+        fclose(pFile);
     }
-    fclose( pFile );
+
+    MPI_Barrier( MPI_COMM_WORLD );
+
+    int i_min = 0;
+    int i_max = Nr;
+
+    if( rank != 0      ) i_min = Ng;
+    if( rank != size-1 ) i_max = Nr-Ng;
+
+    for (int rk=0; rk<size ; ++rk)
+    {
+        if( rank==rk )
+        {        
+            FILE * pFile = fopen( filename , "a" );
+            for( int i=i_min ; i<i_max ; ++i )
+            {
+                const struct cell * c = &(theCells[i]);
+                const double rp = c->riph;
+                const double dr = c->dr; 
+                const double rm = rp-dr;
+                const double dV = get_dV( rp , rm );
+                fprintf(pFile,"%18.10e %18.10e %18.10e ",rp,dr,dV);
+                for( int q=0 ; q<NUM_Q ; ++q )
+                {
+                    fprintf(pFile,"%18.10e ",c->prim[q]);
+                }
+                #ifndef NDEBUG
+                if(c->prim[PPP] < theDomain->theParList.Pressure_Floor)
+                {
+                    printf("-------ERROR--------- \n");
+                    printf("In create_checkpoint() \n");
+                    printf("c->prim[PPP] = %e at i=%d \n", c->prim[PPP], i);
+                    printf("Pressure floor should be = %e \n", theDomain->theParList.Pressure_Floor);
+                    assert(0);
+                }
+                #endif
+                fprintf(pFile,"\n");
+            }
+            fclose( pFile );
+        }
+    MPI_Barrier( MPI_COMM_WORLD );
+    }
 
 }
 
@@ -71,6 +93,7 @@ void overviews(  struct domain * theDomain ,
                 Cooling * cooling )
 {
 
+    if (theDomain->rank != 0) return;
     main_overview( theDomain , mass_loss, cooling );
 
     SNe_overview( theDomain );

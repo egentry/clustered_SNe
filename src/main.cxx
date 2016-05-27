@@ -7,19 +7,29 @@
 #include "cooling.H" // Cooling
 #include "readpar.H" // read_par_file()
 #include "domain.H" // check_dt, possiblyOutput, setupDomain, freeDomain
-#include "misc.H" // getmindt, set_wcell
+#include "misc.H" // getmindt, set_wcell, mpi_setup
 #include "mass_loss.H" // Mass_Loss, add_mass_loss
 #include "profiler.H" // start_clock, generate_log
 #include "timestep.H"
 #include "Output/ascii.H" // overview
 #include "Initial/initial_conditions.H" // select_initial_conditions
-
+#include "exchange.H"
+#include <mpi.h>
 int main( int argc , char * argv[] )
 {
 
     int error;
 
+    MPI_Init(&argc,&argv);
+
     struct domain theDomain = {0};
+
+    error = mpi_setup( &theDomain );
+    if( error==1 ) 
+    {
+        std::cerr << "Error in mpi_setup" << std::endl;
+        return 0;
+    }
 
     error = read_par_file( &theDomain , argc , argv );
     if( error==1 ) 
@@ -52,7 +62,9 @@ int main( int argc , char * argv[] )
         return 0;
     }
 
-    ICs->setup_grid( &theDomain );   
+    ICs->setup_grid( &theDomain ); 
+
+    exchange_data( &theDomain );  
 
 
     // cooling might depend on the actual grid
@@ -80,7 +92,11 @@ int main( int argc , char * argv[] )
     possiblyOutput( &theDomain , 1 );
 
     generate_log( &theDomain );
+
+    MPI_Barrier(MPI_COMM_WORLD);
     freeDomain( &theDomain );
+    MPI_Finalize();
+
 
     return 0;
 

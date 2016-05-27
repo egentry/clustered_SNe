@@ -58,6 +58,9 @@ struct param_list{
 
 struct domain{
 
+    int size; // MPI_COMM_WORLD attributes
+    int rank; // MPI_COMM_WORLD attributes
+
     struct cell * theCells;
     int Nr,Ng;                 // number of cells (total and guard, respectively)
 

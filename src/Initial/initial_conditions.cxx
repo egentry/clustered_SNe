@@ -26,7 +26,9 @@
 #include "conduction_study_ICs.H"
 #include "Sedov_ICs.H"
 
-#include <boost/algorithm/string.hpp>    
+#include <boost/algorithm/string.hpp>  
+
+#include <mpi.h>  
 
 Initial_Conditions * select_initial_conditions( std::string IC_name )
 {
@@ -95,6 +97,12 @@ Initial_Conditions * select_initial_conditions( std::string IC_name )
 
 }
 
+int get_N0( int rank , int size , int num )
+{
+   int N0 = (num * rank) / size;
+   return(N0);
+}
+
 //************ Initial_Conditions (abstract base class) *********************//
 
 Initial_Conditions::Initial_Conditions( const std::string name ) : name(name)
@@ -154,13 +162,21 @@ void Initial_Conditions::setup_cells( struct domain * theDomain )
 void Initial_Conditions::setup_grid( struct domain * theDomain )
 {
     theDomain->Ng = NUM_G;
+    int Ng = theDomain->Ng;
     int Num_R = theDomain->theParList.Num_R;
     int LogZoning = theDomain->theParList.LogZoning;
+
+    int rank = theDomain->rank;
+    int size = theDomain->size;
 
     double Rmin = theDomain->theParList.rmin;
     double Rmax = theDomain->theParList.rmax;
 
-    int Nr = Num_R;
+    int N0r = get_N0( rank   , size , Num_R );
+    int N1r = get_N0( rank+1 , size , Num_R );
+    if( rank != 0 ) N0r -= Ng;
+    if( rank != size-1 ) N1r += Ng;
+    int Nr = N1r-N0r;
 
     theDomain->Nr = Nr;
     theDomain->theCells = (struct cell *) malloc( Nr*sizeof(struct cell));
@@ -168,7 +184,7 @@ void Initial_Conditions::setup_grid( struct domain * theDomain )
     int i;
 
     double dx = 1.0/static_cast<double>(Num_R);
-    double x0 = 0;
+    double x0 = N0r*dx;
     double R0 = theDomain->theParList.LogRadius;
     for( i=0 ; i<Nr ; ++i )
     {
@@ -219,6 +235,8 @@ void Initial_Conditions::possibly_extend_grid( struct domain * theDomain )
     //    - This will throw off energy conservation calculations in analysis
     // ============================================= //
 
+    if( theDomain->rank != theDomain->size-1) return;
+
     const unsigned int Nr = theDomain->Nr;
     const double R_max    = theDomain->theCells[Nr-2].riph;
     const double R_shock  = theDomain->R_shock;
@@ -255,7 +273,10 @@ double Initial_Conditions::find_shock( const struct domain * theDomain ) const
     // ============================================= //
 
     const unsigned int Nr = theDomain->Nr;
-    const double background_density = theDomain->theCells[Nr-2].prim[RHO];
+    double background_density = theDomain->theCells[Nr-2].prim[RHO];
+
+    MPI_Bcast(&background_density, 1, MPI_DOUBLE, theDomain->size-1,
+        MPI_COMM_WORLD);
 
     const double density_tolerance = 1e-2;
 
@@ -271,6 +292,8 @@ double Initial_Conditions::find_shock( const struct domain * theDomain ) const
             R_shock = c->riph;
         }
     }
+
+    MPI_Allreduce( MPI_IN_PLACE , &R_shock , 1 , MPI_DOUBLE , MPI_MAX , MPI_COMM_WORLD );
 
     return R_shock;
 }
@@ -431,6 +454,7 @@ void Initial_Conditions::set_output_prefix( struct domain * theDomain )
     char id_ascii[36];
     uuid_generate(id_binary);
     uuid_unparse(id_binary, id_ascii);
+    MPI_Bcast(&id_ascii, 36, MPI_CHAR, 0, MPI_COMM_WORLD);
     printf("generated uuid: %s \n", id_ascii);
     theDomain->output_prefix = std::string(id_ascii).append("_");
 

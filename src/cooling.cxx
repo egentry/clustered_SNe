@@ -2,6 +2,8 @@
 #include <string>
 #include <iostream>
 #include <stdexcept>
+#include <cmath>
+
 
 
 #include <stdio.h>
@@ -58,7 +60,8 @@ Equilibrium_Cooling::Equilibrium_Cooling( bool with_cooling )
     :   Cooling(with_cooling,
         class_name),
         grid_rank(1),
-        field_size(1)
+        field_size(1),
+        dE_saved(INFINITY)
 {
 
     for ( int i=0 ; i<3 ; ++i )
@@ -74,10 +77,13 @@ double Equilibrium_Cooling::calc_cooling( const double * prim , const double * c
                                           const double dt, const bool cached )
 {
 
-    if( cached )
-    {
-        return dE_saved;
-    }
+    // if( cached )
+    // {
+    //     if( std::isfinite(dE_saved) )
+    //     {
+    //         return dE_saved;
+    //     }
+    // }
 
     // declare fluid variable arrays (will need more for other chemistries)
     gr_float *density, *energy, *x_velocity, *y_velocity, *z_velocity;

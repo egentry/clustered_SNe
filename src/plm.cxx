@@ -18,7 +18,12 @@ void plm( struct domain * theDomain )
     struct cell * theCells = theDomain->theCells;
     const int Nr  = theDomain->Nr;
     const int PLM = theDomain->theParList.PLM;
-    for( int i=0 ; i<Nr ; ++i )
+    int i_min = 1;
+    int i_max = Nr-1;
+
+    if( theDomain->rank == 0) i_min=0;
+    if( theDomain->rank == theDomain->size-1) i_max=Nr;
+    for( int i=i_min ; i<i_max ; ++i )
     {
         int im = i-1;
         int ip = i+1;

@@ -6,6 +6,8 @@
 #include "misc.H" // calc_dr, calc_prim, radial_flux, add_source, etc
 #include "timestep.H"
 #include "Initial/initial_conditions.H"
+#include "exchange.H"
+#include "plm.H"
 
 
 void substep( struct domain * theDomain , double RK , 
@@ -61,9 +63,12 @@ void substep( struct domain * theDomain , double RK ,
         AMR( theDomain );
         theDomain->R_shock = ICs->find_shock( theDomain );
         ICs->possibly_extend_grid( theDomain );
-
     }
     boundary( theDomain );
+
+    exchange_data( theDomain );
+    plm( theDomain );
+    exchange_data( theDomain );
 
 }
 

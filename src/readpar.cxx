@@ -11,6 +11,8 @@
 #include <boost/lexical_cast.hpp>
 #include <vector>
 
+#include <mpi.h>
+
 int read_var_raw( const std::string filename , const char * var_name ,  char * var_raw )
 {
 
@@ -157,6 +159,9 @@ int read_par_file( struct domain * theDomain , int argc , char * argv [] )
 
     struct param_list * theList = &( theDomain->theParList );
 
+    int rank = theDomain->rank;
+    int size = theDomain->size;
+
     std::string par_filename("in.par");
     if ( argc > 1 )
     {
@@ -165,63 +170,73 @@ int read_par_file( struct domain * theDomain , int argc , char * argv [] )
 
     int error = 0;  
 
-    error += read_var( par_filename , 
-                    "T_Start"          , &(theList->t_min) , 0.0 );
-    error += read_var( par_filename , 
-                    "T_End"            , &(theList->t_max) , 1.0 );
-    error += read_var( par_filename , 
-                    "Num_Reports"      , &(theList->NumRepts) , 1000 );
-    error += read_var( par_filename , 
-                    "Num_Checkpoints"  , &(theList->NumChecks) , 100 );
-    error += read_var( par_filename , 
-                    "Use_Logtime"      , &(theList->Out_LogTime) , true );
-    error += read_var( par_filename , 
-                    "Num_R"            , &(theList->Num_R) , 1024 );
-    error += read_var( par_filename , 
-                    "R_Min"            , &(theList->rmin) , 3.08e16 );
-    error += read_var( par_filename , 
-                    "R_Max"            , &(theList->rmax) , 3.08e20 );
-    error += read_var( par_filename , 
-                    "Log_Zoning"       , &(theList->LogZoning) , 0 );
-    error += read_var( par_filename , 
-                    "Log_Radius"       , &(theList->LogRadius) , 3.08e18 );
-    error += read_var( par_filename , 
-                    "Max_Aspect_Short" , &(theList->MaxShort) , 10.0 );
-    error += read_var( par_filename , 
-                    "Max_Aspect_Long"  , &(theList->MaxLong) , 10.0 );
-    error += read_var( par_filename , 
-                    "CFL"              , &(theList->CFL) , 0.2 );
-    error += read_var( par_filename , 
-                    "PLM"              , &(theList->PLM) , 1 );
-    error += read_var( par_filename , 
-                    "RK2"              , &(theList->RK2) , 1 );
-    error += read_var( par_filename , 
-                    "H_0"              , &(theList->H_0) , 0.0 );
-    error += read_var( par_filename , 
-                    "H_1"              , &(theList->H_1) , 1.0 );
-    error += read_var( par_filename , 
-                    "Riemann_Solver"   , &(theList->Riemann_Solver) , 1 );
-    error += read_var( par_filename , 
-                    "Mesh_Motion"      , &(theList->Mesh_Motion) , 1 );
-    error += read_var( par_filename , 
-                    "Density_Floor"    , &(theList->Density_Floor) , 1e-60 );
-    error += read_var( par_filename , 
-                    "Pressure_Floor"   , &(theList->Pressure_Floor) , 1e-40 );
-    error += read_var( par_filename , 
-                    "With_Cooling"     , &(theList->With_Cooling) , 1 );
-    error += read_var( par_filename , 
-                    "Cooling_Type"     , &(theList->cooling_type) , std::string("equilibrium") );
-    error += read_var( par_filename , 
-                    "Cooling_Redshift" , &(theList->Cooling_Redshift) , 0.0 );
-    error += read_var( par_filename , 
-                    "Adiabatic_Index"  , &(theList->Adiabatic_Index) , 1.666666667 );
-    error += read_var( par_filename , 
-                    "ICs"              , &(theList->ICs) , std::string("cluster_SNe") );
-    error += read_var( par_filename , 
-                    "mass_loss"        , &(theList->mass_loss) , std::string("uniform") );
+    for( int nrank=0; nrank<size ; ++nrank )
+    {
+        if( rank==nrank )
+        {
 
+            error += read_var( par_filename , 
+                            "T_Start"          , &(theList->t_min) , 0.0 );
+            error += read_var( par_filename , 
+                            "T_End"            , &(theList->t_max) , 1.0 );
+            error += read_var( par_filename , 
+                            "Num_Reports"      , &(theList->NumRepts) , 1000 );
+            error += read_var( par_filename , 
+                            "Num_Checkpoints"  , &(theList->NumChecks) , 100 );
+            error += read_var( par_filename , 
+                            "Use_Logtime"      , &(theList->Out_LogTime) , true );
+            error += read_var( par_filename , 
+                            "Num_R"            , &(theList->Num_R) , 1024 );
+            error += read_var( par_filename , 
+                            "R_Min"            , &(theList->rmin) , 3.08e16 );
+            error += read_var( par_filename , 
+                            "R_Max"            , &(theList->rmax) , 3.08e20 );
+            error += read_var( par_filename , 
+                            "Log_Zoning"       , &(theList->LogZoning) , 0 );
+            error += read_var( par_filename , 
+                            "Log_Radius"       , &(theList->LogRadius) , 3.08e18 );
+            error += read_var( par_filename , 
+                            "Max_Aspect_Short" , &(theList->MaxShort) , 10.0 );
+            error += read_var( par_filename , 
+                            "Max_Aspect_Long"  , &(theList->MaxLong) , 10.0 );
+            error += read_var( par_filename , 
+                            "CFL"              , &(theList->CFL) , 0.2 );
+            error += read_var( par_filename , 
+                            "PLM"              , &(theList->PLM) , 1 );
+            error += read_var( par_filename , 
+                            "RK2"              , &(theList->RK2) , 1 );
+            error += read_var( par_filename , 
+                            "H_0"              , &(theList->H_0) , 0.0 );
+            error += read_var( par_filename , 
+                            "H_1"              , &(theList->H_1) , 1.0 );
+            error += read_var( par_filename , 
+                            "Riemann_Solver"   , &(theList->Riemann_Solver) , 1 );
+            error += read_var( par_filename , 
+                            "Mesh_Motion"      , &(theList->Mesh_Motion) , 1 );
+            error += read_var( par_filename , 
+                            "Density_Floor"    , &(theList->Density_Floor) , 1e-60 );
+            error += read_var( par_filename , 
+                            "Pressure_Floor"   , &(theList->Pressure_Floor) , 1e-40 );
+            error += read_var( par_filename , 
+                            "With_Cooling"     , &(theList->With_Cooling) , 1 );
+            error += read_var( par_filename , 
+                            "Cooling_Type"     , &(theList->cooling_type) , std::string("equilibrium") );
+            error += read_var( par_filename , 
+                            "Cooling_Redshift" , &(theList->Cooling_Redshift) , 0.0 );
+            error += read_var( par_filename , 
+                            "Adiabatic_Index"  , &(theList->Adiabatic_Index) , 1.666666667 );
+            error += read_var( par_filename , 
+                            "ICs"              , &(theList->ICs) , std::string("cluster_SNe") );
+            error += read_var( par_filename , 
+                            "mass_loss"        , &(theList->mass_loss) , std::string("uniform") );
 
-    if( error > 0 )
+        }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    int error_total;
+    MPI_Allreduce( &error , &error_total , 1 , MPI_INT , MPI_SUM , MPI_COMM_WORLD );
+    if( error_total > 0 )
     {
         std::cerr << "Reading parameter file failed" << std::endl;
         return 1;

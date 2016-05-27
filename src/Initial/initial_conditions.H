@@ -46,6 +46,9 @@ private:
 };
 
 Initial_Conditions * select_initial_conditions( std::string IC_name );
+int get_N0( int rank , int size , int num );
+
+
 
 #endif
 

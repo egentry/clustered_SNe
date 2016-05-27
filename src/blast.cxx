@@ -119,8 +119,11 @@ int add_blasts( struct domain * theDomain )
             (theDomain->SNe.back().lifetime < theDomain->t) )
     {
         supernova tmp = theDomain->SNe.back();
-        error += add_single_blast( theDomain, 
-                                   tmp.mass_ejecta, tmp.mass_ejecta_Z);
+        if( theDomain->rank == 0)
+        {
+            error += add_single_blast( theDomain, 
+                                       tmp.mass_ejecta, tmp.mass_ejecta_Z);            
+        }
 
         theDomain->SNe.pop_back();
         ++num_SNe;

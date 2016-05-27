@@ -13,6 +13,7 @@ extern "C" {
 #include "plm.H"
 #include "riemann.H"
 #include "Hydro/euler.H" // prim2cons, cons2prim, mindt, E_int_from_*
+#include <mpi.h> // MPI_Comm_size, MPI_Comm_rank
 
 
 double getmindt( const struct domain * theDomain )
@@ -53,6 +54,7 @@ double getmindt( const struct domain * theDomain )
         if( dt > dt_temp ) dt = dt_temp;
     }
     dt *= theDomain->theParList.CFL; 
+    MPI_Allreduce( MPI_IN_PLACE , &dt , 1 , MPI_DOUBLE , MPI_MIN , MPI_COMM_WORLD );
 
     return dt;
 }
@@ -96,7 +98,7 @@ void set_wcell( struct domain * theDomain )
     const int Nr = theDomain->Nr;
     const int Ng = theDomain->Ng;
 
-    for( int i=Ng ; i<Nr-Ng ; ++i )
+    for( int i=0 ; i<Nr-1 ; ++i )
     {
         struct cell * cL = &(theCells[i]);  
         double w = 0.0;
@@ -114,7 +116,7 @@ void set_wcell( struct domain * theDomain )
         cL->wiph = w;
     }
     // Boundary condition: innermost cell doesn't move
-    theCells[0].wiph = 0;
+    if (theDomain->rank==0) theCells[0].wiph = 0;
 
 }
 
@@ -304,8 +306,12 @@ void calc_dr( struct domain * theDomain )
         assert(dr > 0);
 
     }
-    // Boundary condition: innermost cell extends to r=0
-    theCells[0].dr = theCells[0].riph;
+    if (theDomain->rank==0)
+    {
+        // Boundary condition: innermost cell extends to r=0
+        theCells[0].dr = theCells[0].riph;
+    }    
+
 
 }
 
@@ -435,7 +441,9 @@ void radial_flux( struct domain * theDomain , const double dt )
     const int Ng = theDomain->Ng;
 
     plm( theDomain );
-    for( int i=Ng ; i<Nr-Ng ; ++i )
+    int i_min = 0;
+    if (theDomain->rank == 0) i_min=Ng;
+    for( int i=i_min ; i<Nr-1 ; ++i )
     {
         struct cell * cL = &(theCells[i]);
         struct cell * cR = &(theCells[i+1]);
@@ -457,7 +465,7 @@ void add_source( struct domain * theDomain , const double dt ,
     const int Nr = theDomain->Nr;
     const int Ng = theDomain->Ng;
 
-    for( int i=Ng ; i<Nr ; ++i )
+    for( int i=0 ; i<Nr ; ++i )
     {
         struct cell * c = &(theCells[i]);
         const double rp = c->riph;
@@ -465,7 +473,7 @@ void add_source( struct domain * theDomain , const double dt ,
         const double dV = get_dV(rp,rm);
         if (i==1)
         {
-            rm = 0; // boundary condition -- don't change dV to match this rm
+            if( theDomain->rank==0 ) rm = 0; // boundary condition -- don't change dV to match this rm
         }
         source( c->prim , c->cons , c->grad , &(c->dE_cool) , 
                 rp , rm , dV , dt , theDomain->R_shock , cooling );
@@ -504,14 +512,17 @@ void add_source( struct domain * theDomain , const double dt ,
 
 void longandshort( const struct domain * theDomain , 
                    double * L , double * S , 
-                   int * iL , int * iS )
+                   int * iL , int * iS ,
+                   int * rL , int * rS )
 { 
 
     const struct cell * theCells = theDomain->theCells;
     const int    Nr    = theDomain->Nr;
     const int    Ng    = theDomain->Ng;
-    const double rmax  = theCells[Nr-1].riph;
-    const double rmin  = theCells[0].riph;
+          double rmax  = theCells[Nr-1].riph;
+          double rmin  = theCells[0].riph;
+    MPI_Allreduce( MPI_IN_PLACE , &rmax , 1 , MPI_DOUBLE , MPI_MAX , MPI_COMM_WORLD );
+    MPI_Allreduce( MPI_IN_PLACE , &rmin , 1 , MPI_DOUBLE , MPI_MIN , MPI_COMM_WORLD );
     const int    Nr0   = theDomain->theParList.Num_R;
     const double dr0   = rmax / static_cast <double> (Nr0);
     const double dx0   = log(rmax/rmin)/Nr0;
@@ -523,7 +534,15 @@ void longandshort( const struct domain * theDomain ,
     int iShort   = -1;
 
 
-    for( int i=Ng ; i<Nr-Ng ; ++i )
+    int rank = theDomain->rank;
+    int size = theDomain->size;
+
+   int imin = 1;
+   int imax = Nr-1;
+   if( rank!=0 )      imin = Ng;
+   if( rank!=size-1 ) imax = Nr-Ng;
+
+    for( int i=imin ; i<imax ; ++i )
     {
         double l,s;
         const struct cell * c = &(theCells[i]);
@@ -545,6 +564,17 @@ void longandshort( const struct domain * theDomain ,
         if( Short < s ){ Short = s; iShort = i; } 
     }
 
+    struct { double value ; int index ; } maxminbuf;
+    maxminbuf.value = Short;
+    maxminbuf.index = rank;
+    MPI_Allreduce( MPI_IN_PLACE , &maxminbuf , 1 , MPI_DOUBLE_INT , MPI_MAXLOC , MPI_COMM_WORLD );
+    *rS = maxminbuf.index;
+
+    maxminbuf.value = Long;
+    maxminbuf.index = rank;
+    MPI_Allreduce( MPI_IN_PLACE , &maxminbuf , 1 , MPI_DOUBLE_INT , MPI_MAXLOC , MPI_COMM_WORLD );
+    *rL = maxminbuf.index;
+
     *iS = iShort;
     *iL = iLong;
     *S = Short;
@@ -559,7 +589,11 @@ void AMR( struct domain * theDomain )
     double L,S;
     int iL=0;
     int iS=0;
-    longandshort( theDomain , &L , &S , &iL , &iS );
+    int rL=0;
+    int rS=0;
+    longandshort( theDomain , &L , &S , &iL , &iS , &rL , &rS );
+    int rank = theDomain->rank;
+
 
     // Thresholds for applying AMR
     const double MaxShort = theDomain->theParList.MaxShort;
@@ -569,13 +603,13 @@ void AMR( struct domain * theDomain )
     int Nr = theDomain->Nr;
     const int Ng = theDomain->Ng;
 
-    if( S>MaxShort )
+    if( S>MaxShort && rank == rS )
     {
         if (iS == 1)
         {
             // printf("Kill! iS = %d\n",iS);         
         }
-        // printf("KILL!  iS = %d\n",iS);
+        printf("KILL!  iS = %d, rank=%d\n",iS, rank);
 
         int iSp = iS+1;
         int iSm = iS-1;
@@ -622,13 +656,13 @@ void AMR( struct domain * theDomain )
 
     }
 
-    if( L>MaxLong )
+    if( L>MaxLong && rank==rL )
     {
         if (iL == 1)
         {
             // printf("FORGE! iL = %d\n",iL);         
         }
-        // printf("FORGE! iL = %d\n",iL);
+        printf("FORGE! iL = %d, rank = %d\n",iL, rank);
 
         theDomain->Nr += 1;
         Nr = theDomain->Nr;
@@ -738,6 +772,17 @@ void AMR( struct domain * theDomain )
         }
         #endif
     }
+}
+
+
+
+int mpi_setup( struct domain * theDomain )
+{
+
+    MPI_Comm_size(MPI_COMM_WORLD,&(theDomain->size));
+    MPI_Comm_rank(MPI_COMM_WORLD,&(theDomain->rank));
+
+    return(0);
 }
 
 

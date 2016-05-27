@@ -222,9 +222,8 @@ void source( const double * prim , double * cons , const double * grad ,
     if( cooling->with_cooling == true )
     {
         bool cached_cooling = false;
-        double dr = rp - rm;
-        if( r > (R_shock+(10*dr)) ) cached_cooling = true;
-
+        // double dr = rp - rm;
+        // if( r > (R_shock+(10*dr)) ) cached_cooling = true;
         *dE_cool   = cooling->calc_cooling(prim, cons, dt , cached_cooling ) * dV;  
         cons[TAU] += *dE_cool; 
     }

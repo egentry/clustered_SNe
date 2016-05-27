@@ -22,8 +22,11 @@ void add_source( struct domain * theDomain , const double dt ,
                  Cooling * cooling );
 void longandshort( const struct domain * theDomain , 
                    double * L , double * S , 
-                   int * iL , int * iS );
+                   int * iL , int * iS ,
+                   int * rL , int * rS );
 void AMR( struct domain * theDomain );
+int mpi_setup( struct domain * theDomain );
+
 
 
 #endif

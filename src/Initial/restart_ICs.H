@@ -57,6 +57,10 @@ private:
     std::string filename_to_prefix( const std::string filename ) const;
 
     void free_table();
+
+    // int size; // within MPI_COMM_WORLD
+    // int rank; // within MPI_COMM_WORLD
+    // int Ng; // guard cells
 };
 
 #endif

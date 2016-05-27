@@ -44,6 +44,7 @@ bool Restart_ICs::trust_LogZoning_flag() const
 int Restart_ICs::setICparams( struct domain * theDomain ,
                               const Mass_Loss * mass_loss )
 {
+
     NL = this->get_table( restart_filename ); 
     if ( NL < 0 )
     {
@@ -61,26 +62,26 @@ int Restart_ICs::setICparams( struct domain * theDomain ,
     if ( N_chk > 0 )
     {
         N_chk_tmp = N_chk;
-        std::cout << "Overwriting number of checkpoints to: " << N_chk << std::endl;
+        if (theDomain->rank==0) std::cout << "Overwriting number of checkpoints to: " << N_chk << std::endl;
     }
 
     double delta_time_tmp = theDomain->t_fin - theDomain->t_init;
     if ( delta_time > 0 )
     {
         delta_time_tmp = delta_time;
-        std::cout << "Overwriting delta_time to: " << delta_time << std::endl;
+        if (theDomain->rank==0) std::cout << "Overwriting delta_time to: " << delta_time << std::endl;
     }
 
     if ( CFL > 0 )
     {
         theDomain->theParList.CFL = CFL;
-        std::cout << "Overwriting CFL to: " << CFL << std::endl;
+        if (theDomain->rank==0) std::cout << "Overwriting CFL to: " << CFL << std::endl;
     }
 
     if (Cooling_Redshift > 0 )
     {
         theDomain->theParList.Cooling_Redshift = Cooling_Redshift;
-        std::cout << "Overwriting Cooling_Redshift to: " << Cooling_Redshift << std::endl;
+        if (theDomain->rank==0) std::cout << "Overwriting Cooling_Redshift to: " << Cooling_Redshift << std::endl;
     }
 
     // Set values
@@ -251,6 +252,13 @@ int Restart_ICs::get_table( const std::string filename )
 {
     int nL = count_lines_in_file(filename) - 2;
     if ( nL < 0 ) return nL;
+
+    // int N0r = get_N0( rank   , size , nL );
+    // int N1r = get_N0( rank+1 , size , nL );
+
+    // if( rank != 0 ) N0r -= Ng;
+    // if( rank != size-1 ) N1r += Ng;
+
     rr  = (double *) malloc( nL*sizeof(double) );
     double dr;
     double dV;
@@ -282,7 +290,16 @@ void Restart_ICs::setup_grid( struct domain * theDomain )
     // adapted from the base class Initial_Conditions
     theDomain->Ng = NUM_G;
 
-    const int Nr = NL;
+    int rank = theDomain->rank;
+    int size = theDomain->size;
+    int Ng = theDomain->Ng;
+
+    int N0r = get_N0( rank   , size , NL );
+    int N1r = get_N0( rank+1 , size , NL );
+    if( rank != 0 ) N0r -= Ng;
+    if( rank != size-1 ) N1r += Ng;
+    int Nr = N1r-N0r;
+
     theDomain->Nr = Nr;
 
     theDomain->theCells = (struct cell *) malloc( Nr*sizeof(struct cell));
@@ -290,11 +307,11 @@ void Restart_ICs::setup_grid( struct domain * theDomain )
     for( int i=0 ; i<Nr ; ++i )
     {
         struct cell * c = &(theDomain->theCells[i]);
-        c->riph         = rr[ i];
-        c->prim[RHO]    = rho[i];
-        c->prim[PPP]    = Pp[ i];
-        c->prim[VRR]    = vr[ i];
-        c->prim[ZZZ]    = Z[  i];
+        c->riph         = rr[ i+N0r];
+        c->prim[RHO]    = rho[i+N0r];
+        c->prim[PPP]    = Pp[ i+N0r];
+        c->prim[VRR]    = vr[ i+N0r];
+        c->prim[ZZZ]    = Z[  i+N0r];
     }
     calc_dr( theDomain );
     set_wcell( theDomain );
