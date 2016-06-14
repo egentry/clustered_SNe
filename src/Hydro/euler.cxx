@@ -73,7 +73,6 @@ void cons2prim( const double * cons , double * prim ,
     const double gam  = GAMMA_LAW;
     double P    = (gam-1.)*rhoe;
 
-    #ifndef NDEBUG
     if( rho<RHO_FLOOR ) 
     {
         // any changes here just affect flux calculations,
@@ -87,7 +86,6 @@ void cons2prim( const double * cons , double * prim ,
 
         // assert(rho>RHO_FLOOR);
     }
-    #endif
     if( P < PRE_FLOOR )
     {
         // any changes here just affect flux calculations,
@@ -165,10 +163,14 @@ void getUstar( const double * prim ,  double * Ustar ,
 
     // ======== Verify post-conditions ========= //
     // require finite fluxes
-    #ifndef NDEBUG
     for( int q=ZZZ ; q<NUM_Q ; ++q )
     {
         Ustar[q] = prim[q]*Ustar[DDD];
+    }
+
+    #ifndef NDEBUG
+    for( int q=ZZZ ; q<NUM_Q ; ++q )
+    {
         if( !std::isfinite(Ustar[q]) )
         {
             printf("Ustar[%d] = %e in 'getUstar()' \n", q, Ustar[q]);

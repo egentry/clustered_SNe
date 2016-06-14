@@ -15,7 +15,9 @@ ifeq ($(shell uname),Linux)
 # General linux options
 CXX = g++
 
-CXX_FLAGS = -Wall -g -std=c++11 -fPIC  
+CXX_FLAGS = -Wall -std=c++11 -fPIC 
+CXX_FLAGS_DEBUG = -g -Og
+CXX_FLAGS_OPT = -O3 -DNDEBUG
 
 INC += 
 LIB += -lstdc++
@@ -53,7 +55,9 @@ ifeq ($(findstring campusrocks2, $(HOSTNAME)),campusrocks2)
 # 	(Overwrite general linux options)
 CXX = g++
 
-CXX_FLAGS = -Wall -g -std=c++11 -fPIC
+CXX_FLAGS = -Wall -std=c++11 -fPIC
+CXX_FLAGS_DEBUG = -g -Og
+CXX_FLAGS_OPT = -O3 -DNDEBUG
 
 INC += 
 LIB += -lstdc++
@@ -97,7 +101,9 @@ ifneq ( ,$(filter $(HOSTNAME), hyades.ucsc.edu eudora.ucsc.edu))
 # 	(Overwrite general linux options)
 CXX = g++
 
-CXX_FLAGS = -Wall -g -std=c++11 -fPIC
+CXX_FLAGS = -Wall -std=c++11 -fPIC
+CXX_FLAGS_DEBUG = -g -Og
+CXX_FLAGS_OPT = -O3 -DNDEBUG
 
 INC += 
 LIB += -lstdc++
@@ -140,7 +146,9 @@ ifeq ($(shell uname),Darwin)
 # Mac options
 CXX = clang++
 
-CXX_FLAGS = -Wall -g -std=c++11 -fPIC
+CXX_FLAGS = -Wall -std=c++11 -fPIC
+CXX_FLAGS_DEBUG = -g -O1
+CXX_FLAGS_OPT = -O3 -DNDEBUG 
 
 
 INC += 
@@ -187,11 +195,26 @@ DEP = $(SRC:.cxx=.d)
 HEADERS = $(wildcard *.H Initial/*.H Hydro/*.H Output/*.H)
 
 ############# RULES ########################################
-.PHONY: all install copy_headers copy_exe copy_lib clean distclean
+.PHONY: all all_debug exe exe_debug lib lib_debug install copy_headers copy_exe copy_lib clean distclean
 
-all: $(EXE_NAME)
-all: $(LIB_NAME)
+all: exe
+all: lib
 
+all_debug: exe_debug
+all_debug: lib_debug
+
+exe: CXX_FLAGS += $(CXX_FLAGS_OPT)
+exe: $(EXE_NAME)
+
+exe_debug: CXX_FLAGS += $(CXX_FLAGS_DEBUG)
+exe_debug: $(EXE_NAME)
+
+lib: CXX_FLAGS += $(CXX_FLAGS_OPT)
+lib: $(LIB_NAME)
+
+lib_debug: CXX_FLAGS += $(CXX_FLAGS_DEBUG)
+lib_debug: $(LIB_NAME)
+ 
 -include $(DEP)
 
 %.o: %.cxx
@@ -231,6 +254,7 @@ copy_lib: $(LIB_NAME)
 clean:
 	@ rm -f $(OBJ) $(DEP)
 	@ rm -f $(EXE_NAME) $(LIB_NAME)
+	@ rm -rf *.dSYM
 
 distclean: clean
 	@ rm -rf $(INC_DIR)/* 
