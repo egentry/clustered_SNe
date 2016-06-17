@@ -14,4 +14,4 @@
 cd $PBS_O_WORKDIR
 
 source $HOME/.bashrc
-time ../bin/SNe ../src/in.par.thornton $(( $PBS_ARRAYID - 1 ))
+time ./SNe ../src/in.par.thornton $(( $PBS_ARRAYID - 1 ))

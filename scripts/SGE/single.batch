@@ -10,4 +10,4 @@
 #
 
 source $HOME/.bashrc
-time ../bin/SNe ../src/in.par
+time ./SNe ../src/in.par

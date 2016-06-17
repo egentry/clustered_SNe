@@ -14,5 +14,5 @@
 cd $PBS_O_WORKDIR
 
 source $HOME/.bashrc
-time ../bin/SNe ../src/in.par $(( ($PBS_ARRAYID-1)*5 + 0 ))
+time ./SNe ../src/in.par $(( ($PBS_ARRAYID-1)*5 + 0 ))
 

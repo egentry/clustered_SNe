@@ -8,4 +8,4 @@
 #
 
 source $HOME/.bashrc
-time ../bin/SNe ../src/in.par.restart 
+time ./SNe ../src/in.par.restart 
