@@ -34,7 +34,7 @@ Licensed under the GPLv3.
   - For visualization:
     - Python (tested for v3.5, maybe backwards compatible)
     - Jupyter notebook (tested for v4)
-      - ipywidgets (tested for v4)
+      - ipywidgets (tested for v4; works in v5, but looks ugly)
     - Matplotlib
     - Bokeh
     - Numpy
