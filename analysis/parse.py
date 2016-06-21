@@ -117,8 +117,8 @@ class RunSummary(object):
                              "Crossing_time",
                             ]
         tuples = [(k,i) 
-                  for k,zones in enumerate(zones_for_each_checkpoint) 
-                  for i in range(zones)]
+                  for k,zones_tmp in enumerate(zones_for_each_checkpoint) 
+                  for i in range(zones_tmp)]
         index = pd.MultiIndex.from_tuples(tuples, names=["k", "i"])
         df = pd.DataFrame(index=index, 
                           columns=dataframe_columns,
