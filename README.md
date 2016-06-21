@@ -27,7 +27,7 @@ That should get you a working executable. Once you have data to process, this re
 ##Requires
   - c++ compiler (assumes clang for OS X, gcc for Linux)
     - should (must?) be c++11 capable
-    - you must use the samer compile as you used for installing Boost. If you're unsure, then use the default I set.
+    - you must use the same compiler as you used for installing Boost. If you're unsure, then use the default I set.
   - [slug2](https://bitbucket.org/krumholz/slug2)
     - slug2 must be built as a shared library (change into the `src` directory and call `make lib`; if you enabled FITS at compile time, then keep it enabled at link time. For simplicity, use `make all && make lib` in the `src` directory.)
     - A fork frozen to the version used in my simulations can be found at: https://bitbucket.org/egentry/slug2
