@@ -10,6 +10,7 @@ import ipywidgets as widgets
 from ipywidgets import interact, interactive, interact_manual
 from ipywidgets import FloatSlider, IntSlider, Dropdown
 from ipywidgets import Checkbox, RadioButtons, fixed 
+import time
 
 from IPython.display import display, Math, clear_output
 
@@ -80,6 +81,7 @@ def plotter(run_summary,
     else:
         print_device = open(os.devnull, mode="w")
 
+    print_message = ""
 
     df_tmp = run_summary.df.loc[checkpoint_index]
 
@@ -88,66 +90,50 @@ def plotter(run_summary,
     
     E_kin = sedov_solution.E_kin
     E_int = sedov_solution.E_int
-    print("E_kin: ", format(E_kin, general_string_format), file=print_device)
-    print("E_int: ", format(E_int, general_string_format), file=print_device)
+    print_message += "E_kin: " + format(E_kin, general_string_format) + "\n"
+    print_message += "E_int: " + format(E_int, general_string_format) + "\n"
     momentum = sedov_solution.get_momentum(time=time - run_summary.times[0])
 
-    print("checkpoint: ",
-          checkpoint_filename,
-          file=print_device)
-    print("time:                      ",
-        format(time / yr, general_string_format), "[yr]",
-        "\t", format(time, general_string_format), "[s]", 
-        file=print_device)
-    print("time elapsed:              ",
-          format((time - run_summary.times[0]) / yr, general_string_format), "[yr]",
-          "\t", format((time - run_summary.times[0]), general_string_format), "[s]", 
-          file=print_device)
+    print_message += "checkpoint: " + checkpoint_filename + "\n"
+    print_message += "time:                      " + \
+        format(time / yr, general_string_format) + " [yr]" + \
+        "\t" + format(time, general_string_format) + " [s]" + "\n" 
+    print_message += "time elapsed:              " + \
+          format((time - run_summary.times[0]) / yr, general_string_format) + " [yr]" + \
+          "\t" + format((time - run_summary.times[0]), general_string_format) + " [s]" + "\n" 
 
     if run_summary.overview.SNe_times.size == 1:
-        print("energy conserved to:       ", 
+        print_message += "energy conserved to:       " + \
               format( (   run_summary.E_tot[checkpoint_index]
                         - run_summary.E_tot[0])
-                      / run_summary.E_tot[0], general_string_format), 
-              file=print_device)
-        print("E_kin    accurate to:      ", 
+                      / run_summary.E_tot[0], general_string_format) + "\n" 
+        print_message += "E_kin    accurate to:      " + \
               format( (run_summary.E_kin[checkpoint_index]
                               - E_kin)
-                      / E_kin, general_string_format), 
-              file=print_device)
-        print("momentum accurate to:      ", 
+                      / E_kin, general_string_format) + "\n"
+        print_message += "momentum accurate to:      " + \
               format( (run_summary.momentum[checkpoint_index]
                              - momentum)
-                      / momentum, general_string_format), 
-              file=print_device)
-        print("Peak luminosity at checkpoint",
-              np.argmax(run_summary.times == run_summary.t_0), 
-              file=print_device)
-        print("Peak luminosity at t_0 =   ",
-              format(run_summary.t_0 / yr, general_string_format), "[yr]", 
-              file=print_device)
-        print("t_f = 13 * t_0 =           ",
-              format(run_summary.t_f / yr, general_string_format), "[yr]", 
-              file=print_device)
-        print("R_shock =                  ",
-              format(run_summary.R_shock[checkpoint_index] / pc, "3.2f"), "[pc]", 
-              file=print_device)
-        print("E_R_tot =                  ",
-              format(run_summary.E_R_tot[checkpoint_index], general_string_format),
-              "[ergs]", 
-              file=print_device)
-    print("background_density:        ", 
-        format(run_summary.overview.background_density, general_string_format),
-        file=print_device)
-    print("Cluster mass:              ", 
-        format(run_summary.overview.cluster_mass / M_solar, general_string_format),
-        "M_sol",
-        file=print_device)
-    print("Number of SNe so far:      ",
-          np.sum(run_summary.overview.SNe_times <= time),
-          file=print_device)
-    print("mass loss prescription:    ", run_summary.overview.mass_loss,
-        file=print_device)
+                      / momentum, general_string_format) + "\n"
+        print_message += "Peak luminosity at checkpoint" + \
+              np.argmax(run_summary.times == run_summary.t_0) + "\n"
+        print_message += "Peak luminosity at t_0 =   " + \
+              format(run_summary.t_0 / yr, general_string_format) +  " [yr]" + "\n" 
+        print_message += "t_f = 13 * t_0 =           " + \
+              format(run_summary.t_f / yr, general_string_format) +  " [yr]" + "\n" 
+        print_message += "R_shock =                  " + \
+              format(run_summary.R_shock[checkpoint_index] / pc, "3.2f") +  " [pc]" + "\n" 
+        print_message += "E_R_tot =                  " + \
+              format(run_summary.E_R_tot[checkpoint_index], general_string_format) + \
+              "[ergs]" + "\n"
+    print_message += "background_density:        " + \
+        format(run_summary.overview.background_density, general_string_format) + "\n"
+    print_message += "Cluster mass:              " + \
+        format(run_summary.overview.cluster_mass / M_solar, general_string_format) + \
+        " M_sol" + "\n"
+    print_message += "Number of SNe so far:      " + \
+          str(np.sum(run_summary.overview.SNe_times <= time)) + "\n"
+    print_message += "mass loss prescription:    " + run_summary.overview.mass_loss + "\n"
     
     if x_axis_variable == "Radius":
         plt.xlim((0,10**outer_limit_log))
@@ -199,6 +185,9 @@ def plotter(run_summary,
         plt.ylabel(r"$\rho$ $[m_\mathrm{H}$ $\mathrm{cm}^{-3}]$")
 
     plt.legend(loc="best")
+    plt.show()
+    print(print_message, file=print_device)
+
     
 
 def plot_sedov(run_summary, time, x_axis_variable, y_axis_variable, 
@@ -286,8 +275,58 @@ def single_run(data_dir="", id=""):
         density_in_mH_cm3      = fixed(False),
         verbose                = fixed(True),
         )
+
+    w1 = widgets.Button(description=u"\u23EA")
+    def show_first(b):
+        checkpoint_slider = w.children[5]
+        checkpoint_slider.value = checkpoint_slider.min
+    w1.on_click(show_first)
+
+    wl = widgets.Button(description=u"\u276E")
+    def show_prev(b):
+        checkpoint_slider = w.children[5]
+        if checkpoint_slider.value > checkpoint_slider.min:
+          checkpoint_slider.value -= 1
+    wl.on_click(show_prev)
+
+
+    w2 = widgets.Button(description=u"\u25BA")
+    # w2.stop = False
+    def play(b):
+        checkpoint_slider = w.children[5]
+        for i in range(checkpoint_slider.value+1, checkpoint_slider.max+1):
+            plt.gcf()
+            checkpoint_slider.value=i
+            # plt.show()
+            # time.sleep(.1)
+            # if b.stop:
+              # break
+    w2.on_click(play)
+
+    # wp = widgets.Button(description=u"p")
+    # def pause(b):
+    #     w2.stop=True
+    # wp.on_click(pause)
+
+    wr = widgets.Button(description=u"\u276F")
+    def show_next(b):
+        checkpoint_slider = w.children[5]
+        if checkpoint_slider.value < checkpoint_slider.max:
+          checkpoint_slider.value += 1
+    wr.on_click(show_next)
+
+    w3 = widgets.Button(description=u"\u23E9")
+    def show_last(b):
+        checkpoint_slider = w.children[5]
+        checkpoint_slider.value = checkpoint_slider.max
+    w3.on_click(show_last)
+    w_buttons = widgets.HBox(children=[w1, wl, w2, wr, w3])
+
+    w.children = tuple([_w for _w in w.children ] +  [w_buttons])
+
     single_run.previous_widget = w
     display(w)
+    # display(w_buttons)
     return run_summary
 single_run.previous_widget = widgets.Box()
 
