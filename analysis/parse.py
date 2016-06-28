@@ -295,7 +295,7 @@ class RunSummary(object):
         if self.overview.SNe_times.size == 0:
             return None
 
-        flagged_indices = np.argwhere( (self.E_R_tot[1:]/self.E_R_tot[:-1]) > 2 )
+        flagged_indices = np.where( (self.E_R_tot[1:]/self.E_R_tot[:-1]) > 2 )[0]
         for i in flagged_indices:
             dE = self.E_R_tot[i+1] - self.E_R_tot[i]
             dN_SNe = sum((self.overview.SNe_times > self.times[i])
