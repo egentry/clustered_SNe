@@ -50,7 +50,7 @@ DYNLIB = -shared
 DYNLIB_EXT = .so
 endif
 
-ifeq ($(findstring campusrocks2, $(HOSTNAME)),campusrocks2)
+ifeq ($(findstring campusrocks, $(HOSTNAME)),campusrocks)
 # Campus cluster options
 # 	(Overwrite general linux options)
 CXX = g++
