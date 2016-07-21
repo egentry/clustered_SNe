@@ -147,6 +147,8 @@ class AggregatedResults(object):
                    with_MLE_fit = False, MLE_fit = None,
                    with_Bayesian_fit = False, Bayesian_fit = None,
                    new_figure=True,
+                   num_noise_realizations=100,
+                   num_x_points=100,
                    verbose=False):
         """Plots a slice of momentum vs. N_SNe, at fixed density, metallicity
 

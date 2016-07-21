@@ -116,7 +116,7 @@ def plotter(run_summary,
                              - momentum)
                       / momentum, general_string_format) + "\n"
         print_message += "Peak luminosity at checkpoint" + \
-              np.argmax(run_summary.times == run_summary.t_0) + "\n"
+              str(np.argmax(run_summary.times == run_summary.t_0)) + "\n"
         print_message += "Peak luminosity at t_0 =   " + \
               format(run_summary.t_0 / yr, general_string_format) +  " [yr]" + "\n" 
         print_message += "t_f = 13 * t_0 =           " + \
