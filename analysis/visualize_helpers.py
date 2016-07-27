@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import ipywidgets as widgets
 from ipywidgets import interact, interactive, interact_manual
 from ipywidgets import FloatSlider, IntSlider, Dropdown
+from ipywidgets import FloatRangeSlider
 from ipywidgets import Checkbox, RadioButtons, fixed 
 import time
 
@@ -71,7 +72,7 @@ def plotter(run_summary,
             y_axis_variable  = "Density",
             with_Sedov       = True,
             highlight_timestep_limiting_cell = False,
-            outer_limit_log  = 0, 
+            xlim  = (0,1), 
             checkpoint_index = 0,
             label = "numeric",
             density_in_mH_cm3 = False,
@@ -136,7 +137,7 @@ def plotter(run_summary,
     print_message += "mass loss prescription:    " + run_summary.overview.mass_loss + "\n"
     
     if x_axis_variable == "Radius":
-        plt.xlim((0,10**outer_limit_log))
+        plt.xlim(xlim)
     if x_axis_variable == "M_int":
         plt.xlim((0,10**2))
 
@@ -248,20 +249,26 @@ def single_run(data_dir="", id=""):
     #### PASS TO PLOTTER ####
     num_checkpoints = len(run_summary.filenames)
     
-    log_R_max = round(np.log10(run_summary.df["Radius"].max()), 2)
-    log_R_min = max(log_R_max-4, 
-                    round(np.log10(run_summary.df["Radius"].min()), 2)+1)
+    # log_R_max = round(np.log10(run_summary.df["Radius"].max()), 2)
+    # log_R_min = max(log_R_max-4, 
+    #                 round(np.log10(run_summary.df["Radius"].min()), 2)+1)
                 
+
+    R_min = run_summary.df["Radius"].min()
+    R_min = 0
+    R_max = run_summary.df["Radius"].max()
+
     if type(single_run.previous_widget) is widgets.Box:
         single_run.previous_widget.close()
 
     w = interactive(plotter,
         run_summary            = fixed(run_summary),
         sedov_solution         = fixed(sedov_solution),
-        outer_limit_log        = FloatSlider(min=log_R_min, 
-                                             max=log_R_max, 
-                                             step=0.1, 
-                                             value=log_R_max),
+        xlim                   = FloatRangeSlider(min=R_min, 
+                                                  max=R_max, 
+                                                  step=0.01 * (R_max-R_min), 
+                                                  value=(R_min, R_max),
+                                                  ),
         checkpoint_index       = IntSlider(min=0, 
                                            max=num_checkpoints-1, 
                                            step=0, 
@@ -404,10 +411,13 @@ def conduction_comparisons(mass, H_0, data_dir,
         num_checkpoints = len(run_summary.filenames)
         plot_checkpoint = last_common_checkpoint-1
 
-        log_R_max = round(np.log10(run_summary.df["Radius"].max()), 2)
-        log_R_min = max(log_R_max-4, 
-                        round(np.log10(run_summary.df["Radius"].min()), 2)+1)
+        # log_R_max = round(np.log10(run_summary.df["Radius"].max()), 2)
+        # log_R_min = max(log_R_max-4, 
+        #                 round(np.log10(run_summary.df["Radius"].min()), 2)+1)
 
+        R_min = run_summary.df["Radius"].min()
+        R_min = 0
+        R_max = run_summary.df["Radius"].max()
 
         if run_summary.overview.num_SNe == 1:
             SN_or_SNe = "SN"
@@ -421,7 +431,7 @@ def conduction_comparisons(mass, H_0, data_dir,
                 y_axis_variable  = "Temperature",
                 with_Sedov       = False,
                 highlight_timestep_limiting_cell = True,
-                outer_limit_log  = log_R_max, 
+                xlim  = (R_min, R_max), 
                 checkpoint_index = plot_checkpoint,
                 verbose          = False)
     
