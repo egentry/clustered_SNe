@@ -207,10 +207,13 @@ void source( const double * prim , double * cons , const double * grad ,
                    double * dE_cool , 
              const double rp , const double rm ,
              const double dV , const double dt ,
+             const double M_int,
              const double R_shock, Cooling * cooling )
 {
     const double P = prim[PPP];
     const double r = .5 * (rp + rm);
+    const double dr = rp - rm;
+
 
     // 1st order contribution
     cons[SRR] += 4 * M_PI * P * (std::pow(rp, 2.) - std::pow(rm, 2.)) * dt;
@@ -220,11 +223,19 @@ void source( const double * prim , double * cons , const double * grad ,
                   *(     (std::pow(rp,3.) - std::pow(rm,3.))/3. 
                      + r*(std::pow(rp,2.) - std::pow(rm,2.))/2. ); 
 
+    const double G = 6.674e-8;
+    // only apply gravity to shocked gas
+    if( r < (R_shock+(10*dr)) )
+    {
+        // to do: improve this, so it takes into account that the fluid
+        // has a range of radii between rm and rp; it's not all at r
+        cons[SRR] += - dt * G * M_int * cons[DDD] / std::pow(r,2.);
+    }
+
 
     if( cooling->with_cooling == true )
     {
         bool cached_cooling = false;
-        double dr = rp - rm;
         if( r > (R_shock+(10*dr)) ) cached_cooling = true;
 
         *dE_cool   = cooling->calc_cooling(prim, cons, dt , cached_cooling ) * dV;  

@@ -13,6 +13,7 @@ extern "C" {
 #include "plm.H"
 #include "riemann.H"
 #include "Hydro/euler.H" // prim2cons, cons2prim, mindt, E_int_from_*
+#include "constants.H" // M_sun
 
 
 double getmindt( const struct domain * theDomain )
@@ -457,6 +458,8 @@ void add_source( struct domain * theDomain , const double dt ,
     const int Nr = theDomain->Nr;
     const int Ng = theDomain->Ng;
 
+    double M_int = theDomain->cluster_mass * M_sun;
+
     for( int i=Ng ; i<Nr ; ++i )
     {
         struct cell * c = &(theCells[i]);
@@ -468,7 +471,8 @@ void add_source( struct domain * theDomain , const double dt ,
             rm = 0; // boundary condition -- don't change dV to match this rm
         }
         source( c->prim , c->cons , c->grad , &(c->dE_cool) , 
-                rp , rm , dV , dt , theDomain->R_shock , cooling );
+                rp , rm , dV , dt , M_int, theDomain->R_shock , cooling );
+        M_int += c->cons[DDD];
 
 
         // ======== Verify post-conditions ========= //
