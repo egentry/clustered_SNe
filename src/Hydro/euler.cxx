@@ -225,11 +225,12 @@ void source( const double * prim , double * cons , const double * grad ,
 
     const double G = 6.674e-8;
     // only apply gravity to shocked gas
-    if( r < (R_shock+(10*dr)) )
+    if( r < R_shock )
     {
         // to do: improve this, so it takes into account that the fluid
         // has a range of radii between rm and rp; it's not all at r
         cons[SRR] += - dt * G * M_int * cons[DDD] / std::pow(r,2.);
+        cons[TAU] += - dt * G * M_int * cons[DDD] / std::pow(r,2.) * prim[VRR];
     }
 
 
