@@ -206,7 +206,7 @@ class ThorntonParameterStudy(object):
         plt.legend(loc="best")
         plt.xscale("log")
         plt.yscale("log")
-        plt.xlabel(r"$\log[Z / Z_\odot]$")
+        plt.xlabel(r"$Z / Z_\odot$")
         plt.ylabel(r"$E_{{R, {0} }}$ $[\mathrm{{ergs}}]$".format(energy))
 
         xmin, xmax = plt.xlim()
