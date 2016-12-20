@@ -207,7 +207,8 @@ void source( const double * prim , double * cons , const double * grad ,
                    double * dE_cool , 
              const double rp , const double rm ,
              const double dV , const double dt ,
-             const double R_shock, Cooling * cooling )
+             const double R_shock, Cooling * cooling ,
+             const int cooling_active )
 {
     const double P = prim[PPP];
     const double r = .5 * (rp + rm);
@@ -225,7 +226,13 @@ void source( const double * prim , double * cons , const double * grad ,
     {
         bool cached_cooling = false;
         double dr = rp - rm;
-        if( r > (R_shock+(10*dr)) ) cached_cooling = true;
+        // if( r > (R_shock+(10*dr)) ) cached_cooling = true;
+
+        if ( cooling_active == 0 )
+        {
+            *dE_cool = 0;
+            return;
+        }
 
         *dE_cool   = cooling->calc_cooling(prim, cons, dt , cached_cooling ) * dV;  
         cons[TAU] += *dE_cool; 

@@ -2,6 +2,8 @@
 #include <iostream>
 #include <string>
 #include <random>
+#include <assert.h>
+
 
 #include "slug_PDF.H"
 #include "slug_tracks.H"
@@ -13,10 +15,11 @@
 
 #include <assert.h>
 
+#include "constants.H" // pc, m_proton, k_boltzmann, yr
 #include "structure.H"
 #include "boundary.H"
 #include "constants.H"
-#include "geometry.H" // calc_dV
+#include "geometry.H" // get_dV
 #include "misc.H" // calc_prim
 #include "mass_loss.H" // Mass_Loss, get_ejecta_mass, etc
 
@@ -24,6 +27,138 @@
 
 using namespace boost;
 using namespace boost::filesystem;
+
+double calc_R_E(const double rho, const double Z, 
+           const double P_0, const double E_blast)
+{
+    // ============================================= //
+    //
+    //  Determines R_E of Stinson et al. 2006, equation 9
+    // 
+    //  Inputs:
+    //     - rho          - Ambient mas density within R_E [g cm**-3]
+    //     - Z            - Ambient gas-phase metallicity
+    //     - P_0          - Ambient [volume-averaged] pressure within R_E [erg cm**-3]
+    //     - E_blast      - the energy to be injected [ergs]
+    //
+    //  Outputs:
+    //     - R_E          - radius of maximum extent [cm]
+    //
+    //  Side effects:
+    //     None
+    //
+    // ============================================= //
+
+    const double Y = .23; // helium fraction
+    const double X = 1 - Y - Z; // hydrogen mass fraction
+
+    const double n_0 = rho * X / m_proton; // * HYDROGEN number density [cm**-3]
+    const double P_04 = 1e-4 * P_0 / k_boltzmann; 
+    const double E_51 = E_blast / 1e51;
+
+    // Stinson et al 2006, Equation 9 (from Chevalier 1974)
+    const double R_E =  std::pow(10, 1.74) 
+        * std::pow(E_51,  0.32)
+        * std::pow(n_0,  -0.16)
+        * std::pow(P_04, -0.20)
+        * pc;
+
+    return R_E;
+
+}
+
+double calc_t_E(const double rho, const double Z, 
+           const double P_0, const double E_blast)
+{
+    // ============================================= //
+    //
+    //  Determines t_E of Stinson et al. 2006, equation 10
+    // 
+    //  Inputs:
+    //     - rho          - Ambient mas density within R_E [g cm**-3]
+    //     - Z            - Ambient gas-phase metallicity
+    //     - P_0          - Ambient [volume-averaged] pressure within R_E [erg cm**-3]
+    //     - E_blast      - the energy to be injected [ergs]
+    //
+    //  Outputs:
+    //     - t_E          - time of maximum extent [s]
+    //
+    //  Side effects:
+    //     None
+    //
+    //  Notes:
+    //     - Corresponds to the time when the SN should get to R_E
+    // ============================================= //
+
+    const double Y = .23; // helium fraction
+    const double X = 1 - Y - Z; // hydrogen mass fraction
+
+    const double n_0 = rho * X / m_proton; // * HYDROGEN number density [cm**-3]
+    const double P_04 = 1e-4 * P_0 / k_boltzmann; 
+    const double E_51 = E_blast / 1e51;
+
+    // Stinson et al 2006, Equation 10 (from Chevalier 1974)
+    const double t_E =  std::pow(10, 5.92) 
+        * std::pow(E_51,  0.31)
+        * std::pow(n_0,   0.27)
+        * std::pow(P_04, -0.64)
+        * yr;
+
+    // printf("E_51 = %f \n", E_51);
+    // printf("n_0 = %f \n", n_0);
+    // printf("P_04 = %f \n", P_04);
+    // printf("t_E = %e \n \n", t_E / yr);
+
+    return t_E;
+
+}
+
+double calc_t_max(const double rho, const double Z, 
+                  const double P_0, const double E_blast)
+{
+    // ============================================= //
+    //
+    //  Determines t_max of Stinson et al. 2006, equation 11
+    // 
+    //  Inputs:
+    //     - rho          - Ambient mas density within R_E [g cm**-3]
+    //     - Z            - Ambient gas-phase metallicity
+    //     - P_0          - Ambient [volume-averaged] pressure within R_E [erg cm**-3]
+    //     - E_blast      - the energy to be injected [ergs]
+    //
+    //  Outputs:
+    //     - t_max          - lifetime of low-density shell [s]
+    //
+    //  Side effects:
+    //     None
+    //
+    //  Notes:
+    //     - Corresponds to the time when the SN should get to R_E
+    // ============================================= //
+
+    const double Y = .23; // helium fraction
+    const double X = 1 - Y - Z; // hydrogen mass fraction
+
+    const double n_0 = rho * X / m_proton; // * HYDROGEN number density [cm**-3]
+    const double P_04 = 1e-4 * P_0 / k_boltzmann; 
+    const double E_51 = E_blast / 1e51;
+
+    // Stinson et al 2006, Equation 10 (from Chevalier 1974)
+    const double t_max =  std::pow(10, 6.85) 
+        * std::pow(E_51,  0.32)
+        * std::pow(n_0,   0.34)
+        * std::pow(P_04, -0.70)
+        * yr;
+
+    return t_max;
+
+}
+
+double guassian(const double r, const double sigma)
+{
+    return std::exp(- .5 * std::pow(r / sigma, 2.));
+}
+
 
 
 int add_single_blast( struct domain * theDomain , const double M_blast ,
@@ -59,18 +194,148 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
 
     const int n_guard_cell = 1;
 
+    // iteratively solve to find the correct R_E
+    double Mass = 0;
+    double Mass_Z = 0;
+    double Volume = 0;
+    double Pressure_times_Volume = 0;
+
+    double t_E = 0;
+    double R_E = 0;
+    for( int i=theDomain->Ng ; i<theDomain->Nr-theDomain->Ng ; ++i )
+    {
+        struct cell * c = &(theDomain->theCells[i]);
+
+        Mass += c->cons[DDD];
+        Mass_Z += c->cons[ZZZ];
+
+        const double dV = get_dV(c->riph, c->riph - c->dr);
+
+        Volume += dV;
+
+        // check: do I need to re-compute the primitives?
+        Pressure_times_Volume += c->prim[PPP] * dV;
+
+
+        R_E = calc_R_E(Mass / Volume, Mass_Z / Mass,
+                       Pressure_times_Volume / Volume, E_blast);
+        t_E = calc_t_E(Mass / Volume, Mass_Z / Mass,
+                       Pressure_times_Volume / Volume, E_blast);
+
+        if (R_E < c->riph)
+        {
+            printf("breaking at i= %d \n",i);
+
+            break;
+        }
+
+    }
+
+    printf("R_E solution found!\n");
+    printf("R_E    = %e pc \n", R_E / pc);
+    printf("t_E    = %e yr \n", t_E / yr);
+
+    printf("Mass   = %e M_solar \n", Mass / M_sun);
+    printf("Mass_Z = %e M_solar \n", Mass_Z / M_sun);
+    printf("rho   = %e g cm**-3 \n", Mass / Volume);
+    printf("Z      = %e \n", Mass_Z / Mass);
+    printf("Volume = %e pc**3 \n", Volume / std::pow(pc, 3.));
+    printf("Pressure / k_B = %e K\n", Pressure_times_Volume / Volume / k_boltzmann);
+
+
+    assert(R_E > 0);
+
+    // calculate the array of weights
+
+
+    const double Mass_kernel = 3e5 * M_sun; // ideally change this to be set at run-time using first SN
+    double Mass_tmp = 0;
+    double R_kernel = 0;
+    for( int i=theDomain->Ng ; i<theDomain->Nr-theDomain->Ng ; ++i )
+    {
+        struct cell * c = &(theDomain->theCells[i]);
+
+        R_kernel = c->riph;
+        Mass_tmp += c->cons[DDD];
+
+        if(Mass_tmp > Mass_kernel)
+        {
+            printf("Injection cutoff: %f pc \n", R_kernel / pc);
+            break;
+        }
+    }
+
+
+    const double sigma = .1 * R_kernel;
+
+    double weights[theDomain->Nr];
+    for( int i=0; i<theDomain->Nr; ++i ) weights[i] = 0;
+
+
+    double total_weight = 0;
+    for( int i=theDomain->Ng ; i<theDomain->Nr-theDomain->Ng ; ++i )
+    {
+        struct cell * c = &(theDomain->theCells[i]);
+
+        const double r = c->riph;
+
+        if (r <= R_kernel)
+        {
+            weights[i] = guassian(r, sigma) * c->cons[DDD];
+        }
+        total_weight += weights[i];
+    }
+
+    // normalize the weights
+
+    for( int i=theDomain->Ng ; i<theDomain->Nr-theDomain->Ng ; ++i )
+    {
+        weights[i] /= total_weight;
+    }
+
+    // add the energy, mass and metals using the weights
+    for( int i=theDomain->Ng ; i<theDomain->Nr-theDomain->Ng ; ++i )
+    {
+        struct cell * c = &(theDomain->theCells[i]);
+
+        c->cons[DDD] += weights[i] * M_blast;
+        c->cons[TAU] += weights[i] * E_blast;
+        c->cons[ZZZ] += weights[i] * M_blast_Z;
+    }
+
+    // shutoff cooling for applicable cells
+    const double R_cutoff = std::min(R_E, R_kernel);
+    printf("R_E      = %f pc \n", R_E / pc);
+    printf("R_kernel = %f pc \n", R_kernel / pc);
+    printf("R_cutoff = %f pc \n", R_cutoff / pc);
+
+    for( int i=theDomain->Ng ; i<theDomain->Nr-theDomain->Ng ; ++i )
+    {
+        struct cell * c = &(theDomain->theCells[i]);
+
+        if (c->riph < R_cutoff)
+        {
+            c->cooling_active = 0;
+            c->shutoff_cooling_until = std::max(c->shutoff_cooling_until, 
+                                                t_E + theDomain->t);
+        }        
+
+    }
+
+
+
     // code is not yet set for spreading SNe over multiple cells
     // would need to determine how to split the energy correctly
 
-    struct cell * c = &(theDomain->theCells[n_guard_cell]);
+    // struct cell * c = &(theDomain->theCells[n_guard_cell]);
 
-    c->cons[DDD] += M_blast;
-    c->cons[TAU] += E_blast;
+    // c->cons[DDD] += M_blast;
+    // c->cons[TAU] += E_blast;
 
-    // for now assume that the metallicity of the ejecta is the same
-    // as the background metallicity
-    // later we'll want to actually inject metals
-    c->cons[ZZZ] += M_blast_Z;
+    // // for now assume that the metallicity of the ejecta is the same
+    // // as the background metallicity
+    // // later we'll want to actually inject metals
+    // c->cons[ZZZ] += M_blast_Z;
 
 
     // now we need to background within substep()
@@ -109,6 +374,8 @@ int add_blasts( struct domain * theDomain )
     //
     // ============================================= //
 
+    const double E_SN = 1e51; // less than 1e51 because we turnoff cooling
+
     assert( std::is_sorted( theDomain->SNe.rbegin(),
                             theDomain->SNe.rend(),
                             sort_by_lifetime) );
@@ -120,7 +387,8 @@ int add_blasts( struct domain * theDomain )
     {
         supernova tmp = theDomain->SNe.back();
         error += add_single_blast( theDomain, 
-                                   tmp.mass_ejecta, tmp.mass_ejecta_Z);
+                                   tmp.mass_ejecta, tmp.mass_ejecta_Z,
+                                   E_SN);
 
         theDomain->SNe.pop_back();
         ++num_SNe;

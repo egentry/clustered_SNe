@@ -2,13 +2,13 @@
 //Time Range//
 
 T_Start             1e0
-T_End               3e15
+T_End               3e13
 
 
 //Output Frequency//
 
 Num_Reports         1000
-Num_Checkpoints     100
+Num_Checkpoints     1000
 Use_Logtime         true
 
 
@@ -56,4 +56,4 @@ ICs                 cluster_SNe
 
 //Feedback//
 
-mass_loss           uniform
+mass_loss           disappear

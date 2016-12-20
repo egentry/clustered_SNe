@@ -114,6 +114,9 @@ struct cell{
     double E_int_old; 
     double dV_old; 
     double dE_cool; // negative for cooling, positive for heating
+
+    int cooling_active; // 0 if shut-off, 1 if normal
+    double shutoff_cooling_until; // time until cooling is re-enabled (if cooling active, this should be 0)
 };
 
 

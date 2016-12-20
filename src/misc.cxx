@@ -467,8 +467,19 @@ void add_source( struct domain * theDomain , const double dt ,
         {
             rm = 0; // boundary condition -- don't change dV to match this rm
         }
+
+        if( c->cooling_active == 0 )
+        {
+            if ( theDomain->t >= c->shutoff_cooling_until )
+            {
+                c->cooling_active = 1;
+                c->shutoff_cooling_until = 0;
+            }
+        }
+
         source( c->prim , c->cons , c->grad , &(c->dE_cool) , 
-                rp , rm , dV , dt , theDomain->R_shock , cooling );
+                rp , rm , dV , dt , theDomain->R_shock , cooling ,
+                c->cooling_active );
 
 
         // ======== Verify post-conditions ========= //
@@ -611,6 +622,13 @@ void AMR( struct domain * theDomain )
         c->E_int_old  = c->prim[PPP] * dV / (gamma-1);
         c->dV_old     = dV;
 
+        // disable cooling if either has cooling disabled
+        c->cooling_active        = std::min(c->cooling_active, cp->cooling_active);
+        // choose the longer shut-off period
+        c->shutoff_cooling_until = std::max(c->shutoff_cooling_until,
+                                            cp->shutoff_cooling_until);
+
+
         //Shift Memory
         int blocksize = Nr-iSp-1;
         memmove( theCells+iSp , theCells+iSp+1 , blocksize*sizeof(struct cell) );
@@ -670,7 +688,6 @@ void AMR( struct domain * theDomain )
         cons2prim( cp->cons , cp->prim , dV , true);
         cp->E_int_old  = cp->prim[PPP] * dV / (gamma-1);
         cp->dV_old     = dV;
-
 
 
 

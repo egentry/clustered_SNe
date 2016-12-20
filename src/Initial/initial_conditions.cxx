@@ -145,6 +145,10 @@ void Initial_Conditions::setup_cells( struct domain * theDomain )
         cons2prim( c->cons , c->prim , dV );
         c->E_int_old = E_int_from_cons( c );
         c->dV_old = dV;
+
+        c->cooling_active = 1; // enable cooling by default
+        c->shutoff_cooling_until = 0; // set to 0 since cooling is active
+
     }
 
     boundary( theDomain );

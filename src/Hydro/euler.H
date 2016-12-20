@@ -22,7 +22,8 @@ void source( const double * prim , double * cons , const double * grad ,
                    double * dE_cool , 
              const double rp , const double rm , 
              const double dV , const double dt , 
-             const double R_shock , Cooling * cooling );
+             const double R_shock , Cooling * cooling ,
+             const int cooling_active );
 void conduction( struct cell * cL , struct cell * cR, 
               const double dA , const double dt );
 void vel( const double * prim1 , const double * prim2 , 

@@ -132,7 +132,7 @@ double Equilibrium_Cooling::calc_cooling( const double * prim , const double * c
 
 void Equilibrium_Cooling::setup_cooling( const struct domain * theDomain )
 {
-    if ( with_cooling == false) return;
+    if ( with_cooling == false ) return;
 
     printf("setting up cooling \n");
 
