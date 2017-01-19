@@ -114,6 +114,39 @@ struct cell{
     double E_int_old; 
     double dV_old; 
     double dE_cool; // negative for cooling, positive for heating
+
+    int multiphase; // 0 if single phase, 1 if multiphase
+    // hot phase: T > 1e5 
+    // if single phase, the multiphase prim + cons fields should be set to 0
+    double prim_hot[NUM_Q];   // primitive    variables of HOT phase
+    double cons_hot[NUM_Q];   // conservative variables of HOT phase
+
+    double prim_cold[NUM_Q];   // primitive    variables of HOT phase
+    double cons_cold[NUM_Q];   // conservative variables of HOT phase
+
+    double RKcons_hot[NUM_Q];
+    double RKcons_cold[NUM_Q]; 
+
+    // volume of multiphase component at time of calc_prim
+    //  - used in `source` to scale cooling properly
+    double V_hot; 
+    double V_cold;
+
+    double x_hot;
+    double x_cold;
+    double y_hot;
+    double y_cold;
+    double z_hot;
+    double z_cold;
+
+    // only used for multiphase cells:
+    // the initial kinetic + thermal energies (respectively) of *total* cell
+    // at the start of the substep
+    // *NOTE* don't mix this with E_int_old, which was defined before
+    double E_kin_initial;
+    double E_int_initial;
+
+
 };
 
 

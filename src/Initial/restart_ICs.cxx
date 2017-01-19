@@ -307,7 +307,7 @@ void Restart_ICs::setup_grid( struct domain * theDomain )
         double dV = get_dV( rp , rm );
         prim2cons( c->prim , c->cons , dV );
         cons2prim( c->cons , c->prim , dV );
-        c->E_int_old = E_int_from_cons( c );
+        c->E_int_old = E_int_from_cons( c->cons );
         c->dV_old = dV;
     }
 

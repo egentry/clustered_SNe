@@ -16,5 +16,8 @@
 
 #define yr 3.155760e+07
 
+#define kappa_0 6.1e-7
+
+
 
 #endif	

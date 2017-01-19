@@ -20,6 +20,8 @@
 #include "misc.H" // calc_prim
 #include "mass_loss.H" // Mass_Loss, get_ejecta_mass, etc
 
+#include "Hydro/euler.H" // E_int_from_cons
+
 #include "blast.H"
 
 using namespace boost;
@@ -64,13 +66,93 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
 
     struct cell * c = &(theDomain->theCells[n_guard_cell]);
 
+    if (c->multiphase==0)
+    {
+        c->cons_cold[DDD] = c->cons[DDD];
+        c->cons_cold[TAU] = c->cons[TAU];
+        c->cons_cold[ZZZ] = c->cons[ZZZ];
+    }
+
+    c->multiphase = 1;
+    c->cons_hot[DDD] += M_blast;
+    c->cons_hot[TAU] += E_blast;
+    c->cons_hot[ZZZ] += M_blast_Z;
+
     c->cons[DDD] += M_blast;
     c->cons[TAU] += E_blast;
-
     // for now assume that the metallicity of the ejecta is the same
     // as the background metallicity
     // later we'll want to actually inject metals
     c->cons[ZZZ] += M_blast_Z;
+
+    c->x_hot  = c->cons_hot[DDD]  / c->cons[DDD];
+    c->x_cold = c->cons_cold[DDD] / c->cons[DDD];
+
+    c->y_hot  = E_int_from_cons(c->cons_hot)  / E_int_from_cons(c->cons);
+    c->y_cold = E_int_from_cons(c->cons_cold) / E_int_from_cons(c->cons);
+
+    c->z_hot  = c->cons_hot[ZZZ]  / c->cons_hot[DDD];
+    c->z_cold = c->cons_cold[ZZZ] / c->cons_cold[DDD];
+
+    c->E_int_initial = E_int_from_cons(c->cons);
+    c->E_kin_initial = c->cons[TAU] - c->E_int_initial;
+
+
+    if (c->multiphase)
+    {
+        const double rel_tol = 1e-5; // relative tolerance for float comparisons
+        if (c->cons_hot[DDD] < 0)
+        {
+            printf("------ERROR in add_single_blast()------- \n");
+            printf("hot gas mass less than 0\n");
+            printf("c->cons_hot[DDD] = %e \n", c->cons_hot[DDD]);
+            assert( c->cons_hot[DDD] > 0 );
+        }
+
+        if (c->cons_cold[DDD] < 0)
+        {
+            printf("------ERROR in add_single_blast()------- \n");
+            printf("cold gas mass less than 0\n");
+            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
+            assert( c->cons_cold[DDD] > 0 );
+        }
+
+        if ( std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) > rel_tol)
+        {
+            printf("------ERROR in add_single_blast()------- \n");
+            printf("cold mass + hot mass =/= total mass\n");
+            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
+            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
+            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
+            assert(  std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) <= rel_tol);
+        }
+
+        if (c->cons_hot[TAU] < 0)
+        {
+            printf("------ERROR in add_single_blast()------- \n");
+            printf("hot gas energy less than 0\n");
+            printf("c->cons_hot[TAU] = %e \n", c->cons_hot[TAU]);
+            assert( c->cons_hot[TAU] > 0 );
+        }
+
+        if (c->cons_cold[TAU] < 0)
+        {
+            printf("------ERROR in add_single_blast()------- \n");
+            printf("cold gas energy less than 0\n");
+            printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
+            assert( c->cons_cold[TAU] > 0 );
+        }
+
+        if ( std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) > rel_tol)
+        {
+            printf("------ERROR in add_single_blast()------- \n");
+            printf("cold energy + hot energy =/= total energy\n");
+            printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
+            printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
+            printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
+            assert(  std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) <= rel_tol);
+        }
+    }
 
 
     // now we need to background within substep()

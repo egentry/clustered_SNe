@@ -6,7 +6,35 @@
 #include "misc.H" // calc_dr, calc_prim, radial_flux, add_source, etc
 #include "timestep.H"
 #include "Initial/initial_conditions.H"
+#include "Hydro/euler.H" // E_int_from_cons
 
+
+
+void update_initial_energies( struct domain * theDomain )
+{
+    struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;   
+
+    for( int i=Ng ; i<Nr-Ng ; ++i )
+    {
+        struct cell * c = &(theCells[i]);
+        if(c->multiphase)
+        {
+            c->E_int_initial = E_int_from_cons(c->cons);
+            c->E_kin_initial = c->cons[TAU] - c->E_int_initial;
+
+            c->x_hot  = c->cons_hot[DDD]  / c->cons[DDD];
+            c->x_cold = c->cons_cold[DDD] / c->cons[DDD];
+
+            c->y_hot  = E_int_from_cons(c->cons_hot)  / E_int_from_cons(c->cons);
+            c->y_cold = E_int_from_cons(c->cons_cold) / E_int_from_cons(c->cons);
+
+            c->z_hot  = c->cons_hot[ZZZ]  / c->cons_hot[DDD];
+            c->z_cold = c->cons_cold[ZZZ] / c->cons_cold[DDD];
+        }
+    }
+}
 
 void substep( struct domain * theDomain , double RK , 
               double dt , int first_step , int last_step ,
@@ -46,6 +74,8 @@ void substep( struct domain * theDomain , double RK ,
 
     adjust_RK_cons( theDomain , RK );
 
+    update_initial_energies( theDomain );
+
     radial_flux( theDomain , dt );
     add_source( theDomain , dt , cooling );
 
@@ -61,6 +91,7 @@ void substep( struct domain * theDomain , double RK ,
         AMR( theDomain );
         theDomain->R_shock = ICs->find_shock( theDomain );
         ICs->possibly_extend_grid( theDomain );
+        check_multiphase( theDomain );
 
     }
     boundary( theDomain );
@@ -100,6 +131,12 @@ void timestep( struct domain * theDomain , const double dt,
     {
         struct cell * c = &(theCells[i]);
         memcpy( c->RKcons , c->cons , NUM_Q*sizeof(double) );
+        if ( c->multiphase )
+        {
+            memcpy( c->RKcons_hot  , c->cons_hot  , NUM_Q*sizeof(double) );
+            memcpy( c->RKcons_cold , c->cons_cold , NUM_Q*sizeof(double) );
+
+        }
     }
 
     // for choosing proper Runge-Kutta coefficients for higher order schemes,

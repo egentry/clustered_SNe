@@ -26,7 +26,7 @@ Max_Aspect_Long     10.0     //Aspect Ratio AMR Criteria
 
 //Numerical Parameters//
 
-CFL                 0.05
+CFL                 0.01
 PLM                 1
 RK2                 1
 H_0                 0.0
@@ -56,4 +56,4 @@ ICs                 cluster_SNe
 
 //Feedback//
 
-mass_loss           uniform
+mass_loss           disappear

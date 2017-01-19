@@ -143,8 +143,20 @@ void Initial_Conditions::setup_cells( struct domain * theDomain )
         double dV = get_dV( rp , rm );
         prim2cons( c->prim , c->cons , dV );
         cons2prim( c->cons , c->prim , dV );
-        c->E_int_old = E_int_from_cons( c );
+        c->E_int_old = E_int_from_cons( c->cons );
         c->dV_old = dV;
+
+        c->multiphase = 0;
+        for ( int q=0 ; q<NUM_Q ; ++q)
+        {
+            c->prim_hot[q]  = 0;
+            c->prim_cold[q] = 0;
+            c->cons_hot[q]  = 0;
+            c->cons_cold[q] = 0;
+
+            c->RKcons_hot[q]=0;
+            c->RKcons_cold[q]=0;
+        }
     }
 
     boundary( theDomain );
@@ -387,7 +399,7 @@ void Initial_Conditions::extend_grid( struct domain * theDomain,
         const double dV = get_dV( rp , rm );
         prim2cons( c->prim , c->cons , dV );
         cons2prim( c->cons , c->prim , dV );
-        c->E_int_old = E_int_from_cons( c );
+        c->E_int_old = E_int_from_cons( c->cons );
         c->dV_old = dV;
     }    
 

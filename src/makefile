@@ -162,8 +162,8 @@ SLUG_DIR = $(HOME)/local/slug2
 INC_SLUG = -I$(SLUG_DIR)/src
 LIB_SLUG = -L$(SLUG_DIR)/src -lslug -Wl,-rpath,$(SLUG_DIR)/src
 
-INC_BOOST = 
-LIB_BOOST = -lboost_system -lboost_filesystem
+INC_BOOST = -I/usr/local/include
+LIB_BOOST = -L/usr/local/lib -lboost_system -lboost_filesystem
 
 INC_GSL =
 LIB_GSL =

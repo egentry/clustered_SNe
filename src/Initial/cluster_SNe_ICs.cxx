@@ -161,7 +161,7 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
                 {
                     theDomain->metallicity            = metallicities[i];
                     theDomain->background_density     = background_densities[j];
-                    theDomain->background_temperature = 1e4;
+                    theDomain->background_temperature = 167.8950;
                     theDomain->cluster_mass           = cluster_masses[k];
                 }
                 ++run;

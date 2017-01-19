@@ -24,6 +24,7 @@ void longandshort( const struct domain * theDomain ,
                    double * L , double * S , 
                    int * iL , int * iS );
 void AMR( struct domain * theDomain );
+void check_multiphase(struct domain * theDomain);
 
 
 #endif
