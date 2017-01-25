@@ -66,17 +66,23 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
 
     struct cell * c = &(theDomain->theCells[n_guard_cell]);
 
-    if (c->multiphase==0)
+    const double T  = calc_T(c->prim);
+
+    // if single phase 
+    if (c->multiphase)
     {
-        c->cons_cold[DDD] = c->cons[DDD];
-        c->cons_cold[TAU] = c->cons[TAU];
-        c->cons_cold[ZZZ] = c->cons[ZZZ];
+        assert(calc_T(c->prim_cold)<1e5);
     }
 
-    c->multiphase = 1;
-    c->cons_hot[DDD] += M_blast;
-    c->cons_hot[TAU] += E_blast;
-    c->cons_hot[ZZZ] += M_blast_Z;
+    if (c->multiphase==0 && (calc_T(c->prim)<1e5))
+    {
+            c->multiphase=1;
+
+            c->cons_cold[DDD] = c->cons[DDD];
+            c->cons_cold[TAU] = c->cons[TAU];
+            c->cons_cold[ZZZ] = c->cons[ZZZ];
+    }
+
 
     c->cons[DDD] += M_blast;
     c->cons[TAU] += E_blast;
@@ -85,19 +91,33 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
     // later we'll want to actually inject metals
     c->cons[ZZZ] += M_blast_Z;
 
-    c->x_hot  = c->cons_hot[DDD]  / c->cons[DDD];
-    c->x_cold = c->cons_cold[DDD] / c->cons[DDD];
+    if (c->multiphase)
+    {
+        c->cons_hot[DDD] += M_blast;
+        c->cons_hot[TAU] += E_blast;
+        c->cons_hot[ZZZ] += M_blast_Z;
 
-    c->y_hot  = E_int_from_cons(c->cons_hot)  / E_int_from_cons(c->cons);
-    c->y_cold = E_int_from_cons(c->cons_cold) / E_int_from_cons(c->cons);
+        c->x_hot  = c->cons_hot[DDD]  / c->cons[DDD];
+        c->x_cold = c->cons_cold[DDD] / c->cons[DDD];
 
-    c->z_hot  = c->cons_hot[ZZZ]  / c->cons_hot[DDD];
-    c->z_cold = c->cons_cold[ZZZ] / c->cons_cold[DDD];
+        c->y_hot  = E_int_from_cons(c->cons_hot)  / E_int_from_cons(c->cons);
+        c->y_cold = E_int_from_cons(c->cons_cold) / E_int_from_cons(c->cons);
 
-    c->E_int_initial = E_int_from_cons(c->cons);
-    c->E_kin_initial = c->cons[TAU] - c->E_int_initial;
+        c->z_hot  = c->cons_hot[ZZZ]  / c->cons_hot[DDD];
+        c->z_cold = c->cons_cold[ZZZ] / c->cons_cold[DDD];
+
+        c->E_int_initial = E_int_from_cons(c->cons);
+        c->E_kin_initial = c->cons[TAU] - c->E_int_initial;
+    }
 
 
+    // now we need to background within substep()
+    // since we changed the cons, but not the prims
+    calc_prim( theDomain );
+    boundary( theDomain );
+
+
+    // ----------- Post-conditions ------------- //
     if (c->multiphase)
     {
         const double rel_tol = 1e-5; // relative tolerance for float comparisons
@@ -154,11 +174,6 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
         }
     }
 
-
-    // now we need to background within substep()
-    // since we changed the cons, but not the prims
-    calc_prim( theDomain );
-    boundary( theDomain );
 
 
     return 0;

@@ -620,22 +620,47 @@ void AMR( struct domain * theDomain )
         //Remove Zone at iS+1
         c->dr   += cp->dr;
         c->riph  = cp->riph;
+
+        if(c->multiphase || cp->multiphase)
+        {
+            if(c->multiphase == 0)
+            {
+                for( int q=0 ; q<NUM_Q ; ++q )
+                {
+                    c->cons_cold[q]   = c->cons[q];
+                    c->RKcons_cold[q] = c->RKcons[q];
+                }
+            }
+
+            if(cp->multiphase)
+            {
+                for( int q=0 ; q<NUM_Q ; ++q )
+                {
+                    c->cons_cold[q]   += cp->cons_cold[q];
+                    c->RKcons_cold[q] += cp->RKcons_cold[q];
+
+                    c->cons_hot[q]    += cp->cons_hot[q];
+                    c->RKcons_hot[q]  += cp->RKcons_hot[q];
+                }
+            }
+            else
+            {
+                for( int q=0 ; q<NUM_Q ; ++q )
+                {
+                    c->cons_cold[q]   += cp->cons[q];
+                    c->RKcons_cold[q] += cp->RKcons[q];
+                }
+            }
+
+            c->multiphase = 1;
+        }
+
         for( int q=0 ; q<NUM_Q ; ++q )
         {
             c->cons[q]   += cp->cons[q];
             c->RKcons[q] += cp->RKcons[q];
-
-            if(c->multiphase || cp->multiphase)
-            {
-                c->multiphase = 1;
-                c->cons_hot[q]    += cp->cons_hot[q];
-                c->cons_cold[q]   += cp->cons_cold[q];
-                c->RKcons_hot[q]  += cp->RKcons_hot[q];
-                c->RKcons_cold[q] += cp->RKcons_cold[q];
-            }
-
-
         }
+
         const double gamma = theDomain->theParList.Adiabatic_Index;
         const double rp = c->riph;
         const double rm = rp - c->dr;
@@ -867,17 +892,20 @@ void check_multiphase(struct domain * theDomain)
                     c->cons_cold[q] = 0;
                     c->RKcons_hot[q]  = 0;
                     c->RKcons_cold[q] = 0;
-
-                    c->x_hot  = 0;
-                    c->x_cold = 0;
-                    c->y_hot  = 0;
-                    c->y_cold = 0;
-                    c->z_hot  = 0;
-                    c->z_cold = 0;
-
-                    c->E_kin_initial = 0;
-                    c->E_int_initial = 0;
                 }
+
+                c->V_hot  = 0;
+                c->V_cold = 0;
+
+                c->x_hot  = 0;
+                c->x_cold = 0;
+                c->y_hot  = 0;
+                c->y_cold = 0;
+                c->z_hot  = 0;
+                c->z_cold = 0;
+
+                c->E_kin_initial = 0;
+                c->E_int_initial = 0;
             }
         }
 

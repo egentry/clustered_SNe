@@ -82,6 +82,16 @@ void riemann( struct cell * cL , struct cell * cR,
             printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
             printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
 
+            printf("\n - Riemann (right; begin) - \n");
+
+            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
+            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
+            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
+            printf("\n");
+            printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
+            printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
+            printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
+
         if (cL->cons_hot[DDD] < 0)
         {
             printf("------ERROR in riemann() preconditions------- \n");

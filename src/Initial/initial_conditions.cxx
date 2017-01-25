@@ -157,6 +157,18 @@ void Initial_Conditions::setup_cells( struct domain * theDomain )
             c->RKcons_hot[q]=0;
             c->RKcons_cold[q]=0;
         }
+        c->V_hot  = 0;
+        c->V_cold = 0;
+
+        c->x_hot  = 0;
+        c->x_cold = 0;
+        c->y_hot  = 0;
+        c->y_cold = 0;
+        c->z_hot  = 0;
+        c->z_cold = 0;
+
+        c->E_kin_initial = 0;
+        c->E_int_initial = 0;
     }
 
     boundary( theDomain );
