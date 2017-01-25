@@ -285,6 +285,9 @@ void Restart_ICs::setup_grid( struct domain * theDomain )
     const int Nr = NL;
     theDomain->Nr = Nr;
 
+    theDomain->theParList.Num_R = Nr;
+    std::cout << "Overwriting Num_R (set in param file) to: " << Nr << " (number of cells in checkpoint file)" << std::endl;
+
     theDomain->theCells = (struct cell *) malloc( Nr*sizeof(struct cell));
 
     for( int i=0 ; i<Nr ; ++i )
