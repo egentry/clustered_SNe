@@ -740,8 +740,8 @@ void riemann( struct cell * cL , struct cell * cR,
         // cL->cons_hot[TAU]  -= y_hot_L  * Flux[TAU] * dA * dt;      
         // cL->cons_cold[TAU] -= y_cold_L * Flux[TAU] * dA * dt; 
 
-        cL->cons_hot[ZZZ]  -= cL->x_hot  * cL->z_hot  * Flux[DDD] * dA * dt; 
-        cL->cons_cold[ZZZ] -= cL->x_cold * cL->z_cold * Flux[DDD] * dA * dt; 
+        cL->cons_hot[ZZZ]  -= cL->x_hot  * cL->z_hot  * Flux[ZZZ] * dA * dt; 
+        cL->cons_cold[ZZZ] -= cL->x_cold * cL->z_cold * Flux[ZZZ] * dA * dt; 
 
         // printf("dE_int_L     = %e \n", dE_int_L);
         // printf("dE_kin_L     = %e \n", dE_kin_L);
@@ -785,8 +785,8 @@ void riemann( struct cell * cL , struct cell * cR,
         // cR->cons_hot[TAU]  += y_hot_R  * Flux[TAU] * dA * dt;      
         // cR->cons_cold[TAU] += y_cold_R * Flux[TAU] * dA * dt; 
 
-        cR->cons_hot[ZZZ]  += cR->x_hot  * cR->z_hot  * Flux[DDD] * dA * dt;      
-        cR->cons_cold[ZZZ] += cR->x_cold * cR->z_cold * Flux[DDD] * dA * dt; 
+        cR->cons_hot[ZZZ]  += cR->x_hot  * cR->z_hot  * Flux[ZZZ] * dA * dt;      
+        cR->cons_cold[ZZZ] += cR->x_cold * cR->z_cold * Flux[ZZZ] * dA * dt; 
     }
 
    // ======== Verify post-conditions ========= //

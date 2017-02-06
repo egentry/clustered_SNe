@@ -226,12 +226,20 @@ void calc_multiphase_prim(const struct cell * c,
 
 }
 
+double E_kin_from_cons( const double * cons )
+{
+
+    const double E_kin = .5*cons[SRR]*cons[SRR] / cons[DDD];
+
+    return E_kin;
+}
+
 double E_int_from_cons( const double * cons )
 {
 
-    const double mass  = cons[DDD];
-    const double vr    = cons[SRR] / mass;
-    const double E_int = cons[TAU] - .5*mass*vr*vr;
+    // const double mass  = cons[DDD];
+    // const double vr    = cons[SRR] / mass;
+    const double E_int = cons[TAU] - E_kin_from_cons(cons);
 
     return E_int;
 }
@@ -356,7 +364,7 @@ void source( struct cell * c,
         // c->cons_hot[SRR]  = c->cons[SRR] * c->x_hot;
         // c->cons_cold[SRR] = c->cons[SRR] * c->x_cold;
 
-        c->cons_hot[SRR]  = c->cons[SRR] * (c->cons_hot[DDD] / c->cons[DDD]);
+        c->cons_hot[SRR]  = c->cons[SRR] * (c->cons_hot[DDD]  / c->cons[DDD]);
         c->cons_cold[SRR] = c->cons[SRR] * (c->cons_cold[DDD] / c->cons[DDD]);
 
         // assert(E_int_from_cons(c->cons_cold) > 0);
@@ -368,7 +376,7 @@ void source( struct cell * c,
     if (c->multiphase)
     {
         const double E_int = E_int_from_cons(c->cons);
-        const double E_kin = c->cons[TAU] - E_int;
+        const double E_kin = E_kin_from_cons(c->cons);
 
         const double dE_int = E_int - c->E_int_initial;
         const double dE_kin = E_kin - c->E_kin_initial;
@@ -377,6 +385,16 @@ void source( struct cell * c,
         printf("E_int (hot)       = %e \n", E_int_from_cons(c->cons_hot));
         printf("E_int (cold)      = %e \n", E_int_from_cons(c->cons_cold));
         printf("E_int (total)     = %e \n", E_int_from_cons(c->cons));
+        printf("c->cons_hot[SRR]  = %e \n", c->cons_hot[SRR]);
+        printf("c->cons_cold[SRR] = %e \n", c->cons_cold[SRR]);
+
+        printf("\n");
+        printf("dE_int = %e\n", dE_int);
+        printf("dE_kin = %e\n", dE_kin);
+        printf("\n");
+
+        // const double x_hot  = c->cons_hot[DDD] / c->cons[DDD];
+        // const double x_cold = c->cons_cold[DDD] / c->cons[DDD];
 
         c->cons_hot[TAU]  += (c->y_hot  * dE_int) + (c->x_hot  * dE_kin);      
         c->cons_cold[TAU] += (c->y_cold * dE_int) + (c->x_cold * dE_kin);
@@ -385,35 +403,46 @@ void source( struct cell * c,
         printf("E_int (hot)       = %e \n", E_int_from_cons(c->cons_hot));
         printf("E_int (cold)      = %e \n", E_int_from_cons(c->cons_cold));
         printf("E_int (total)     = %e \n", E_int_from_cons(c->cons));
+        printf("c->cons_hot[SRR]  = %e \n", c->cons_hot[SRR]);
+        printf("c->cons_cold[SRR] = %e \n", c->cons_cold[SRR]);
 
-            // printf("\n");
+        if(1)
+        {
+
+            printf("\n");
 
 
-            // printf("c->cons_hot[DDD]     = %e \n", c->cons_hot[DDD]);
-            // printf("c->cons_hot[SRR]     = %e \n", c->cons_hot[SRR]);
-            // printf("c->cons_hot[TAU]     = %e \n", c->cons_hot[TAU]);
-            // printf("c->cons_hot[ZZZ]     = %e \n", c->cons_hot[ZZZ]);
+            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
+            printf("c->cons_hot[SRR]  = %e \n", c->cons_hot[SRR]);
+            printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
+            printf("c->cons_hot[ZZZ]  = %e \n", c->cons_hot[ZZZ]);
 
-            // printf("\n");
+            printf("\n");
 
-            // printf("c->cons_cold[DDD]    = %e \n", c->cons_cold[DDD]);
-            // printf("c->cons_cold[SRR]    = %e \n", c->cons_cold[SRR]);
-            // printf("c->cons_cold[TAU]    = %e \n", c->cons_cold[TAU]);
-            // printf("c->cons_cold[ZZZ]    = %e \n", c->cons_cold[ZZZ]);
+            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
+            printf("c->cons_cold[SRR] = %e \n", c->cons_cold[SRR]);
+            printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
+            printf("c->cons_cold[ZZZ] = %e \n", c->cons_cold[ZZZ]);
 
-            // printf("\n");
+            printf("\n");
 
-            // printf("c->cons[DDD]         = %e \n", c->cons[DDD]);
-            // printf("c->cons[SRR]         = %e \n", c->cons[SRR]);
-            // printf("c->cons[TAU]         = %e \n", c->cons[TAU]);
-            // printf("c->cons[ZZZ]         = %e \n", c->cons[ZZZ]);
+            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR]      = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ]      = %e \n", c->cons[ZZZ]);
 
-            // printf("\n");
+            printf("\n");
 
-            // printf("VRR (hot)         = %e \n", c->cons_hot[SRR]  / c->cons_hot[DDD]);
-            // printf("VRR (cold)        = %e \n", c->cons_cold[SRR] / c->cons_cold[DDD]);
-            // printf("VRR (total)       = %e \n", c->cons[SRR]      / c->cons[DDD]);
+            printf("E_kin (hot)       = %e \n", c->cons_hot[TAU]  - E_int_from_cons(c->cons_hot));
+            printf("E_kin (cold)      = %e \n", c->cons_cold[TAU] - E_int_from_cons(c->cons_cold));
+            printf("E_kin (total)     = %e \n", c->cons[TAU]      - E_int_from_cons(c->cons));
+            printf("\n");
 
+            printf("VRR (hot)         = %e \n", c->cons_hot[SRR]  / c->cons_hot[DDD]);
+            printf("VRR (cold)        = %e \n", c->cons_cold[SRR] / c->cons_cold[DDD]);
+            printf("VRR (total)       = %e \n", c->cons[SRR]      / c->cons[DDD]);
+            printf("\n");
+        }
 
         assert(E_int_from_cons(c->cons_hot)  > 0); 
         assert(E_int_from_cons(c->cons_cold) > 0);
@@ -521,6 +550,14 @@ void source( struct cell * c,
             printf("E_int (hot)       = %e \n", E_int_from_cons(c->cons_hot));
             printf("E_int (cold)      = %e \n", E_int_from_cons(c->cons_cold));
             printf("E_int (total)     = %e \n", E_int_from_cons(c->cons));
+
+            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
+            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]); 
+            printf("c->cons[DDD]      = %e \n", c->cons[DDD]); 
+
+            printf("c->cons_hot[SRR]  = %e \n", c->cons_hot[SRR]);
+            printf("c->cons_cold[SRR] = %e \n", c->cons_cold[SRR]); 
+            printf("c->cons[SRR]      = %e \n", c->cons[SRR]); 
             printf("-----\n\n");
 
             assert(E_int_from_cons(c->cons_cold) > 0);

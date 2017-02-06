@@ -12,6 +12,7 @@ void setHydroParams( const struct domain * theDomain );
 void prim2cons( const double * prim , double * cons , const double dV );
 void cons2prim( const double * cons , double * prim , 
                 const double dV , const bool verbose=false );
+double E_kin_from_cons( const double * cons );
 double E_int_from_cons( const double * cons );
 double E_int_from_prim( const struct cell * c , 
                         const double gamma );

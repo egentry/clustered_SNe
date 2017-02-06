@@ -147,6 +147,26 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
             assert(  std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) <= rel_tol);
         }
 
+        if ((c->x_hot < 0) || (c->x_hot > 1+rel_tol))
+        {
+            printf("------ERROR in add_single_blast()------- \n");
+            printf("hot gas mass fraction not in [0, 1+rel_tol]\n");
+            printf("c->x_hot          = %e \n", c->x_hot);
+            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
+            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
+            assert( (c->x_hot > 0) && (c->x_hot < 1+rel_tol) );
+        }
+
+        if ((c->x_cold < 0) || (c->x_cold > 1+rel_tol))
+        {
+            printf("------ERROR in add_single_blast()------- \n");
+            printf("cold gas mass fraction not in [0, 1+rel_tol]\n");
+            printf("c->x_cold         = %e \n", c->x_cold);
+            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
+            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
+            assert( (c->x_cold > 0) && (c->x_cold < 1+rel_tol) );
+        }
+
         if (c->cons_hot[TAU] < 0)
         {
             printf("------ERROR in add_single_blast()------- \n");
@@ -161,6 +181,33 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
             printf("cold gas energy less than 0\n");
             printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
             assert( c->cons_cold[TAU] > 0 );
+        }
+
+
+        if ((c->y_hot < 0) || (c->y_hot > 1+rel_tol))
+        {
+            printf("------ERROR in update_initial_energies()------- \n");
+            printf("hot gas energy fraction not in [0, 1+rel_tol]\n");
+            printf("c->y_hot                      = %e \n", c->y_hot);
+            printf("E_int_from_cons(c->cons_hot)  = %e \n", E_int_from_cons(c->cons_hot));
+            printf("E_int_from_cons(c->cons_cold) = %e \n", E_int_from_cons(c->cons_cold));
+            printf("E_int_from_cons(c->cons)      = %e \n", E_int_from_cons(c->cons));
+            printf("c->cons_hot[TAU]              = %e \n", c->cons_hot[TAU]);
+            printf("c->cons[TAU]                  = %e \n", c->cons[TAU]);
+            assert( (c->y_hot > 0) && (c->y_hot < 1+rel_tol) );
+        }
+
+        if ((c->y_cold < 0) || (c->y_cold > 1+rel_tol))
+        {
+            printf("------ERROR in update_initial_energies()------- \n");
+            printf("cold gas energy fraction not in [0, 1+rel_tol]\n");
+            printf("c->y_cold                      = %e \n", c->y_cold);
+            printf("E_int_from_cons(c->cons_hot)   = %e \n", E_int_from_cons(c->cons_hot));
+            printf("E_int_from_cons(c->cons_cold)  = %e \n", E_int_from_cons(c->cons_cold));
+            printf("E_int_from_cons(c->cons)       = %e \n", E_int_from_cons(c->cons));
+            printf("c->cons_cold[TAU]              = %e \n", c->cons_cold[TAU]);
+            printf("c->cons[TAU]                   = %e \n", c->cons[TAU]);
+            assert( (c->y_cold > 0) && (c->y_cold < 1+rel_tol) );
         }
 
         if ( std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) > rel_tol)
