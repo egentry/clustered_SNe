@@ -20,6 +20,9 @@
 #include "misc.H" // calc_prim
 #include "mass_loss.H" // Mass_Loss, get_ejecta_mass, etc
 
+#include "Hydro/euler.H" //  E_int_from_*
+
+
 #include "blast.H"
 
 using namespace boost;
@@ -62,15 +65,134 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
     // code is not yet set for spreading SNe over multiple cells
     // would need to determine how to split the energy correctly
 
-    struct cell * c = &(theDomain->theCells[n_guard_cell]);
+    struct cell * c_0 = &(theDomain->theCells[n_guard_cell]);
+    struct cell * c_1 = &(theDomain->theCells[n_guard_cell + 1]);
+    struct cell * c_2 = &(theDomain->theCells[n_guard_cell + 2]);
 
-    c->cons[DDD] += M_blast;
-    c->cons[TAU] += E_blast;
+    printf("\n ============================================ \n");
+    printf("Injecting SNe following Goldbaum et al. 2016 \n");
+    printf("\n");
+    printf(" ---- Cell 0 (initial) \n");
+    printf("mass:            %e \n", c_0->cons[DDD]);
+    printf("momentum:        %e \n", c_0->cons[SRR]);
+    printf("energy:          %e \n", c_0->cons[TAU]);
+    printf("E_kin:           %e \n", 0.5*c_0->cons[SRR]*c_0->cons[SRR]/c_0->cons[DDD]);
+    printf("E_int:           %e \n", E_int_from_cons(c_0));    
+    printf("velocity:        %e \n", c_0->cons[SRR] / c_0->cons[DDD]);
 
-    // for now assume that the metallicity of the ejecta is the same
-    // as the background metallicity
-    // later we'll want to actually inject metals
-    c->cons[ZZZ] += M_blast_Z;
+    printf("\n");
+    printf(" ---- Cell 1 (initial) \n");
+    printf("mass:            %e \n", c_1->cons[DDD]);
+    printf("momentum:        %e \n", c_1->cons[SRR]);
+    printf("energy:          %e \n", c_1->cons[TAU]);
+    printf("E_kin:           %e \n", 0.5*c_1->cons[SRR]*c_1->cons[SRR]/c_1->cons[DDD]);
+    printf("E_int:           %e \n", E_int_from_cons(c_1));    
+    printf("velocity:        %e \n", c_1->cons[SRR] / c_1->cons[DDD]);
+
+    printf("\n");
+    printf(" ---- Cell 2 (initial) \n");
+    printf("mass:            %e \n", c_2->cons[DDD]);
+    printf("momentum:        %e \n", c_2->cons[SRR]);
+    printf("energy:          %e \n", c_2->cons[TAU]);
+    printf("E_kin:           %e \n", 0.5*c_2->cons[SRR]*c_2->cons[SRR]/c_2->cons[DDD]);
+    printf("E_int:           %e \n", E_int_from_cons(c_2));    
+    printf("velocity:        %e \n", c_2->cons[SRR] / c_2->cons[DDD]);
+
+
+    const double p_SN = 3e5 * M_sun * 1e5; // 3e5 M_sun km s^-1
+
+    const double E_kin_initial_1 = 0.5 * std::pow(c_1->cons[SRR], 2) / c_1->cons[DDD];
+    const double E_kin_initial_2 = 0.5 * std::pow(c_2->cons[SRR], 2) / c_2->cons[DDD];
+
+    const double v_initial_1 = c_1->cons[SRR] / c_1->cons[DDD];
+    const double v_initial_2 = c_2->cons[SRR] / c_2->cons[DDD];
+
+    // don't change velocity by more than 1000 km / s
+    const double dv_1 = std::min( (p_SN/2) / c_1->cons[DDD], 1000 * 1e5);
+    const double dv_2 = std::min( (p_SN/2) / c_2->cons[DDD], 1000 * 1e5);
+
+    const double v_final_1 = v_initial_1 + dv_1;
+    const double v_final_2 = v_initial_2 + dv_2;
+
+    c_1->cons[SRR] = c_1->cons[DDD] * v_final_1;
+    c_2->cons[SRR] = c_2->cons[DDD] * v_final_2;
+
+    const double d_E_kin_1 = .5 * c_1->cons[DDD] * (std::pow(v_final_1, 2) - std::pow(v_initial_1, 2));
+    const double d_E_kin_2 = .5 * c_2->cons[DDD] * (std::pow(v_final_2, 2) - std::pow(v_initial_2, 2));
+
+    c_1->cons[TAU] += d_E_kin_1;
+    c_2->cons[TAU] += d_E_kin_2;
+
+    const double d_E_kin_tot = d_E_kin_1 + d_E_kin_2;
+
+    // don't inject negative internal energy
+    const double d_E_int = std::max(E_blast - d_E_kin_tot, 0.);
+
+
+
+
+
+    // inject mass, metals, internal energy, but not momentum into SN host cell
+    c_0->cons[DDD] += M_blast;
+    c_0->cons[ZZZ] += M_blast_Z;
+    c_0->cons[TAU] += d_E_int;
+
+    printf("\n");
+    printf(" ---- Velocity Changes \n");
+    printf("v_initial_1:     %e [km/s] \n", v_initial_1 / 1e5);
+    printf("v_initial_2:     %e [km/s] \n", v_initial_2 / 1e5);
+    printf("dv_1:            %e [km/s] \n", dv_1 / 1e5);
+    printf("dv_2:            %e [km/s] \n", dv_2 / 1e5);
+    printf("v_final_1:       %e [km/s] \n", v_final_1 / 1e5);
+    printf("v_final_2:       %e [km/s] \n", v_final_2 / 1e5);
+
+    printf("\n");
+    printf(" ---- Momentum Changes \n");
+    printf("p_initial_1:     %e [M_sun km/s] \n", c_1->cons[DDD] * v_initial_1 / M_sun / 1e5);
+    printf("p_initial_2:     %e [M_sun km/s] \n", c_2->cons[DDD] * v_initial_2 / M_sun / 1e5);
+    printf("dp_1:            %e [M_sun km/s] \n", c_1->cons[DDD]*dv_1 / M_sun / 1e5);
+    printf("dp_2:            %e [M_sun km/s] \n", c_2->cons[DDD]*dv_2 / M_sun / 1e5);
+    printf("dp_tot:          %e [M_sun km/s] \n", ((c_1->cons[DDD]*dv_1) + (c_2->cons[DDD]*dv_2)) / M_sun / 1e5);
+    printf("p_final_1:       %e [M_sun km/s] \n", c_1->cons[DDD] * v_final_1 / M_sun / 1e5);
+    printf("p_final_2:       %e [M_sun km/s] \n", c_2->cons[DDD] * v_final_2 / M_sun / 1e5);
+
+    printf("\n");
+    printf(" ---- Energy Changes \n");
+    printf("d_E_kin_1:       %e  \n", d_E_kin_1);
+    printf("d_E_kin_2:       %e  \n", d_E_kin_2);
+    printf("d_E_kin_tot:     %e  \n", d_E_kin_tot);
+    printf("d_E_int:         %e  \n", d_E_int);
+    printf("d_E:             %e  \n", d_E_int + d_E_kin_tot);
+
+    printf("\n");
+    printf(" ---- Cell 0 (final) \n");
+    printf("mass:            %e \n", c_0->cons[DDD]);
+    printf("momentum:        %e \n", c_0->cons[SRR]);
+    printf("energy:          %e \n", c_0->cons[TAU]);
+    printf("E_kin:           %e \n", 0.5*c_0->cons[SRR]*c_0->cons[SRR]/c_0->cons[DDD]);
+    printf("E_int:           %e \n", E_int_from_cons(c_0));    
+    printf("velocity:        %e \n", c_0->cons[SRR] / c_0->cons[DDD]);
+
+    printf("\n");
+    printf(" ---- Cell 1 (final) \n");
+    printf("mass:            %e \n", c_1->cons[DDD]);
+    printf("momentum:        %e \n", c_1->cons[SRR]);
+    printf("energy:          %e \n", c_1->cons[TAU]);
+    printf("E_kin:           %e \n", 0.5*c_1->cons[SRR]*c_1->cons[SRR]/c_1->cons[DDD]);
+    printf("E_int:           %e \n", E_int_from_cons(c_1));    
+    printf("velocity:        %e \n", c_1->cons[SRR] / c_1->cons[DDD]);
+
+    printf("\n");
+    printf(" ---- Cell 2 (final) \n");
+    printf("mass:            %e \n", c_2->cons[DDD]);
+    printf("momentum:        %e \n", c_2->cons[SRR]);
+    printf("energy:          %e \n", c_2->cons[TAU]);
+    printf("E_kin:           %e \n", 0.5*c_2->cons[SRR]*c_2->cons[SRR]/c_2->cons[DDD]);
+    printf("E_int:           %e \n", E_int_from_cons(c_2));    
+    printf("velocity:        %e \n", c_2->cons[SRR] / c_2->cons[DDD]);
+    printf("\n ============================================ \n");
+    fflush(stdout);
+
 
 
     // now we need to background within substep()
