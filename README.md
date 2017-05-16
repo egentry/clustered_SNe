@@ -8,7 +8,7 @@ Licensed under the GPLv3.
 
 -------
 
-##Main Objectives
+## Main Objectives
   - Evolve a spherical symmetric blast wave, incorporating hydrodynamics and radiative cooling
     - Achieve accurate and stable results through Sedov and (thin shell) radiative phases
   - Incorporate multiple supernovae, with realistic delay times and energies
@@ -16,7 +16,7 @@ Licensed under the GPLv3.
   - Measure the energy and momentum injected into the surrounding medium, to be used as feedback prescriptions in low resolution galaxy/cosmology simulations
 
 
-##Getting started
+## Getting started
 - Install dependencies listed below
 - Adapt `src/makefile` to reflect location of required libraries (`INC_*` and `LIB_*` variables)
 - In the `src` directory, run `make all install clean`
@@ -24,7 +24,7 @@ Licensed under the GPLv3.
 That should get you a working executable. Once you have data to process, this repo's wiki has [instructions](https://github.com/egentry/clustered_SNe/wiki/Getting-Starting-with-the-Analysis-Package) for using the python analysis code.
 
 
-##Requires
+## Requires
   - c++ compiler (assumes clang for OS X, gcc for Linux)
     - should (must?) be c++11 capable
     - you must use the same compiler as you used for installing Boost. If you're unsure, then use the default I set.
@@ -38,7 +38,7 @@ That should get you a working executable. Once you have data to process, this re
   - For visualization:
     - Python (tested for v3.5, mostly backwards compatible)
     - Jupyter notebook (tested for v4)
-      - ipywidgets (tested for v4, v5)
+      - ipywidgets (tested for v4, v5 -- mildly broken on v6)
     - Matplotlib
     - Bokeh
     - Numpy
@@ -52,7 +52,7 @@ That should get you a working executable. Once you have data to process, this re
       - Only needed if you call `BayesianFit.create_corner_plots`
 
 
-##Acknowledgements
+## Acknowledgements
 This project built upon [RT1D](https://github.com/duffell/RT1D), an open-source riemann solver from [Paul Duffell](http://duffell.org/).
 
 This project was also includes the `sedov3.f` code of http://cococubed.asu.edu/research_pages/sedov.shtml in order to generate the analytic sedov solution for the purpose of visualization.  While it's not difficult to generate a basic sedov solution, it's difficult to do well. Using `sedov3.f` allows us to avoid worrying about the details of quad precision math ourselves.
