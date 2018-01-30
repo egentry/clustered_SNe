@@ -628,7 +628,10 @@ void radial_flux( struct domain * theDomain , const double dt )
         struct cell * cR = &(theCells[i+1]);
         const double r = cL->riph;
         const double dA = get_dA(r); 
-        // printf("i = %d \n", i);
+        if(cL->multiphase || cR->multiphase)
+        {
+            printf("i = %d (radial_flux() -- multiphase))\n", i);
+        }
         riemann( cL , cR , r , dA , dt );
         conduction( cL , cR , dA , dt );
         subgrid_conduction(cL, dt);
@@ -658,7 +661,7 @@ void add_source( struct domain * theDomain , const double dt ,
         }
         if(c->multiphase)
         {
-            printf("i = %d\n", i);
+            printf("i = %d (in source() -- only for multiphase)\n", i);
         }
         source( c , rp , rm , dV , dt , theDomain->R_shock , cooling );
 
@@ -1020,7 +1023,7 @@ void AMR( struct domain * theDomain )
             c->cons_cold[TAU] += (dE_int_L * y_cold_before) + (dE_kin_L * x_cold_before);
 
             c->cons_hot[ZZZ]  += dZ_L * x_hot_before * z_hot_before;
-            c->cons_cold[ZZZ] += dZ_L * x_cold_before * z_hot_before;
+            c->cons_cold[ZZZ] += dZ_L * x_cold_before * z_cold_before;
 
             calc_multiphase_prim( c, c->prim_hot , c->prim_cold ,
                                      &(c->V_hot) , &(c->V_cold) );   

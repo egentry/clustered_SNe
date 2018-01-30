@@ -66,9 +66,6 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
 
     struct cell * c = &(theDomain->theCells[n_guard_cell]);
 
-    const double T  = calc_T(c->prim);
-
-    // if single phase 
     if (c->multiphase)
     {
         assert(calc_T(c->prim_cold)<1e5);
