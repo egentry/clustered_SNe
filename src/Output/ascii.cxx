@@ -66,6 +66,58 @@ void create_checkpoint( struct domain * theDomain , const char * filestart ,
 
 }
 
+
+void create_checkpoint_keller_auxiliary( struct domain * theDomain , const char * filestart , 
+                 const double t )
+{
+
+    const struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
+
+    char filename[256] = "";
+    strcat(filename, theDomain->output_prefix.c_str());
+    strcat(filename, filestart);
+    strcat(filename, ".dat.aux");
+
+    FILE * pFile = fopen( filename , "w" );
+    fprintf(pFile,"# time = %le [s] \n", t);
+    fprintf(pFile,"# r            multiphase    x_cold           y_cold             z_cold              x_hot             y_hot               z_hot   \n");
+
+    const int i_min = 0;
+    const int i_max = Nr;
+
+    for( int i=i_min ; i<i_max ; ++i )
+    {
+        const struct cell * c = &(theCells[i]);
+        const double rp = c->riph;
+        // const double dr = c->dr; 
+        // const double rm = rp-dr;
+        // const double dV = get_dV( rp , rm );
+        fprintf(pFile,"%18.10e %d %18.10e %18.10e %18.10e %18.10e %18.10e %18.10e ",
+            rp, c->multiphase,
+            c->x_cold, c->y_cold, c->z_cold, 
+            c->x_hot,  c->y_hot,  c->z_hot
+            );
+        // for( int q=0 ; q<NUM_Q ; ++q )
+        // {
+        //     fprintf(pFile,"%18.10e ",c->prim[q]);
+        // }
+        // #ifndef NDEBUG
+        // if(c->prim[PPP] < theDomain->theParList.Pressure_Floor)
+        // {
+        //     printf("-------ERROR--------- \n");
+        //     printf("In create_checkpoint() \n");
+        //     printf("c->prim[PPP] = %e at i=%d \n", c->prim[PPP], i);
+        //     printf("Pressure floor should be = %e \n", theDomain->theParList.Pressure_Floor);
+        //     assert(0);
+        // }
+        // #endif
+        fprintf(pFile,"\n");
+    }
+    fclose( pFile );
+
+}
+
 void overviews(  struct domain * theDomain ,
                 Mass_Loss * mass_loss ,
                 Cooling * cooling )

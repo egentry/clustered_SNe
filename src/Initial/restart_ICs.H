@@ -40,6 +40,16 @@ private:
     double * vr ;
     double * Z  ;
 
+    // keller-specific variables
+    int * multiphase ;
+    double * x_cold ;
+    double * y_cold ;
+    double * z_cold ;
+    double * x_hot ;
+    double * y_hot ;
+    double * z_hot ;
+
+
     std::string restart_filename;
     std::string restart_id;
 

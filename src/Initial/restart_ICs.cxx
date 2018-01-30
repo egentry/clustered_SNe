@@ -263,7 +263,7 @@ int Restart_ICs::get_table( const std::string filename )
     fscanf(pFile,"%s %s %s %le %s \n",
     tmp, tmp, tmp, &time_restart, tmp);
 
-    fgets(tmp, sizeof(tmp), pFile); // header line
+    fgets(tmp, sizeof(tmp), pFile); // skip header line
 
     for( int l=0 ; l<nL ; ++l )
     {
@@ -271,6 +271,46 @@ int Restart_ICs::get_table( const std::string filename )
                 &(rr[l]),&dr,&dV,&(rho[l]),&(Pp[l]),&(vr[l]),&(Z[l]));
     }
     fclose(pFile);
+
+    // now get auxiliary (keller) information
+    multiphase  = (int *) malloc( nL*sizeof(int) );
+    x_cold      = (double *) malloc( nL*sizeof(double) );
+    y_cold      = (double *) malloc( nL*sizeof(double) );
+    z_cold      = (double *) malloc( nL*sizeof(double) );
+    x_hot       = (double *) malloc( nL*sizeof(double) );
+    y_hot       = (double *) malloc( nL*sizeof(double) );
+    z_hot       = (double *) malloc( nL*sizeof(double) );
+
+    std::cout << "aux filename: " << filename + ".aux" << std::endl;
+
+    FILE * pFile_aux = fopen((filename + ".aux").c_str(),"r");
+    fgets(tmp, sizeof(tmp), pFile_aux); // skip "time = ..." line
+    fgets(tmp, sizeof(tmp), pFile_aux); // skip header line
+
+    for( int l=0 ; l<nL ; ++l )
+    {
+        fscanf(pFile_aux,"%s %d %le %le %le %le %le %le\n",
+                tmp, &(multiphase[l]),
+                &(x_cold[l]), &(y_cold[l]), &(z_cold[l]),
+                &(x_hot[l] ), &(y_hot[l] ), &(z_hot[l] )
+                );
+
+        if (l==1)
+        {
+            printf("l = %d (reading in aux restart file\n",l);
+            printf("multiphase = %d\n", multiphase[l]);
+            printf("x_cold     = %18.10e \n", x_cold[l]);
+            printf("y_cold     = %18.10e \n", y_cold[l]);
+            printf("z_cold     = %18.10e \n", z_cold[l]);
+            printf("x_hot      = %18.10e \n", x_hot[l]);
+            printf("y_hot      = %18.10e \n", y_hot[l]);
+            printf("z_hot      = %18.10e \n", z_hot[l]);
+        }
+    }
+
+
+    fclose(pFile_aux);
+
     return nL;
 }
 
@@ -309,6 +349,74 @@ void Restart_ICs::setup_grid( struct domain * theDomain )
         cons2prim( c->cons , c->prim , dV );
         c->E_int_old = E_int_from_cons( c->cons );
         c->dV_old = dV;
+    }
+
+
+    // process the keller-specific auxillary variables
+    for( int i=0 ; i<Nr ; ++i)
+    {   
+        struct cell * c = &(theDomain->theCells[i]);
+        c->multiphase = multiphase[i];
+        if( c->multiphase)
+        {
+            c->x_cold = x_cold[i];
+            c->y_cold = y_cold[i];
+            c->z_cold = z_cold[i];
+            c->x_hot  = x_hot[i];
+            c->y_hot  = y_hot[i];
+            c->z_hot  = z_hot[i];
+
+
+            c->cons_cold[DDD] = c->x_cold * c->cons[DDD];
+            c->cons_hot[DDD]  = c->x_hot  * c->cons[DDD];
+
+            c->cons_cold[SRR] = c->x_cold * c->cons[SRR];
+            c->cons_hot[SRR]  = c->x_hot  * c->cons[SRR];
+
+            c->cons_cold[TAU] = (c->y_cold * E_int_from_cons(c->cons)) + E_kin_from_cons(c->cons_cold);
+            c->cons_hot[TAU]  = (c->y_hot  * E_int_from_cons(c->cons)) + E_kin_from_cons(c->cons_hot);
+
+            c->cons_cold[ZZZ] = c->z_cold * c->cons_cold[DDD];
+            c->cons_hot[ZZZ]  = c->z_hot  * c->cons_hot[DDD];
+
+            for( int q=0; q<NUM_Q ; ++q )
+            {
+                c->RKcons_cold[q] = c->cons_cold[q];
+                c->RKcons_hot[q]  = c->cons_hot[q];
+            }
+
+            calc_multiphase_prim(c, 
+                c->prim_hot, c->prim_cold,
+                &(c->V_hot), &(c->V_cold));
+
+            c->E_kin_initial = E_kin_from_cons( c->cons );
+            c->E_int_initial = E_int_from_cons( c->cons );
+        }
+        else
+        {
+            c->x_cold = 0;
+            c->y_cold = 0;
+            c->z_cold = 0;
+            c->x_hot  = 0;
+            c->y_hot  = 0;
+            c->z_hot  = 0;
+
+            for( int q=0; q<NUM_Q ; ++q )
+            {
+                c->RKcons_cold[q] = 0;
+                c->RKcons_hot[q]  = 0;
+
+                c->prim_cold[q] = 0;
+                c->prim_hot[q]  = 0;
+
+                c->cons_cold[q] = 0;
+                c->cons_hot[q]  = 0;
+            }
+
+            c->E_kin_initial = 0;
+            c->E_int_initial = 0;
+
+        }
     }
 
     boundary( theDomain );

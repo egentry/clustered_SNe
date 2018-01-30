@@ -13,6 +13,8 @@
 
 void create_checkpoint( struct domain * theDomain , const char * filestart , 
                         const double t );
+void create_checkpoint_keller_auxiliary( struct domain * theDomain , const char * filestart , 
+                        const double t );
 void overviews(  struct domain * theDomain ,
                 Mass_Loss * mass_loss ,
                 Cooling * cooling );
