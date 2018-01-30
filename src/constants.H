@@ -10,7 +10,7 @@
 
 
 // #define AU  1.495979e+13
-#define pc  3.085678e+18
+#define pc_unit  3.085678e+18
 #define M_sun 1.989100e+33
 // #define R_sun  6.955080e+10
 
