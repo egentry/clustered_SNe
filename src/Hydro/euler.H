@@ -38,5 +38,11 @@ void calc_multiphase_prim(const struct cell * c,
 
 void subgrid_conduction( struct cell * c , const double dt );
 
+void verify_multiphase_conditions( const struct cell * c ,
+                                   const char * fn_name ,
+                                   const char * pre_post_specifier ,
+                                   const char * cell_specifier = "" ,
+                                   const double rel_tol = 1e-5 );
 
-#endif 
+
+#endif

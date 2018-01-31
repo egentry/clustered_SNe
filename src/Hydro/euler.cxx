@@ -128,31 +128,8 @@ void calc_multiphase_prim(const struct cell * c,
     // assumes c->prim, c->cons_hot, c->cons_cold already up to date
     //
     // has no side effects, besides prim_hot, prim_cold, V_hot, V_cold input pointers
-    if( c->cons_hot[DDD]<=0 ) 
-    {
-        printf("------ ERROR in calc_multiphase_prim() preconditions ------- \n");
-        printf("Hot mass less than 0; \n");
-
-        printf("c->cons_hot[DDD]                     = %e \n", c->cons_hot[DDD]);
-        printf("c->cons_cold[DDD]                    = %e \n", c->cons_cold[DDD]);
-        printf("c->cons_hot[DDD] + c->cons_cold[DDD] = %e \n", c->cons_hot[DDD]+c->cons_cold[DDD]);
-        printf("c->cons[DDD]                         = %e \n", c->cons[DDD]);
-
-        assert( c->cons_hot[DDD]>0 );
-    }
-
-    if( c->cons_cold[DDD]<=0 ) 
-    {
-        printf("------ ERROR in calc_multiphase_prim() preconditions ------- \n");
-        printf("Cold mass less than 0; \n");
-
-        printf("c->cons_hot[DDD]                     = %e \n", c->cons_hot[DDD]);
-        printf("c->cons_cold[DDD]                    = %e \n", c->cons_cold[DDD]);
-        printf("c->cons_hot[DDD] + c->cons_cold[DDD] = %e \n", c->cons_hot[DDD]+c->cons_cold[DDD]);
-        printf("c->cons[DDD]                         = %e \n", c->cons[DDD]);
-
-        assert( c->cons_cold[DDD]>0 );
-    }
+    
+    verify_multiphase_conditions(c, "calc_multiphase_prim()", "pre");
 
     if( E_int_from_cons(c->cons_hot) <=0 ) 
     {
@@ -444,9 +421,17 @@ void source( struct cell * c,
             printf("\n");
         }
 
+        printf("before asserts\n");
+
+        printf("E_int_from_cons(c->cons_hot) = %e \n", E_int_from_cons(c->cons_hot)); 
+        printf("E_int_from_cons(c->cons_cold) = %e \n", E_int_from_cons(c->cons_cold));
+        printf("E_int_from_cons(c->cons) = %e \n", E_int_from_cons(c->cons)); 
+
         assert(E_int_from_cons(c->cons_hot)  > 0); 
         assert(E_int_from_cons(c->cons_cold) > 0);
         assert(E_int_from_cons(c->cons)      > 0); 
+
+        printf("past asserts\n");
 
     }
 
@@ -644,90 +629,10 @@ void conduction( struct cell * cL , struct cell * cR,
     //
     // ============================================= // 
 
-
     // ======== Verify pre-conditions ========= //
-    const double rel_tol = 1e-5; // relative tolerance for float comparison
     if (cL->multiphase)
     {
-        if (cL->cons_hot[DDD] < 0)
-        {
-            printf("------ERROR in conduction() preconditions------- \n");
-            printf("[left] hot gas mass less than 0\n");
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-            assert( cL->cons_hot[DDD] > 0 );
-        }
-
-        if (cL->cons_cold[DDD] < 0)
-        {
-            printf("------ERROR in conduction() preconditions------- \n");
-            printf("[left] cold gas mass less than 0\n");
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-            assert( cL->cons_cold[DDD] > 0 );
-        }
-
-        if ( (cL->cons_hot[DDD] / cL->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in conduction() preconditions------- \n");
-            printf("[left] hot gas mass greater than total mass\n");
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-            assert( (cL->cons_hot[DDD] / cL->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( (cL->cons_cold[DDD] / cL->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in conduction() preconditions------- \n");
-            printf("[left] cold gas mass greater than total mass\n");
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-            assert( (cL->cons_cold[DDD] / cL->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( std::abs(1-( (cL->cons_cold[DDD] + cL->cons_hot[DDD])/cL->cons[DDD])) > rel_tol)
-        {
-            printf("------ERROR in conduction() preconditions------- \n");
-            printf("[left] cold mass + hot mass =/= total mass\n");
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-            assert(  std::abs(1-( (cL->cons_cold[DDD] + cL->cons_hot[DDD])/cL->cons[DDD])) <= rel_tol);
-        }
-
-
-
-
-        if (cL->cons_hot[TAU] < 0)
-        {
-            printf("------ERROR in conduction() preconditions------- \n");
-            printf("[left] hot gas energy less than 0\n");
-            printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-            printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-            printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-
-            assert( cL->cons_hot[TAU] > 0 );
-        }
-
-        if (cL->cons_cold[TAU] < 0)
-        {
-            printf("------ERROR in conduction() preconditions------- \n");
-            printf("[left] cold gas energy less than 0\n");
-            printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-            printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-            printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-
-            assert( cL->cons_cold[TAU] > 0 );
-        }
+        verify_multiphase_conditions(cL, "conduction()", "pre", "[left] ");
 
         // if (E_int_from_cons(cL->cons_hot) < 0)
         // {
@@ -750,124 +655,11 @@ void conduction( struct cell * cL , struct cell * cR,
 
         //     assert( E_int_from_cons(cL->cons_cold) > 0 );
         // }
-
-        // if ( (cL->cons_hot[TAU] / cL->cons[TAU]) > (1+rel_tol))
-        // {
-        //     printf("------ERROR in conduction() preconditions------- \n");
-        //     printf("[left] hot gas energy greater than total energy\n");
-        //     printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-        //     printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-        //     printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-
-        //     assert( (cL->cons_hot[TAU] / cL->cons[TAU]) < (1+rel_tol) );
-        // }
-
-        // if ( (cL->cons_cold[TAU] / cL->cons[TAU]) > (1+rel_tol))
-        // {
-        //     printf("------ERROR in conduction() preconditions------- \n");
-        //     printf("[left] cold gas energy greater than total energy\n");
-        //     printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-        //     printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-        //     printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-
-        //     assert( (cL->cons_cold[TAU] / cL->cons[TAU]) < (1+rel_tol) );
-        // }
-
-        // if ( std::abs(1-( (cL->cons_cold[TAU] + cL->cons_hot[TAU])/cL->cons[TAU])) > rel_tol)
-        // {
-        //     printf("------ERROR in conduction() preconditions------- \n");
-        //     printf("[left] cold energy + hot energy =/= total energy\n");
-        //     printf("cL->cons_cold[TAU]                      = %e \n", cL->cons_cold[TAU]);
-        //     printf("cL->cons_hot[TAU]                       = %e \n", cL->cons_hot[TAU]);
-        //     printf("cL->cons_cold[TAU] + cL->cons_hot[TAU]  = %e \n", cL->cons_cold[TAU] + cL->cons_hot[TAU]);
-        //     printf("cL->cons[TAU]                           = %e \n", cL->cons[TAU]);
-        //     printf("relative error  = %e \n", 1 - ( (cL->cons_cold[TAU] + cL->cons_hot[TAU]) / cL->cons[TAU]));
-
-        //     assert(  std::abs(1-( (cL->cons_cold[TAU] + cL->cons_hot[TAU])/cL->cons[TAU])) <= rel_tol);
-        // }
     }
 
     if (cR->multiphase)
     {
-        if (cR->cons_hot[DDD] < 0)
-        {
-            printf("------ERROR in conduction() preconditions------- \n");
-            printf("[right] hot gas mass less than 0\n");
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-            assert( cR->cons_hot[DDD] > 0 );
-        }
-
-        if (cR->cons_cold[DDD] < 0)
-        {
-            printf("------ERROR in conduction() preconditions------- \n");
-            printf("[right] cold gas mass less than 0\n");
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-            assert( cR->cons_cold[DDD] > 0 );
-        }
-
-        if ( (cR->cons_hot[DDD] / cR->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in conduction() preconditions------- \n");
-            printf("[right] hot gas mass greater than total mass\n");
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-            assert( (cR->cons_hot[DDD] / cR->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( (cR->cons_cold[DDD] / cR->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in conduction() preconditions------- \n");
-            printf("[right] cold gas mass greater than total mass\n");
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-            assert( (cR->cons_cold[DDD] / cR->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( std::abs(1-( (cR->cons_cold[DDD] + cR->cons_hot[DDD])/cR->cons[DDD])) > rel_tol)
-        {
-            printf("------ERROR in conduction() preconditions------- \n");
-            printf("[right] cold mass + hot mass =/= total mass\n");
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-            assert(  std::abs(1-( (cR->cons_cold[DDD] + cR->cons_hot[DDD])/cR->cons[DDD])) <= rel_tol);
-        }
-
-
-
-
-        if (cR->cons_hot[TAU] < 0)
-        {
-            printf("------ERROR in conduction() preconditions------- \n");
-            printf("[right] hot gas energy less than 0\n");
-            printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-            printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-            printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-
-            assert( cR->cons_hot[TAU] > 0 );
-        }
-
-        if (cR->cons_cold[TAU] < 0)
-        {
-            printf("------ERROR in conduction() preconditions------- \n");
-            printf("[right] cold gas energy less than 0\n");
-            printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-            printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-            printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-
-            assert( cR->cons_cold[TAU] > 0 );
-        }
+        verify_multiphase_conditions(cR, "conduction()", "pre", "[right] ");
 
         // if (E_int_from_cons(cR->cons_hot) < 0)
         // {
@@ -890,41 +682,6 @@ void conduction( struct cell * cL , struct cell * cR,
 
         //     assert( E_int_from_cons(cR->cons_cold) > 0 );
         // }
-
-        // if ( (cR->cons_hot[TAU] / cR->cons[TAU]) > (1+rel_tol))
-        // {
-        //     printf("------ERROR in conduction() preconditions------- \n");
-        //     printf("[right] hot gas energy greater than total energy\n");
-        //     printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-        //     printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-        //     printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-
-        //     assert( (cR->cons_hot[TAU] / cR->cons[TAU]) < (1+rel_tol) );
-        // }
-
-        // if ( (cR->cons_cold[TAU] / cR->cons[TAU]) > (1+rel_tol))
-        // {
-        //     printf("------ERROR in conduction() preconditions------- \n");
-        //     printf("[right] cold gas energy greater than total energy\n");
-        //     printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-        //     printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-        //     printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-
-        //     assert( (cR->cons_cold[TAU] / cR->cons[TAU]) < (1+rel_tol) );
-        // }
-
-        // if ( std::abs(1-( (cR->cons_cold[TAU] + cR->cons_hot[TAU])/cR->cons[TAU])) > rel_tol)
-        // {
-        //     printf("------ERROR in conduction() preconditions------- \n");
-        //     printf("[right] cold energy + hot energy =/= total energy\n");
-        //     printf("cR->cons_cold[TAU]                      = %e \n", cR->cons_cold[TAU]);
-        //     printf("cR->cons_hot[TAU]                       = %e \n", cR->cons_hot[TAU]);
-        //     printf("cR->cons_cold[TAU] + cR->cons_hot[TAU]  = %e \n", cR->cons_cold[TAU] + cR->cons_hot[TAU]);
-        //     printf("cR->cons[TAU]                           = %e \n", cR->cons[TAU]);
-        //     printf("relative error  = %e \n", 1 - ( (cR->cons_cold[TAU] + cR->cons_hot[TAU]) / cR->cons[TAU]));
-
-        //     assert(  std::abs(1-( (cR->cons_cold[TAU] + cR->cons_hot[TAU])/cR->cons[TAU])) <= rel_tol);
-        // }
     }
 
 
@@ -939,10 +696,19 @@ void conduction( struct cell * cL , struct cell * cR,
     const double T_L = calc_T(cL->prim);
     const double T_R = calc_T(cR->prim);
 
-    if (std::abs(1 - (T_L/T_R)) < 1e4)
+    // first, check if the temperatures are relatively close
+    // then, check if there are effectively equal
+    // if so, skip the conduction routine 
+    //    (if you don't you might get silze divide-by-zero errors leading to NaN energy flux)
+    if (std::abs(std::log10(T_L/T_R)) < 1)
     {
-        // effectively no temperature gradient; don't apply conduction
-        return;
+        if (std::abs(1 - (T_L/T_R)) < .01)
+        {
+            // effectively no temperature gradient; don't apply conduction
+            // otherwise you get silent divide-by-zero errors, leading to 
+            // fluxes that are NaN's
+            return;
+        }
     }
 
 
@@ -959,6 +725,7 @@ void conduction( struct cell * cL , struct cell * cR,
     const double mu_R = get_mean_molecular_weight(prim_R[ZZZ]);
     const double mu = (mu_L + mu_R) / 2.;
 
+    // // Keller et al. 2014 -- Equation 4, based on Mac Low & McCray 1988
     const double dM_dt_unsat = (4.*M_PI * mu * m_proton) / (25. * k_boltzmann) * kappa_0
         * std::abs(std::pow(T_R, 5./2.) - std::pow(T_L, 5./2.)) / dx * dA; 
 
@@ -986,7 +753,7 @@ void conduction( struct cell * cL , struct cell * cR,
     const double dM = dM_dt * dt;
 
 
-    // to do: also transfer the correct amount of kinetic energy!!!
+    // should I be calculating fluxes from primitives instead of conservatives?
 
 
     double x; // mass fraction of transfered flux, relative to initial cell
@@ -996,18 +763,20 @@ void conduction( struct cell * cL , struct cell * cR,
     int sgn; // sign; 1 if mass is transfered right, -1 if mass transfered left
     if (T_L > T_R)
     {
-        sgn = -1;
-        x = dM / cR->cons[DDD];
-        dP = x * cR->cons[SRR];
-        dE = (dM * c_s_R * c_s_R) + (dP*dP / (2*dM)); // internal + kinetic -- should I just transfer x * cons[TAU]?
+        sgn  = -1;
+        x    = dM / cR->cons[DDD];
+        dP   = x * cR->cons[SRR];
+        // dE   = (dM * c_s_R * c_s_R) + (dP*dP / (2*dM)); // internal + kinetic -- should I just transfer x * cons[TAU]?
+        dE   = x * cR->cons[TAU];
         dM_Z = x * cR->cons[ZZZ];
     }
     else
     {
-        sgn = 1;
-        x = dM / cL->cons[DDD];
-        dP = x * cL->cons[SRR];
-        dE = (dM * c_s_L * c_s_L) + (dP*dP / (2*dM)); // internal + kinetic -- should I just transfer x * cons[TAU]?
+        sgn  = 1;
+        x    = dM / cL->cons[DDD];
+        dP   = x * cL->cons[SRR];
+        // dE   = (dM * c_s_L * c_s_L) + (dP*dP / (2*dM)); // internal + kinetic -- should I just transfer x * cons[TAU]?
+        dE   = x * cL->cons[TAU];
         dM_Z = x * cL->cons[ZZZ];
     }
 
@@ -1282,18 +1051,22 @@ void conduction( struct cell * cL , struct cell * cR,
     // ======== Verify post-conditions ========= //
     // #ifndef NDEBUG
 
-    if (dM_dt_sat < dM_dt_unsat)
-    {
-        // not a post-condition, but a useful diagnostic
-        printf("using saturated form of conduction\n");
-        printf("T_L = %e \n", T_L);
-        printf("T_R = %e \n", T_R);
+    // if (dM_dt_sat < dM_dt_unsat)
+    // {
+    //     // // not a post-condition, but a useful diagnostic
+    //     printf("using saturated form of conduction\n");
+    //     printf("T_L = %e \n", T_L);
+    //     printf("T_R = %e \n", T_R);
 
-        printf("dT^5/2 = %e \n", std::abs(std::pow(T_R, 5./2.) - std::pow(T_L, 5./2.)));
+    //     printf("dT^5/2 = %e \n", std::abs(std::pow(T_R, 5./2.) - std::pow(T_L, 5./2.)));
 
-        printf("dM_dt_unsat = %e \n", dM_dt_unsat);
-        printf("dM_dt_sat   = %e \n", dM_dt_sat);
-    }
+    //     printf("dM_dt_unsat = %e \n", dM_dt_unsat);
+    //     printf("dM_dt_sat   = %e \n", dM_dt_sat);
+    //     printf("dt          = %e \n", dt);
+    //     printf("M_L         = %e \n", cL->cons[DDD]);
+    //     printf("M_R         = %e \n", cR->cons[DDD]);
+
+    // }
     // printf("sgn * x = %e \n", sgn * x);
 
     if (dM < 0)
@@ -1332,85 +1105,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     if (cL->multiphase)
     {
-        if (cL->cons_hot[DDD] < 0)
-        {
-            printf("------ERROR in conduction() postconditions------- \n");
-            printf("[left] hot gas mass less than 0\n");
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-            assert( cL->cons_hot[DDD] > 0 );
-        }
-
-        if (cL->cons_cold[DDD] < 0)
-        {
-            printf("------ERROR in conduction() postconditions------- \n");
-            printf("[left] cold gas mass less than 0\n");
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-            assert( cL->cons_cold[DDD] > 0 );
-        }
-
-        if ( (cL->cons_hot[DDD] / cL->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in conduction() postconditions------- \n");
-            printf("[left] hot gas mass greater than total mass\n");
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-            assert( (cL->cons_hot[DDD] / cL->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( (cL->cons_cold[DDD] / cL->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in conduction() postconditions------- \n");
-            printf("[left] cold gas mass greater than total mass\n");
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-            assert( (cL->cons_cold[DDD] / cL->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( std::abs(1-( (cL->cons_cold[DDD] + cL->cons_hot[DDD])/cL->cons[DDD])) > rel_tol)
-        {
-            printf("------ERROR in conduction() postconditions------- \n");
-            printf("[left] cold mass + hot mass =/= total mass\n");
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-            assert(  std::abs(1-( (cL->cons_cold[DDD] + cL->cons_hot[DDD])/cL->cons[DDD])) <= rel_tol);
-        }
-
-
-
-
-        if (cL->cons_hot[TAU] < 0)
-        {
-            printf("------ERROR in conduction() postconditions------- \n");
-            printf("[left] hot gas energy less than 0\n");
-            printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-            printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-            printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-
-            assert( cL->cons_hot[TAU] > 0 );
-        }
-
-        if (cL->cons_cold[TAU] < 0)
-        {
-            printf("------ERROR in conduction() postconditions------- \n");
-            printf("[left] cold gas energy less than 0\n");
-            printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-            printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-            printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-
-            assert( cL->cons_cold[TAU] > 0 );
-        }
+        verify_multiphase_conditions(cL, "conduction()", "post", "[left] ");
 
         // if (E_int_from_cons(cL->cons_hot) < 0)
         // {
@@ -1472,85 +1167,8 @@ void conduction( struct cell * cL , struct cell * cR,
 
     if (cR->multiphase)
     {
-        if (cR->cons_hot[DDD] < 0)
-        {
-            printf("------ERROR in conduction() postconditions------- \n");
-            printf("[right] hot gas mass less than 0\n");
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
+        verify_multiphase_conditions(cR, "conduction()", "post", "[right] ");
 
-            assert( cR->cons_hot[DDD] > 0 );
-        }
-
-        if (cR->cons_cold[DDD] < 0)
-        {
-            printf("------ERROR in conduction() postconditions------- \n");
-            printf("[right] cold gas mass less than 0\n");
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-            assert( cR->cons_cold[DDD] > 0 );
-        }
-
-        if ( (cR->cons_hot[DDD] / cR->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in conduction() postconditions------- \n");
-            printf("[right] hot gas mass greater than total mass\n");
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-            assert( (cR->cons_hot[DDD] / cR->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( (cR->cons_cold[DDD] / cR->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in conduction() postconditions------- \n");
-            printf("[right] cold gas mass greater than total mass\n");
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-            assert( (cR->cons_cold[DDD] / cR->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( std::abs(1-( (cR->cons_cold[DDD] + cR->cons_hot[DDD])/cR->cons[DDD])) > rel_tol)
-        {
-            printf("------ERROR in conduction() postconditions------- \n");
-            printf("[right] cold mass + hot mass =/= total mass\n");
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-            assert(  std::abs(1-( (cR->cons_cold[DDD] + cR->cons_hot[DDD])/cR->cons[DDD])) <= rel_tol);
-        }
-
-
-
-
-        if (cR->cons_hot[TAU] < 0)
-        {
-            printf("------ERROR in conduction() postconditions------- \n");
-            printf("[right] hot gas energy less than 0\n");
-            printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-            printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-            printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-
-            assert( cR->cons_hot[TAU] > 0 );
-        }
-
-        if (cR->cons_cold[TAU] < 0)
-        {
-            printf("------ERROR in conduction() postconditions------- \n");
-            printf("[right] cold gas energy less than 0\n");
-            printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-            printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-            printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-
-            assert( cR->cons_cold[TAU] > 0 );
-        }
 
         // if (E_int_from_cons(cR->cons_hot) < 0)
         // {
@@ -1808,7 +1426,10 @@ void subgrid_conduction( struct cell * c , const double dt )
 
     // calculate *saturated* flux (my addition to eq 12)
     // const double V_cold = c->cons_cold[DDD] / c->cons_cold[RHO];
-    const double A_cold = 4 * std::pow((3. * c->V_cold / (4. * M_PI)), 2./3.);
+    // // get the effective radius of the cold phase, assuming it's one sphere
+    const double s_cold = std::pow((3. * c->V_cold / (4. * M_PI)), 1./3.);
+    // // get the surface area of a sphere of that size
+    const double A_cold = 4 * M_PI * std::pow(s_cold, 2);
 
     const double phi_s = 1.1; // see note near Eq. 8 of Cowie & McKee 1977
     const double c_s_cold = std::sqrt(std::abs(GAMMA_LAW*c->prim_cold[PPP]/c->prim_cold[RHO]));
@@ -1823,10 +1444,10 @@ void subgrid_conduction( struct cell * c , const double dt )
     const double dM_b = dM_b_dt * dt;
 
 
-    // to do: also transfer the correct amount of kinetic energy!!!
-
-    const double x = dM_b / c->cons_cold[DDD];
-    const double dE = dM_b * c_s_cold * c_s_cold;
+    const double x    = dM_b / c->cons_cold[DDD];
+    const double dP   = x * c->cons_cold[SRR];
+    // const double dE   = dM_b * c_s_cold * c_s_cold; // doesn't include kinetic energy
+    const double dE   = x * c->cons_cold[TAU];        
     const double dM_Z = x * c->cons_cold[ZZZ];
 
     // ======== Verify before transferring mass / energy ========= //
@@ -1938,95 +1559,20 @@ void subgrid_conduction( struct cell * c , const double dt )
     c->cons_cold[DDD] -= dM_b;
     c->cons_hot[DDD]  += dM_b;
 
-    c->cons_cold[ZZZ] -= dM_Z;
-    c->cons_hot[ZZZ]  += dM_Z;
+    c->cons_cold[SRR] -= dP;
+    c->cons_hot[SRR]  += dP;
 
     c->cons_cold[TAU] -= dE;
     c->cons_hot[TAU]  += dE;
+
+    c->cons_cold[ZZZ] -= dM_Z;
+    c->cons_hot[ZZZ]  += dM_Z;
 
 
     // ======== Verify post-conditions ========= //
     if (c->multiphase)
     {
-        if (c->cons_hot[DDD] < 0)
-        {
-            printf("------ERROR in subgrid_conduction() postconditions------- \n");
-            printf("hot gas mass less than 0\n");
-            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-
-            assert( c->cons_hot[DDD] > 0 );
-        }
-
-        if (c->cons_cold[DDD] < 0)
-        {
-            printf("------ERROR in subgrid_conduction() postconditions------- \n");
-            printf("cold gas mass less than 0\n");
-            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-
-            assert( c->cons_cold[DDD] > 0 );
-        }
-
-        if ( (c->cons_hot[DDD] / c->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in subgrid_conduction() postconditions------- \n");
-            printf("hot gas mass greater than total mass\n");
-            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-
-            assert( (c->cons_hot[DDD] / c->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( (c->cons_cold[DDD] / c->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in subgrid_conduction() postconditions------- \n");
-            printf("cold gas mass greater than total mass\n");
-            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-
-            assert( (c->cons_cold[DDD] / c->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) > rel_tol)
-        {
-            printf("------ERROR in subgrid_conduction() postconditions------- \n");
-            printf("cold mass + hot mass =/= total mass\n");
-            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-
-            assert(  std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) <= rel_tol);
-        }
-
-
-
-
-        if (c->cons_hot[TAU] < 0)
-        {
-            printf("------ERROR in subgrid_conduction() postconditions------- \n");
-            printf("hot gas energy less than 0\n");
-            printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
-            printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-            printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
-
-            assert( c->cons_hot[TAU] > 0 );
-        }
-
-        if (c->cons_cold[TAU] < 0)
-        {
-            printf("------ERROR in subgrid_conduction() postconditions------- \n");
-            printf("cold gas energy less than 0\n");
-            printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
-            printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-            printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
-
-            assert( c->cons_cold[TAU] > 0 );
-        }
+        verify_multiphase_conditions(c, "subgrid_conduction()", "post");
 
         // if (E_int_from_cons(c->cons_hot) < 0)
         // {
@@ -2048,41 +1594,6 @@ void subgrid_conduction( struct cell * c , const double dt )
         //     printf("c->cons[TAU]        = %e \n", c->cons[TAU]);
 
         //     assert( E_int_from_cons(c->cons_cold) > 0 );
-        // }
-
-        // if ( (c->cons_hot[TAU] / c->cons[TAU]) > (1+rel_tol))
-        // {
-        //     printf("------ERROR in subgrid_conduction() postconditions------- \n");
-        //     printf("hot gas energy greater than total energy\n");
-        //     printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
-        //     printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-        //     printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
-
-        //     assert( (c->cons_hot[TAU] / c->cons[TAU]) < (1+rel_tol) );
-        // }
-
-        // if ( (c->cons_cold[TAU] / c->cons[TAU]) > (1+rel_tol))
-        // {
-        //     printf("------ERROR in subgrid_conduction() postconditions------- \n");
-        //     printf("cold gas energy greater than total energy\n");
-        //     printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
-        //     printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-        //     printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
-
-        //     assert( (c->cons_cold[TAU] / c->cons[TAU]) < (1+rel_tol) );
-        // }
-
-        // if ( std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) > rel_tol)
-        // {
-        //     printf("------ERROR in subgrid_conduction() postconditions------- \n");
-        //     printf("cold energy + hot energy =/= total energy\n");
-        //     printf("c->cons_cold[TAU]                      = %e \n", c->cons_cold[TAU]);
-        //     printf("c->cons_hot[TAU]                       = %e \n", c->cons_hot[TAU]);
-        //     printf("c->cons_cold[TAU] + c->cons_hot[TAU]  = %e \n", c->cons_cold[TAU] + c->cons_hot[TAU]);
-        //     printf("c->cons[TAU]                           = %e \n", c->cons[TAU]);
-        //     printf("relative error  = %e \n", 1 - ( (c->cons_cold[TAU] + c->cons_hot[TAU]) / c->cons[TAU]));
-
-        //     assert(  std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) <= rel_tol);
         // }
     }
 
@@ -2202,4 +1713,122 @@ double mindt( const double * prim , const double w ,
     return dt;
 }
 
+void verify_multiphase_conditions( const struct cell * c ,
+                                  const char * fn_name ,
+                                  const char * pre_post_specifier ,
+                                  const char * cell_specifier ,
+                                  const double rel_tol )
+{
+    #ifndef NDEBUG
+
+    if (c->cons_hot[DDD] < 0)
+    {
+        printf("------ERROR in %s %sconditions------- \n", fn_name, pre_post_specifier);
+        printf("%shot gas mass less than 0\n", cell_specifier);
+        printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
+        printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
+        printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
+        fflush(stdout);
+
+        assert( c->cons_hot[DDD] > 0 );
+    }
+
+
+    if (c->cons_cold[DDD] < 0)
+    {
+        printf("------ERROR in %s %sconditions------- \n", fn_name, pre_post_specifier);
+        printf("%scold gas mass less than 0\n", cell_specifier);
+        printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
+        printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
+        printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
+        fflush(stdout);
+
+        assert( c->cons_cold[DDD] > 0 );
+    }
+
+
+    if ( (c->cons_hot[DDD] / c->cons[DDD]) > (1+rel_tol))
+    {
+        printf("------ERROR in %s %sconditions------- \n", fn_name, pre_post_specifier);
+        printf("%shot gas mass greater than total mass\n", cell_specifier);
+        printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
+        printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
+        printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
+        fflush(stdout);
+
+        assert( (c->cons_hot[DDD] / c->cons[DDD]) < (1+rel_tol) );
+    }
+
+
+    if ( (c->cons_cold[DDD] / c->cons[DDD]) > (1+rel_tol))
+    {
+        printf("------ERROR in %s %sconditions------- \n", fn_name, pre_post_specifier);
+        printf("%scold gas mass greater than total mass\n", cell_specifier);
+        printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
+        printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
+        printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
+        fflush(stdout);
+
+        assert( (c->cons_cold[DDD] / c->cons[DDD]) < (1+rel_tol) );
+    }
+
+
+    if ( std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) > rel_tol)
+    {
+        printf("------ERROR in %s %sconditions------- \n", fn_name, pre_post_specifier);
+        printf("%scold mass + hot mass =/= total mass\n", cell_specifier);
+        printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
+        printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
+        printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
+        fflush(stdout);
+
+        assert(  std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) <= rel_tol);
+    }
+
+
+    if (c->cons_hot[TAU] < 0)
+    {
+        printf("------ERROR in %s %sconditions------- \n", fn_name, pre_post_specifier);
+        printf("%shot gas energy less than 0\n", cell_specifier);
+        printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
+        printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
+        printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
+        fflush(stdout);
+
+        assert( c->cons_hot[TAU] > 0 );
+    }
+
+
+    if (c->cons_cold[TAU] < 0)
+    {
+        printf("------ERROR in %s %sconditions------- \n", fn_name, pre_post_specifier);
+        printf("%scold gas energy less than 0\n", cell_specifier);
+        printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
+        printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
+        printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
+        fflush(stdout);
+
+        assert( c->cons_cold[TAU] > 0 );
+    }
+
+
+    if ( std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) > rel_tol)
+    {
+        printf("------ERROR in %s %sconditions------- \n", fn_name, pre_post_specifier);
+        printf("cold energy + hot energy =/= total energy\n");
+        printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
+        printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
+        printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
+        fflush(stdout);
+
+        assert(  std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) <= rel_tol);
+    }
+
+    if (! std::isfinite(c->cons_hot[DDD]))
+    {
+        assert(std::isfinite(c->cons_hot[DDD]));
+    }
+
+    #endif
+}
 

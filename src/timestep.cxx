@@ -29,48 +29,7 @@ void update_initial_energies( struct domain * theDomain )
         // ----------- Pre-conditions ------------- //
         if (c->multiphase)
         {
-            const double rel_tol = 1e-5; // relative tolerance for float comparisons
-            if (c->cons_hot[DDD] < 0)
-            {
-                printf("------ERROR in update_initial_energies() pre-conditions------- \n");
-                printf("hot gas mass less than 0\n");
-                printf("c->cons_hot[DDD] = %e \n", c->cons_hot[DDD]);
-                assert( c->cons_hot[DDD] > 0 );
-            }
-
-            if (c->cons_cold[DDD] < 0)
-            {
-                printf("------ERROR in update_initial_energies() pre-conditions------- \n");
-                printf("cold gas mass less than 0\n");
-                printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-                assert( c->cons_cold[DDD] > 0 );
-            }
-
-            if ( std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) > rel_tol)
-            {
-                printf("------ERROR in update_initial_energies() pre-conditions------- \n");
-                printf("cold mass + hot mass =/= total mass\n");
-                printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-                printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-                printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-                assert(  std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) <= rel_tol);
-            }
-
-            if (c->cons_hot[TAU] < 0)
-            {
-                printf("------ERROR in update_initial_energies() pre-conditions------- \n");
-                printf("hot gas energy less than 0\n");
-                printf("c->cons_hot[TAU] = %e \n", c->cons_hot[TAU]);
-                assert( c->cons_hot[TAU] > 0 );
-            }
-
-            if (c->cons_cold[TAU] < 0)
-            {
-                printf("------ERROR in update_initial_energies() pre-conditions------- \n");
-                printf("cold gas energy less than 0\n");
-                printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-                assert( c->cons_cold[TAU] > 0 );
-            }
+            verify_multiphase_conditions(c, "update_initial_energies()", "pre");
 
             if (E_int_from_cons(c->cons_hot) < 0)
             {
@@ -87,22 +46,11 @@ void update_initial_energies( struct domain * theDomain )
                 printf("E_int_from_cons(c->cons_cold) = %e \n", E_int_from_cons(c->cons_cold));
                 assert( E_int_from_cons(c->cons_cold) > 0 );
             }
-
-            if ( std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) > rel_tol)
-            {
-                printf("------ERROR in update_initial_energies() pre-conditions------- \n");
-                printf("cold energy + hot energy =/= total energy\n");
-                printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-                printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
-                printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
-                assert(  std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) <= rel_tol);
-            }
         }
 
         if(c->multiphase)
         {
             c->E_int_initial = E_int_from_cons(c->cons);
-            // c->E_kin_initial = c->cons[TAU] - c->E_int_initial;
             c->E_kin_initial = E_kin_from_cons(c->cons);
 
             c->x_hot  = c->cons_hot[DDD]  / c->cons[DDD];

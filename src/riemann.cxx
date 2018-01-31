@@ -68,110 +68,31 @@ void riemann( struct cell * cL , struct cell * cR,
 
         assert(primR[PPP] > PRE_FLOOR);
     }
-    const double rel_tol = 1e-4; // relative tolerance for float comparisons
+    
     if (cL->multiphase)
     {
-            // print out diagnostics before continuuing
-            printf("\n - Riemann (left; begin) - \n");
+        // print out diagnostics before continuing
+        printf("\n - Riemann (left; begin) - \n");
 
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-            printf("\n");
-            printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-            printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-            printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
+        printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
+        printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
+        printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
+        printf("\n");
+        printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
+        printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
+        printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
 
-            printf("\n - Riemann (right; begin) - \n");
+        printf("\n - Riemann (right; begin) - \n");
 
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-            printf("\n");
-            printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-            printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-            printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
+        printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
+        printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
+        printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
+        printf("\n");
+        printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
+        printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
+        printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
 
-        if (cL->cons_hot[DDD] < 0)
-        {
-            printf("------ERROR in riemann() preconditions------- \n");
-            printf("[left] hot gas mass less than 0\n");
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-            assert( cL->cons_hot[DDD] > 0 );
-        }
-
-        if (cL->cons_cold[DDD] < 0)
-        {
-            printf("------ERROR in riemann() preconditions------- \n");
-            printf("[left] cold gas mass less than 0\n");
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-            assert( cL->cons_cold[DDD] > 0 );
-        }
-
-        if ( (cL->cons_hot[DDD] / cL->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in riemann() preconditions------- \n");
-            printf("[left] hot gas mass greater than total mass\n");
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-            assert( (cL->cons_hot[DDD] / cL->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( (cL->cons_cold[DDD] / cL->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in riemann() preconditions------- \n");
-            printf("[left] cold gas mass greater than total mass\n");
-            printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-            assert( (cL->cons_cold[DDD] / cL->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( std::abs(1-( (cL->cons_cold[DDD] + cL->cons_hot[DDD])/cL->cons[DDD])) > rel_tol)
-        {
-            printf("------ERROR in riemann() preconditions------- \n");
-            printf("[left] cold mass + hot mass =/= total mass\n");
-            printf("cL->cons_cold[DDD]                      = %e \n", cL->cons_cold[DDD]);
-            printf("cL->cons_hot[DDD]                       = %e \n", cL->cons_hot[DDD]);
-            printf("cL->cons_cold[DDD] + cL->cons_hot[DDD]  = %e \n", cL->cons_cold[DDD] + cL->cons_hot[DDD]);
-            printf("cL->cons[DDD]                           = %e \n", cL->cons[DDD]);
-            printf("relative error  = %e \n", 1 - ( (cL->cons_cold[DDD] + cL->cons_hot[DDD]) / cL->cons[DDD]));
-
-            assert(  std::abs(1-( (cL->cons_cold[DDD] + cL->cons_hot[DDD])/cL->cons[DDD])) <= rel_tol);
-        }
-
-
-
-        if (cL->cons_hot[TAU] < 0)
-        {
-            printf("------ERROR in riemann() preconditions------- \n");
-            printf("[left] hot gas energy less than 0\n");
-            printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-            printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-            printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-
-            assert( cL->cons_hot[TAU] > 0 );
-        }
-
-        if (cL->cons_cold[TAU] < 0)
-        {
-            printf("------ERROR in riemann() preconditions------- \n");
-            printf("[left] cold gas energy less than 0\n");
-            printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-            printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-            printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-
-            assert( cL->cons_cold[TAU] > 0 );
-        }
+        verify_multiphase_conditions(cL, "riemann()", "pre", "[left] ");
 
         // if (E_int_from_cons(cL->cons_hot) < 0)
         // {
@@ -194,127 +115,11 @@ void riemann( struct cell * cL , struct cell * cR,
 
         //     assert( E_int_from_cons(cL->cons_cold) > 0 );
         // }
-
-
-        // if ( (cL->cons_hot[TAU] / cL->cons[TAU]) > (1+rel_tol))
-        // {
-        //     printf("------ERROR in riemann() preconditions------- \n");
-        //     printf("[left] hot gas energy greater than total energy\n");
-        //     printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-        //     printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-        //     printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-
-        //     assert( (cL->cons_hot[TAU] / cL->cons[TAU]) < (1+rel_tol) );
-        // }
-
-        // if ( (cL->cons_cold[TAU] / cL->cons[TAU]) > (1+rel_tol))
-        // {
-        //     printf("------ERROR in riemann() preconditions------- \n");
-        //     printf("[left] cold gas energy greater than total energy\n");
-        //     printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-        //     printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-        //     printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-
-        //     assert( (cL->cons_cold[TAU] / cL->cons[TAU]) < (1+rel_tol) );
-        // }
-
-        // if ( std::abs(1-( (cL->cons_cold[TAU] + cL->cons_hot[TAU])/cL->cons[TAU])) > rel_tol)
-        // {
-        //     printf("------ERROR in riemann() preconditions------- \n");
-        //     printf("[left] cold energy + hot energy =/= total energy\n");
-        //     printf("cL->cons_cold[TAU]                      = %e \n", cL->cons_cold[TAU]);
-        //     printf("cL->cons_hot[TAU]                       = %e \n", cL->cons_hot[TAU]);
-        //     printf("cL->cons_cold[TAU] + cL->cons_hot[TAU]  = %e \n", cL->cons_cold[TAU] + cL->cons_hot[TAU]);
-        //     printf("cL->cons[TAU]                           = %e \n", cL->cons[TAU]);
-        //     printf("relative error  = %e \n", 1 - ( (cL->cons_cold[TAU] + cL->cons_hot[TAU]) / cL->cons[TAU]));
-
-        //     assert(  std::abs(1-( (cL->cons_cold[TAU] + cL->cons_hot[TAU])/cL->cons[TAU])) <= rel_tol);
-        // }
     }
 
     if (cR->multiphase)
     {
-        if (cR->cons_hot[DDD] < 0)
-        {
-            printf("------ERROR in riemann() preconditions------- \n");
-            printf("[right] hot gas mass less than 0\n");
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-            assert( cR->cons_hot[DDD] > 0 );
-        }
-
-        if (cR->cons_cold[DDD] < 0)
-        {
-            printf("------ERROR in riemann() preconditions------- \n");
-            printf("[right] cold gas mass less than 0\n");
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-            assert( cR->cons_cold[DDD] > 0 );
-        }
-
-        if ( (cR->cons_hot[DDD] / cR->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in riemann() preconditions------- \n");
-            printf("[right] hot gas mass greater than total mass\n");
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-            assert( (cR->cons_hot[DDD] / cR->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( (cR->cons_cold[DDD] / cR->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in riemann() preconditions------- \n");
-            printf("[right] cold gas mass greater than total mass\n");
-            printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-            assert( (cR->cons_cold[DDD] / cR->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( std::abs(1-( (cR->cons_cold[DDD] + cR->cons_hot[DDD])/cR->cons[DDD])) > rel_tol)
-        {
-            printf("------ERROR in riemann() preconditions------- \n");
-            printf("[right] cold mass + hot mass =/= total mass\n");
-            printf("cR->cons_cold[DDD]                      = %e \n", cR->cons_cold[DDD]);
-            printf("cR->cons_hot[DDD]                       = %e \n", cR->cons_hot[DDD]);
-            printf("cR->cons_cold[DDD] + cR->cons_hot[DDD]  = %e \n", cR->cons_cold[DDD] + cR->cons_hot[DDD]);
-            printf("cR->cons[DDD]                           = %e \n", cR->cons[DDD]);
-            printf("relative error  = %e \n", 1 - ( (cR->cons_cold[DDD] + cR->cons_hot[DDD]) / cR->cons[DDD]));
-
-            assert(  std::abs(1-( (cR->cons_cold[DDD] + cR->cons_hot[DDD])/cR->cons[DDD])) <= rel_tol);
-        }
-
-
-
-
-        if (cR->cons_hot[TAU] < 0)
-        {
-            printf("------ERROR in riemann() preconditions------- \n");
-            printf("[right] hot gas energy less than 0\n");
-            printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-            printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-            printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-
-            assert( cR->cons_hot[TAU] > 0 );
-        }
-
-        if (cR->cons_cold[TAU] < 0)
-        {
-            printf("------ERROR in riemann() preconditions------- \n");
-            printf("[right] cold gas energy less than 0\n");
-            printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-            printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-            printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-
-            assert( cR->cons_cold[TAU] > 0 );
-        }
+        verify_multiphase_conditions(cR, "riemann()", "pre", "[right] ");
 
         // if (E_int_from_cons(cR->cons_hot) < 0)
         // {
@@ -336,41 +141,6 @@ void riemann( struct cell * cL , struct cell * cR,
         //     printf("cR->cons[TAU]         = %e \n", cR->cons[TAU]);
 
         //     assert( E_int_from_cons(cR->cons_cold) > 0 );
-        // }
-
-        // if ( (cR->cons_hot[TAU] / cR->cons[TAU]) > (1+rel_tol))
-        // {
-        //     printf("------ERROR in riemann() preconditions------- \n");
-        //     printf("[right] hot gas mass greater than total mass\n");
-        //     printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-        //     printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-        //     printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-
-        //     assert( (cR->cons_hot[TAU] / cR->cons[TAU]) < (1+rel_tol) );
-        // }
-
-        // if ( (cR->cons_cold[TAU] / cR->cons[TAU]) > (1+rel_tol))
-        // {
-        //     printf("------ERROR in riemann() preconditions------- \n");
-        //     printf("[right] cold gas mass greater than total mass\n");
-        //     printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-        //     printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-        //     printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-
-        //     assert( (cR->cons_cold[TAU] / cR->cons[TAU]) < (1+rel_tol) );
-        // }
-
-        // if ( std::abs(1-( (cR->cons_cold[TAU] + cR->cons_hot[TAU])/cR->cons[TAU])) > rel_tol)
-        // {
-        //     printf("------ERROR in riemann() preconditions------- \n");
-        //     printf("[right] cold energy + hot energy =/= total energy\n");
-        //     printf("cR->cons_cold[TAU]                      = %e \n", cR->cons_cold[TAU]);
-        //     printf("cR->cons_hot[TAU]                       = %e \n", cR->cons_hot[TAU]);
-        //     printf("cR->cons_cold[TAU] + cR->cons_hot[TAU]  = %e \n", cR->cons_cold[TAU] + cR->cons_hot[TAU]);
-        //     printf("cR->cons[TAU]                           = %e \n", cR->cons[TAU]);
-        //     printf("relative error  = %e \n", 1 - ( (cR->cons_cold[TAU] + cR->cons_hot[TAU]) / cR->cons[TAU]));
-
-        //     assert(  std::abs(1-( (cR->cons_cold[TAU] + cR->cons_hot[TAU])/cR->cons[TAU])) <= rel_tol);
         // }
     }
     #endif
@@ -850,92 +620,9 @@ void riemann( struct cell * cL , struct cell * cR,
             printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
             printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
 
-            if (cL->cons_hot[DDD] < 0)
-            {
-                printf("------ERROR in riemann() postconditions------- \n");
-                printf("[left] hot gas mass less than 0\n");
-                printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-                printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-                printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-                printf("dM                 = %e \n", Flux[DDD] * dA * dt);
+            printf(" - \n\n");
 
-                assert( cL->cons_hot[DDD] > 0 );
-            }
-
-            if (cL->cons_cold[DDD] < 0)
-            {
-                printf("------ERROR in riemann() postconditions------- \n");
-                printf("[left] cold gas mass less than 0\n");
-                printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-                printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-                printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-                printf("dM                 = %e \n", Flux[DDD] * dA * dt);
-
-                assert( cL->cons_cold[DDD] > 0 );
-            }
-
-            if ( (cL->cons_hot[DDD] / cL->cons[DDD]) > (1+rel_tol))
-            {
-                printf("------ERROR in riemann() postconditions------- \n");
-                printf("[left] hot gas mass greater than total mass\n");
-                printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-                printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-                printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-                printf("dM                 = %e \n", Flux[DDD] * dA * dt);
-
-                assert( (cL->cons_hot[DDD] / cL->cons[DDD]) < (1+rel_tol) );
-            }
-
-            if ( (cL->cons_cold[DDD] / cL->cons[DDD]) > (1+rel_tol))
-            {
-                printf("------ERROR in riemann() postconditions------- \n");
-                printf("[left] cold gas mass greater than total mass\n");
-                printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-                printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-                printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-                printf("dM                 = %e \n", Flux[DDD] * dA * dt);
-
-                assert( (cL->cons_cold[DDD] / cL->cons[DDD]) < (1+rel_tol) );
-            }
-
-            if ( std::abs(1-( (cL->cons_cold[DDD] + cL->cons_hot[DDD])/cL->cons[DDD])) > rel_tol)
-            {
-                printf("------ERROR in riemann() postconditions------- \n");
-                printf("[left] cold mass + hot mass =/= total mass\n");
-                printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-                printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-                printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-                printf("dM                 = %e \n", Flux[DDD] * dA * dt);
-
-                assert(  std::abs(1-( (cL->cons_cold[DDD] + cL->cons_hot[DDD])/cL->cons[DDD])) <= rel_tol);
-            }
-
-
-
-            if (cL->cons_hot[TAU] < 0)
-            {
-                printf("------ERROR in riemann() postconditions------- \n");
-                printf("[left] hot gas energy less than 0\n");
-                printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-                printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-                printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-                printf("dE                 = %e \n", Flux[TAU] * dA * dt);
-
-                assert( cL->cons_hot[TAU] > 0 );
-            }
-
-            if (cL->cons_cold[TAU] < 0)
-            {
-                printf("------ERROR in riemann() postconditions------- \n");
-                printf("[left] cold gas energy less than 0\n");
-                printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-                printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-                printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-                printf("dE                 = %e \n", Flux[TAU] * dA * dt);
-
-                assert( cL->cons_cold[TAU] > 0 );
-            }
-
+            verify_multiphase_conditions(cL, "riemann()", "post", "[left] ");
 
             // if (E_int_from_cons(cL->cons_hot) < 0)
             // {
@@ -958,137 +645,12 @@ void riemann( struct cell * cL , struct cell * cR,
 
             //     assert( E_int_from_cons(cL->cons_cold) > 0 );
             // }
-
-
-
-            // if ( (cL->cons_hot[TAU] / cL->cons[TAU]) > (1+rel_tol))
-            // {
-            //     printf("------ERROR in riemann() postconditions------- \n");
-            //     printf("[left] hot gas energy greater than total energy\n");
-            //     printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-            //     printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-            //     printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-            //     printf("dE                 = %e \n", Flux[TAU] * dA * dt);
-
-            //     assert( (cL->cons_hot[TAU] / cL->cons[TAU]) < (1+rel_tol) );
-            // }
-
-            // if ( (cL->cons_cold[TAU] / cL->cons[TAU]) > (1+rel_tol))
-            // {
-            //     printf("------ERROR in riemann() postconditions------- \n");
-            //     printf("[left] cold gas energy greater than total energy\n");
-            //     printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-            //     printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-            //     printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-            //     printf("dE                 = %e \n", Flux[TAU] * dA * dt);
-
-            //     assert( (cL->cons_cold[TAU] / cL->cons[TAU]) < (1+rel_tol) );
-            // }
-
-
-            // if ( std::abs(1-( (cL->cons_cold[TAU] + cL->cons_hot[TAU])/cL->cons[TAU])) > rel_tol)
-            // {
-            //     printf("------ERROR in riemann() postconditions------- \n");
-            //     printf("[left] cold energy + hot energy =/= total energy\n");
-            //     printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-            //     printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-            //     printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-            //     printf("dE                 = %e \n", Flux[TAU] * dA * dt);
-
-            //     assert(  std::abs(1-( (cL->cons_cold[TAU] + cL->cons_hot[TAU])/cL->cons[TAU])) <= rel_tol);
-            // }
-
-            printf(" - \n\n");
-
         }
 
         if (cR->multiphase)
         {
-            if (cR->cons_hot[DDD] < 0)
-            {
-                printf("------ERROR in riemann() postconditions------- \n");
-                printf("[right] hot gas mass less than 0\n");
-                printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-                printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-                printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-                printf("dM                 = %e \n", Flux[DDD] * dA * dt);
+            verify_multiphase_conditions(cR, "riemann()", "post", "[right] ");
 
-                assert( cR->cons_hot[DDD] > 0 );
-            }
-
-            if (cR->cons_cold[DDD] < 0)
-            {
-                printf("------ERROR in riemann() postconditions------- \n");
-                printf("[right] cold gas mass less than 0\n");
-                printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-                printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-                printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-                printf("dM                 = %e \n", Flux[DDD] * dA * dt);
-
-                assert( cR->cons_cold[DDD] > 0 );
-            }
-
-            if ( (cR->cons_hot[DDD] / cR->cons[DDD]) > (1+rel_tol))
-            {
-                printf("------ERROR in riemann() postconditions------- \n");
-                printf("[right] hot gas mass greater than total mass\n");
-                printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-                printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-                printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-                printf("dM                 = %e \n", Flux[DDD] * dA * dt);
-
-                assert( (cR->cons_hot[DDD] / cR->cons[DDD]) < (1+rel_tol) );
-            }
-
-            if ( (cR->cons_cold[DDD] / cR->cons[DDD]) > (1+rel_tol))
-            {
-                printf("------ERROR in riemann() postconditions------- \n");
-                printf("[right] cold gas mass greater than total mass\n");
-                printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-                printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-                printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-                printf("dM                 = %e \n", Flux[DDD] * dA * dt);
-
-                assert( (cR->cons_cold[DDD] / cR->cons[DDD]) < (1+rel_tol) );
-            }
-
-            if ( std::abs(1-( (cR->cons_cold[DDD] + cR->cons_hot[DDD])/cR->cons[DDD])) > rel_tol)
-            {
-                printf("------ERROR in riemann() postconditions------- \n");
-                printf("[right] cold mass + hot mass =/= total mass\n");
-                printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-                printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-                printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-                printf("dM                 = %e \n", Flux[DDD] * dA * dt);
-
-                assert(  std::abs(1-( (cR->cons_cold[DDD] + cR->cons_hot[DDD])/cR->cons[DDD])) <= rel_tol);
-            }
-
-
-
-            if (cR->cons_hot[TAU] < 0)
-            {
-                printf("------ERROR in riemann() postconditions------- \n");
-                printf("[right] hot gas energy less than 0\n");
-                printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-                printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-                printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-                printf("dE                 = %e \n", Flux[TAU] * dA * dt);
-
-                assert( cR->cons_hot[TAU] > 0 );
-            }
-
-            if (cR->cons_cold[TAU] < 0)
-            {
-                printf("------ERROR in riemann() postconditions------- \n");
-                printf("[right] cold gas energy less than 0\n");
-                printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-                printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-                printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-                printf("dE                 = %e \n", Flux[TAU] * dA * dt);
-
-                assert( cR->cons_cold[TAU] > 0 );
-            }
 
             // if (E_int_from_cons(cR->cons_hot) < 0)
             // {
@@ -1110,43 +672,6 @@ void riemann( struct cell * cL , struct cell * cR,
             //     printf("cR->cons[TAU]         = %e \n", cR->cons[TAU]);
 
             //     assert( E_int_from_cons(cR->cons_cold) > 0 );
-            // }
-
-            // if ( (cR->cons_hot[TAU] / cR->cons[TAU]) > (1+rel_tol))
-            // {
-            //     printf("------ERROR in riemann() postconditions------- \n");
-            //     printf("[right] hot gas energy greater than total energy\n");
-            //     printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-            //     printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-            //     printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-            //     printf("dE                 = %e \n", Flux[TAU] * dA * dt);
-
-            //     assert( (cR->cons_hot[TAU] / cR->cons[TAU]) < (1+rel_tol) );
-            // }
-
-            // if ( (cR->cons_cold[TAU] / cR->cons[TAU]) > (1+rel_tol))
-            // {
-            //     printf("------ERROR in riemann() postconditions------- \n");
-            //     printf("[right] cold gas energy greater than total energy\n");
-            //     printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-            //     printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-            //     printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-            //     printf("dE                 = %e \n", Flux[TAU] * dA * dt);
-
-            //     assert( (cR->cons_cold[TAU] / cR->cons[TAU]) < (1+rel_tol) );
-            // }
-
-
-            // if ( std::abs(1-( (cR->cons_cold[TAU] + cR->cons_hot[TAU])/cR->cons[TAU])) > rel_tol)
-            // {
-            //     printf("------ERROR in riemann() postconditions------- \n");
-            //     printf("[right] cold energy + hot energy =/= total energy\n");
-            //     printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-            //     printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-            //     printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-            //     printf("dE                 = %e \n", Flux[TAU] * dA * dt);
-
-            //     assert(  std::abs(1-( (cR->cons_cold[TAU] + cR->cons_hot[TAU])/cR->cons[TAU])) <= rel_tol);
             // }
         }
 

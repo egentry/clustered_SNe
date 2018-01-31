@@ -83,9 +83,6 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
 
     c->cons[DDD] += M_blast;
     c->cons[TAU] += E_blast;
-    // for now assume that the metallicity of the ejecta is the same
-    // as the background metallicity
-    // later we'll want to actually inject metals
     c->cons[ZZZ] += M_blast_Z;
 
     if (c->multiphase)
@@ -113,36 +110,16 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
     calc_prim( theDomain );
     boundary( theDomain );
 
+    // revert any cells to single phase if needed.
+    check_multiphase( theDomain );
+
 
     // ----------- Post-conditions ------------- //
     if (c->multiphase)
     {
         const double rel_tol = 1e-5; // relative tolerance for float comparisons
-        if (c->cons_hot[DDD] < 0)
-        {
-            printf("------ERROR in add_single_blast()------- \n");
-            printf("hot gas mass less than 0\n");
-            printf("c->cons_hot[DDD] = %e \n", c->cons_hot[DDD]);
-            assert( c->cons_hot[DDD] > 0 );
-        }
 
-        if (c->cons_cold[DDD] < 0)
-        {
-            printf("------ERROR in add_single_blast()------- \n");
-            printf("cold gas mass less than 0\n");
-            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-            assert( c->cons_cold[DDD] > 0 );
-        }
-
-        if ( std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) > rel_tol)
-        {
-            printf("------ERROR in add_single_blast()------- \n");
-            printf("cold mass + hot mass =/= total mass\n");
-            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-            assert(  std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) <= rel_tol);
-        }
+        verify_multiphase_conditions(c, "add_single_blast()", "post");
 
         if ((c->x_hot < 0) || (c->x_hot > 1+rel_tol))
         {
@@ -162,22 +139,6 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
             printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
             printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
             assert( (c->x_cold > 0) && (c->x_cold < 1+rel_tol) );
-        }
-
-        if (c->cons_hot[TAU] < 0)
-        {
-            printf("------ERROR in add_single_blast()------- \n");
-            printf("hot gas energy less than 0\n");
-            printf("c->cons_hot[TAU] = %e \n", c->cons_hot[TAU]);
-            assert( c->cons_hot[TAU] > 0 );
-        }
-
-        if (c->cons_cold[TAU] < 0)
-        {
-            printf("------ERROR in add_single_blast()------- \n");
-            printf("cold gas energy less than 0\n");
-            printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-            assert( c->cons_cold[TAU] > 0 );
         }
 
 
@@ -205,16 +166,6 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
             printf("c->cons_cold[TAU]              = %e \n", c->cons_cold[TAU]);
             printf("c->cons[TAU]                   = %e \n", c->cons[TAU]);
             assert( (c->y_cold > 0) && (c->y_cold < 1+rel_tol) );
-        }
-
-        if ( std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) > rel_tol)
-        {
-            printf("------ERROR in add_single_blast()------- \n");
-            printf("cold energy + hot energy =/= total energy\n");
-            printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-            printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
-            printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
-            assert(  std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) <= rel_tol);
         }
     }
 

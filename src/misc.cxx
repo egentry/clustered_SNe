@@ -166,53 +166,7 @@ void adjust_RK_cons( struct domain * theDomain , const double RK )
 
         if (c->multiphase)
         {
-            const double rel_tol = 1e-5; // relative tolerance for float comparisons
-            if (c->cons_hot[DDD] < 0)
-            {
-                printf("------ERROR in adjust_RK_cons() pre-conditions------- \n");
-                printf("hot gas mass less than 0\n");
-                printf("c->cons_hot[DDD] = %e \n", c->cons_hot[DDD]);
-                printf("i = %d\n", i);
-                assert( c->cons_hot[DDD] > 0 );
-            }
-
-            if (c->cons_cold[DDD] < 0)
-            {
-                printf("------ERROR in adjust_RK_cons() pre-conditions------- \n");
-                printf("cold gas mass less than 0\n");
-                printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-                printf("i = %d\n", i);
-                assert( c->cons_cold[DDD] > 0 );
-            }
-
-            if ( std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) > rel_tol)
-            {
-                printf("------ERROR in adjust_RK_cons() pre-conditions------- \n");
-                printf("cold mass + hot mass =/= total mass\n");
-                printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-                printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-                printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-                printf("i = %d\n", i);
-                assert(  std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) <= rel_tol);
-            }
-
-            if (c->cons_hot[TAU] < 0)
-            {
-                printf("------ERROR in adjust_RK_cons() pre-conditions------- \n");
-                printf("hot gas energy less than 0\n");
-                printf("c->cons_hot[TAU] = %e \n", c->cons_hot[TAU]);
-                printf("i = %d\n", i);
-                assert( c->cons_hot[TAU] > 0 );
-            }
-
-            if (c->cons_cold[TAU] < 0)
-            {
-                printf("------ERROR in adjust_RK_cons() pre-conditions------- \n");
-                printf("cold gas energy less than 0\n");
-                printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-                printf("i = %d\n", i);
-                assert( c->cons_cold[TAU] > 0 );
-            }
+            verify_multiphase_conditions(c, "adjust_RK_cons()", "pre");
 
             if (E_int_from_cons(c->cons_hot) < 0)
             {
@@ -230,17 +184,6 @@ void adjust_RK_cons( struct domain * theDomain , const double RK )
                 printf("E_int_from_cons(c->cons_cold) = %e \n", E_int_from_cons(c->cons_cold));
                 printf("i = %d\n", i);
                 assert( E_int_from_cons(c->cons_cold) > 0 );
-            }
-
-            if ( std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) > rel_tol)
-            {
-                printf("------ERROR in adjust_RK_cons() pre-conditions------- \n");
-                printf("cold energy + hot energy =/= total energy\n");
-                printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-                printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
-                printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
-                printf("i = %d\n", i);
-                assert(  std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) <= rel_tol);
             }
         }
 
@@ -290,53 +233,7 @@ void adjust_RK_cons( struct domain * theDomain , const double RK )
 
         if (c->multiphase)
         {
-            const double rel_tol = 1e-5; // relative tolerance for float comparisons
-            if (c->cons_hot[DDD] < 0)
-            {
-                printf("------ERROR in adjust_RK_cons() post-conditions------- \n");
-                printf("hot gas mass less than 0\n");
-                printf("c->cons_hot[DDD] = %e \n", c->cons_hot[DDD]);
-                printf("i = %d\n", i);
-                assert( c->cons_hot[DDD] > 0 );
-            }
-
-            if (c->cons_cold[DDD] < 0)
-            {
-                printf("------ERROR in adjust_RK_cons() post-conditions------- \n");
-                printf("cold gas mass less than 0\n");
-                printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-                printf("i = %d\n", i);
-                assert( c->cons_cold[DDD] > 0 );
-            }
-
-            if ( std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) > rel_tol)
-            {
-                printf("------ERROR in adjust_RK_cons() post-conditions------- \n");
-                printf("cold mass + hot mass =/= total mass\n");
-                printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-                printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-                printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-                printf("i = %d\n", i);
-                assert(  std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) <= rel_tol);
-            }
-
-            if (c->cons_hot[TAU] < 0)
-            {
-                printf("------ERROR in adjust_RK_cons() post-conditions------- \n");
-                printf("hot gas energy less than 0\n");
-                printf("c->cons_hot[TAU] = %e \n", c->cons_hot[TAU]);
-                printf("i = %d\n", i);
-                assert( c->cons_hot[TAU] > 0 );
-            }
-
-            if (c->cons_cold[TAU] < 0)
-            {
-                printf("------ERROR in adjust_RK_cons() post-conditions------- \n");
-                printf("cold gas energy less than 0\n");
-                printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-                printf("i = %d\n", i);
-                assert( c->cons_cold[TAU] > 0 );
-            }
+            verify_multiphase_conditions(c, "adjust_RK_cons()", "post");
 
             if (E_int_from_cons(c->cons_hot) < 0)
             {
@@ -354,17 +251,6 @@ void adjust_RK_cons( struct domain * theDomain , const double RK )
                 printf("E_int_from_cons(c->cons_cold) = %e \n", E_int_from_cons(c->cons_cold));
                 printf("i = %d\n", i);
                 assert( E_int_from_cons(c->cons_cold) > 0 );
-            }
-
-            if ( std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) > rel_tol)
-            {
-                printf("------ERROR in adjust_RK_cons() post-conditions------- \n");
-                printf("cold energy + hot energy =/= total energy\n");
-                printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-                printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
-                printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
-                printf("i = %d\n", i);
-                assert(  std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) <= rel_tol);
             }
         }
 
@@ -795,16 +681,18 @@ void AMR( struct domain * theDomain )
         struct cell * c  = &(theCells[iS]);
         const struct cell * cp = &(theCells[iSp]);
 
-        printf("------ Before ------\n");
-        printf("Left ------\n");
+        if( (c->multiphase) || (cp->multiphase) )
+        {
+            printf("------ Before ------\n");
+            printf("Left ------\n");
 
-        printf("\n");
+            printf("\n");
 
-        printf("c->cons[DDD]       = %e \n", c->cons[DDD]);
-        printf("c->cons[SRR]       = %e \n", c->cons[SRR]);
-        printf("c->cons[TAU]       = %e \n", c->cons[TAU]);
+            printf("c->cons[DDD]       = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR]       = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU]       = %e \n", c->cons[TAU]);
 
-        printf("\n");
+            printf("\n");
 
         if(c->multiphase)
         {
@@ -821,66 +709,67 @@ void AMR( struct domain * theDomain )
             printf("\n");
         }
 
-        printf("E_int (total)      = %e \n", E_int_from_cons(c->cons));
-        if(c->multiphase)
-        {
-            printf("E_int (hot)        = %e \n", E_int_from_cons(c->cons_hot));
-            printf("E_int (cold)       = %e \n", E_int_from_cons(c->cons_cold));
-        }
-
-        printf("\n");
-
-        printf("v (total)          = %e \n", c->cons[SRR]      / c->cons[DDD]);
-        if(c->multiphase)
-        {
-            printf("v (hot)            = %e \n", c->cons_hot[SRR]  / c->cons_hot[DDD]);
-            printf("v (cold)           = %e \n", c->cons_cold[SRR] / c->cons_cold[DDD]);
-        }
-
-        printf("\n");
-
-        printf("Right ------\n");
-        printf("\n");
-
-        printf("cp->cons[DDD]      = %e \n", cp->cons[DDD]);
-        printf("cp->cons[SRR]      = %e \n", cp->cons[SRR]);
-        printf("cp->cons[TAU]      = %e \n", cp->cons[TAU]);
-
-        printf("\n");
-
-        if(cp->multiphase)
-        {
-            printf("cp->cons_hot[DDD]  = %e \n", cp->cons_hot[DDD]);
-            printf("cp->cons_hot[SRR]  = %e \n", cp->cons_hot[SRR]);
-            printf("cp->cons_hot[TAU]  = %e \n", cp->cons_hot[TAU]);
-
+            printf("E_int (total)      = %e \n", E_int_from_cons(c->cons));
+            if(c->multiphase)
+            {
+                printf("E_int (hot)        = %e \n", E_int_from_cons(c->cons_hot));
+                printf("E_int (cold)       = %e \n", E_int_from_cons(c->cons_cold));
+            }
 
             printf("\n");
 
-            printf("cp->cons_cold[DDD] = %e \n", cp->cons_cold[DDD]);
-            printf("cp->cons_cold[SRR] = %e \n", cp->cons_cold[SRR]);
-            printf("cp->cons_cold[TAU] = %e \n", cp->cons_cold[TAU]);
+            printf("v (total)          = %e \n", c->cons[SRR]      / c->cons[DDD]);
+            if(c->multiphase)
+            {
+                printf("v (hot)            = %e \n", c->cons_hot[SRR]  / c->cons_hot[DDD]);
+                printf("v (cold)           = %e \n", c->cons_cold[SRR] / c->cons_cold[DDD]);
+            }
+
+            printf("\n");
+
+            printf("Right ------\n");
+            printf("\n");
+
+            printf("cp->cons[DDD]      = %e \n", cp->cons[DDD]);
+            printf("cp->cons[SRR]      = %e \n", cp->cons[SRR]);
+            printf("cp->cons[TAU]      = %e \n", cp->cons[TAU]);
+
+            printf("\n");
+
+            if(cp->multiphase)
+            {
+                printf("cp->cons_hot[DDD]  = %e \n", cp->cons_hot[DDD]);
+                printf("cp->cons_hot[SRR]  = %e \n", cp->cons_hot[SRR]);
+                printf("cp->cons_hot[TAU]  = %e \n", cp->cons_hot[TAU]);
+
+
+                printf("\n");
+
+                printf("cp->cons_cold[DDD] = %e \n", cp->cons_cold[DDD]);
+                printf("cp->cons_cold[SRR] = %e \n", cp->cons_cold[SRR]);
+                printf("cp->cons_cold[TAU] = %e \n", cp->cons_cold[TAU]);
+
+                printf("\n");
+            }
+
+            printf("E_int (total)      = %e \n", E_int_from_cons(cp->cons));
+            if(cp->multiphase)
+            {
+                printf("E_int (hot)        = %e \n", E_int_from_cons(cp->cons_hot));
+                printf("E_int (cold)       = %e \n", E_int_from_cons(cp->cons_cold));
+            }
+
+            printf("\n");
+
+            printf("v (total)          = %e \n", cp->cons[SRR]      / cp->cons[DDD]);
+            if(cp->multiphase)
+            {
+                printf("v (hot)            = %e \n", cp->cons_hot[SRR]  / cp->cons_hot[DDD]);
+                printf("v (cold)           = %e \n", cp->cons_cold[SRR] / cp->cons_cold[DDD]);
+            }
 
             printf("\n");
         }
-
-        printf("E_int (total)      = %e \n", E_int_from_cons(cp->cons));
-        if(cp->multiphase)
-        {
-            printf("E_int (hot)        = %e \n", E_int_from_cons(cp->cons_hot));
-            printf("E_int (cold)       = %e \n", E_int_from_cons(cp->cons_cold));
-        }
-
-        printf("\n");
-
-        printf("v (total)          = %e \n", cp->cons[SRR]      / cp->cons[DDD]);
-        if(cp->multiphase)
-        {
-            printf("v (hot)            = %e \n", cp->cons_hot[SRR]  / cp->cons_hot[DDD]);
-            printf("v (cold)           = %e \n", cp->cons_cold[SRR] / cp->cons_cold[DDD]);
-        }
-
-        printf("\n");
 
 
         double E_int_before_hot_L;  
@@ -1033,18 +922,20 @@ void AMR( struct domain * theDomain )
         c->E_int_old  = c->prim[PPP] * dV / (gamma-1);
         c->dV_old     = dV;
 
-        printf("------ After ------\n");
 
-        printf("\n");
-
-        printf("c->cons[DDD]       = %e \n", c->cons[DDD]);
-        printf("c->cons[SRR]       = %e \n", c->cons[SRR]);
-        printf("c->cons[TAU]       = %e \n", c->cons[TAU]);
-
-        printf("\n");
 
         if(c->multiphase)
         {
+            printf("------ After ------\n");
+
+            printf("\n");
+
+            printf("c->cons[DDD]       = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR]       = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU]       = %e \n", c->cons[TAU]);
+
+            printf("\n");
+
             printf("c->cons_hot[DDD]   = %e \n", c->cons_hot[DDD]);
             printf("c->cons_hot[SRR]   = %e \n", c->cons_hot[SRR]);
             printf("c->cons_hot[TAU]   = %e \n", c->cons_hot[TAU]);
@@ -1056,76 +947,29 @@ void AMR( struct domain * theDomain )
             printf("c->cons_cold[TAU]  = %e \n", c->cons_cold[TAU]);
 
             printf("\n");
-        }
 
-        printf("E_int (total)      = %e \n", E_int_from_cons(c->cons));
-        if(c->multiphase)
-        {
+            printf("E_int (total)      = %e \n", E_int_from_cons(c->cons));
             printf("E_int (hot)        = %e \n", E_int_from_cons(c->cons_hot));
             printf("E_int (cold)       = %e \n", E_int_from_cons(c->cons_cold));
-        }
 
-        printf("\n");
+            printf("\n");
 
-        printf("v (total)          = %e \n", c->cons[SRR]      / c->cons[DDD]);
-        if(c->multiphase)
-        {
+            printf("v (total)          = %e \n", c->cons[SRR]      / c->cons[DDD]);
             printf("v (hot)            = %e \n", c->cons_hot[SRR]  / c->cons_hot[DDD]);
             printf("v (cold)           = %e \n", c->cons_cold[SRR] / c->cons_cold[DDD]);
-        }
 
-        printf("\n");
+            printf("\n");
+        }
 
 
        // ----------- Post-conditions ------------- //
         if (c->multiphase)
         {
-            const double rel_tol = 1e-5; // relative tolerance for float comparisons
-            if (c->cons_hot[DDD] < 0)
-            {
-                printf("------ERROR in AMR() post-conditions------- \n");
-                printf("hot gas mass less than 0\n");
-                printf("c->cons_hot[DDD] = %e \n", c->cons_hot[DDD]);
-                assert( c->cons_hot[DDD] > 0 );
-            }
-
-            if (c->cons_cold[DDD] < 0)
-            {
-                printf("------ERROR in AMR() post-conditions------- \n");
-                printf("cold gas mass less than 0\n");
-                printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-                assert( c->cons_cold[DDD] > 0 );
-            }
-
-            if ( std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) > rel_tol)
-            {
-                printf("------ERROR in AMR() post-conditions------- \n");
-                printf("cold mass + hot mass =/= total mass\n");
-                printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-                printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-                printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-                assert(  std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) <= rel_tol);
-            }
-
-            if (c->cons_hot[TAU] < 0)
-            {
-                printf("------ERROR in AMR() post-conditions------- \n");
-                printf("hot gas energy less than 0\n");
-                printf("c->cons_hot[TAU] = %e \n", c->cons_hot[TAU]);
-                assert( c->cons_hot[TAU] > 0 );
-            }
-
-            if (c->cons_cold[TAU] < 0)
-            {
-                printf("------ERROR in AMR() post-conditions------- \n");
-                printf("cold gas energy less than 0\n");
-                printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-                assert( c->cons_cold[TAU] > 0 );
-            }
+            verify_multiphase_conditions(c, "AMR()", "post");
 
             if (E_int_from_cons(c->cons_hot) < 0)
             {
-                printf("------ERROR in AMR() post-conditions------- \n");
+                printf("------ERROR in AMR() postconditions------- \n");
                 printf("hot gas internal energy less than 0\n");
                 printf("E_int_from_cons(c->cons_hot) = %e \n", E_int_from_cons(c->cons_hot));
                 assert( E_int_from_cons(c->cons_hot) > 0 );
@@ -1133,20 +977,10 @@ void AMR( struct domain * theDomain )
 
             if (E_int_from_cons(c->cons_cold) < 0)
             {
-                printf("------ERROR in AMR() post-conditions------- \n");
+                printf("------ERROR in AMR() postconditions------- \n");
                 printf("cold gas internal energy less than 0\n");
                 printf("E_int_from_cons(c->cons_cold) = %e \n", E_int_from_cons(c->cons_cold));
                 assert( E_int_from_cons(c->cons_cold) > 0 );
-            }
-
-            if ( std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) > rel_tol)
-            {
-                printf("------ERROR in AMR() post-conditions------- \n");
-                printf("cold energy + hot energy =/= total energy\n");
-                printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-                printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
-                printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
-                assert(  std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) <= rel_tol);
             }
         }
 
@@ -1306,6 +1140,19 @@ void AMR( struct domain * theDomain )
 
 void check_multiphase(struct domain * theDomain)
 {
+    // ============================================= //
+    //
+    //  For each cell: if it's multiphase check, check if it should be
+    //  reverted back to single phase. If so, revert it.
+    //  
+    //  For multiphase cells that remain multiphase, enforce equal velocities
+    //  in the cold + hot phases, based off the overall (single phase) velocity.
+    //  In theory this should already be true, but numeric errors might have
+    //  accumulated.
+    //  
+    //
+    // ============================================= // 
+
     struct cell * theCells = theDomain->theCells;
     const int Nr = theDomain->Nr;
     const int Ng = theDomain->Ng;
@@ -1358,41 +1205,11 @@ void check_multiphase(struct domain * theDomain)
             printf("c->cons_cold[SRR] = %e \n", c->cons_cold[SRR]); 
             printf("c->cons[SRR]      = %e \n", c->cons[SRR]); 
 
-            if (c->cons_hot[DDD] < 0)
-            {
-                printf("------ERROR in check_multiphase()------- \n");
-                printf("hot gas mass less than 0\n");
-                printf("c->cons_hot[DDD] = %e \n", c->cons_hot[DDD]);
-                assert( c->cons_hot[DDD] > 0 );
-            }
-
-            if (c->cons_cold[DDD] < 0)
-            {
-                printf("------ERROR in check_multiphase()------- \n");
-                printf("cold gas mass less than 0\n");
-                printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-                assert( c->cons_cold[DDD] > 0 );
-            }
-
-            if (c->cons_hot[TAU] < 0)
-            {
-                printf("------ERROR in check_multiphase()------- \n");
-                printf("hot gas energy less than 0\n");
-                printf("c->cons_hot[TAU] = %e \n", c->cons_hot[TAU]);
-                assert( c->cons_hot[TAU] > 0 );
-            }
-
-            if (c->cons_cold[TAU] < 0)
-            {
-                printf("------ERROR in check_multiphase()------- \n");
-                printf("cold gas energy less than 0\n");
-                printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-                assert( c->cons_cold[TAU] > 0 );
-            }
+            verify_multiphase_conditions(c, "check_multiphase()", "mid");
 
             if (E_int_from_cons(c->cons_hot) < 0)
             {
-                printf("------ERROR in check_multiphase() post-conditions------- \n");
+                printf("------ERROR in check_multiphase() midconditions------- \n");
                 printf("hot gas internal energy less than 0\n");
                 printf("E_int_from_cons(c->cons_hot) = %e \n", E_int_from_cons(c->cons_hot));
                 assert( E_int_from_cons(c->cons_hot) > 0 );
@@ -1400,7 +1217,7 @@ void check_multiphase(struct domain * theDomain)
 
             if (E_int_from_cons(c->cons_cold) < 0)
             {
-                printf("------ERROR in check_multiphase() post-conditions------- \n");
+                printf("------ERROR in check_multiphase() midconditions------- \n");
                 printf("cold gas internal energy less than 0\n");
                 printf("E_int_from_cons(c->cons_cold) = %e \n", E_int_from_cons(c->cons_cold));
                 assert( E_int_from_cons(c->cons_cold) > 0 );
@@ -1438,8 +1255,6 @@ void check_multiphase(struct domain * theDomain)
                 c->E_int_initial = 0;
             }
         }
-
     }
-
 }
 
