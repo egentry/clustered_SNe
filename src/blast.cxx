@@ -71,14 +71,15 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
         assert(calc_T(c->prim_cold)<1e5);
     }
 
-    if (c->multiphase==0 && (calc_T(c->prim)<1e5))
-    {
-            c->multiphase=1;
+    // // // Force it to remain single phase, but with physical conduction
+    // if (c->multiphase==0 && (calc_T(c->prim)<1e5))
+    // {
+    //         c->multiphase=1;
 
-            c->cons_cold[DDD] = c->cons[DDD];
-            c->cons_cold[TAU] = c->cons[TAU];
-            c->cons_cold[ZZZ] = c->cons[ZZZ];
-    }
+    //         c->cons_cold[DDD] = c->cons[DDD];
+    //         c->cons_cold[TAU] = c->cons[TAU];
+    //         c->cons_cold[ZZZ] = c->cons[ZZZ];
+    // }
 
 
     c->cons[DDD] += M_blast;
