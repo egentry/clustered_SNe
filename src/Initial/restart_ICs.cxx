@@ -205,6 +205,12 @@ std::string Restart_ICs::get_restart_filename( const std::string partial_ID )
         {
             continue;
         }
+
+        if (tmp_filename.find(".aux") != std::string::npos )
+        {
+            continue;
+        }
+
         pos_left += std::string("checkpoint_").size();
 
         std::size_t pos_right = tmp_filename.find(".dat");
