@@ -355,6 +355,7 @@ void Restart_ICs::setup_grid( struct domain * theDomain )
         cons2prim( c->cons , c->prim , dV );
         c->E_int_old = E_int_from_cons( c->cons );
         c->dV_old = dV;
+        c->dE_diffusion = 0;
     }
 
 

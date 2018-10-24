@@ -9,6 +9,7 @@ extern "C" {
 
 #include "geometry.H" // get_dA, get_dV
 #include "structure.H"
+#include "constants.H"
 #include "misc.H" 
 #include "plm.H"
 #include "riemann.H"
@@ -50,7 +51,52 @@ double getmindt( const struct domain * theDomain )
         const double wm = theCells[im].wiph;
         const double wp = c->wiph;
         const double w = .5*(wm+wp);
-        const double dt_temp = mindt( c->prim , w , r , dr );
+
+        double dt_temp = mindt( c->prim , w , r , dr );
+
+        if(theDomain->theParList.with_turbulent_diffusion)
+        {
+            const double v = w;
+            const double dv = wp - wm;
+            const double C = theDomain->theParList.C_turbulent_diffusion;
+            const double S = std::sqrt(2./3.) * std::abs( (dv / dr) - (v/r) );
+            const double dt_artificial_diffusion = 1. / (C * S);
+            if(dt_artificial_diffusion < dt_temp)
+            {
+                printf("replacing dt_temp (%e) with dt_artificial_diffusion (%e)\n",
+                    dt_temp, dt_artificial_diffusion);
+                fflush(stdout);
+                dt_temp = dt_artificial_diffusion;
+            }
+        }
+
+        if(theDomain->theParList.with_physical_conduction)
+        {
+            const double gamma = 5. / 3.;
+            const double mu = get_mean_molecular_weight(c->prim[ZZZ]);
+            const double e_int = c->prim[PPP] / c->prim[RHO] / (gamma-1);
+            const double phi_s = 1.1;
+
+            const double C_unsat = kappa_0 
+                * std::pow(mu * m_proton * (gamma - 1)/ k_boltzmann, 7./2.)
+                * std::pow(e_int, 5. / 2.);
+
+            const double C_sat = 5 * phi_s * std::pow(gamma-1, 3./2.) 
+                * std::pow(e_int, .5);
+
+            const double dt_unsat = dr*dr / C_unsat;
+            const double dt_sat = dr / C_sat / 5.;
+
+            const double dt_conduction = std::max(dt_unsat, dt_sat);
+            if(dt_conduction < dt_temp)
+            {
+                printf("replacing dt_temp (%e) with dt_conduction (%e)\n",
+                    dt_temp, dt_conduction);
+                fflush(stdout);
+                dt_temp = dt_conduction;
+            }
+        }
+
         if( dt > dt_temp ) dt = dt_temp;
     }
     dt *= theDomain->theParList.CFL; 
@@ -381,7 +427,7 @@ void fix_negative_energies( struct domain * theDomain )
 
     // 
 
-    const double tolerance = .5; // relative tolerance allowed on energy error before switching to adiabatic
+    const double tolerance = .9; // relative tolerance allowed on energy error before switching to adiabatic
 
     struct cell * theCells = theDomain->theCells;
     const int Nr = theDomain->Nr;
@@ -397,7 +443,14 @@ void fix_negative_energies( struct domain * theDomain )
         const double dV = get_dV( rp , rm );
 
         const double E_int_adiabatic = c->E_int_old * pow(dV / c->dV_old, 1-gamma);
-        const double E_int_approx = E_int_adiabatic + c->dE_cool;
+        
+        double dE = c->dE_cool;
+        if(theDomain->theParList.with_turbulent_diffusion)
+        {
+            dE += c->dE_diffusion;
+        }
+        const double E_int_approx = E_int_adiabatic + dE;
+
 
         const double E_int_numeric = E_int_from_cons( c->cons );
 
@@ -519,9 +572,22 @@ void radial_flux( struct domain * theDomain , const double dt )
             printf("i = %d (radial_flux() -- multiphase))\n", i);
         }
         riemann( cL , cR , r , dA , dt );
-        conduction( cL , cR , dA , dt );
-        subgrid_conduction(cL, dt);
+        // thermal_conduction( cL , cR , dA , dt ); // Keller's inter-cell conduction
+        // subgrid_thermal_conduction(cL, dt);
+    }
 
+    if(theDomain->theParList.with_physical_conduction)
+    {
+        thermal_conduction_implicit( theDomain , dt );
+        // thermal_conduction_explicit( theDomain , dt );
+    }
+
+    if(theDomain->theParList.with_turbulent_diffusion)
+    {
+        turbulent_diffusion_implicit_mass_density(  theDomain , dt );
+        turbulent_diffusion_implicit_momentum_density(  theDomain , dt );
+        turbulent_diffusion_implicit_E_tot_density( theDomain , dt );
+        turbulent_diffusion_implicit_metal_density( theDomain , dt );
     }
 
 }
@@ -534,6 +600,8 @@ void add_source( struct domain * theDomain , const double dt ,
     struct cell * theCells = theDomain->theCells;
     const int Nr = theDomain->Nr;
     const int Ng = theDomain->Ng;
+
+    double net_energy_from_cooling = 0;
 
     for( int i=Ng ; i<Nr ; ++i )
     {
@@ -550,6 +618,32 @@ void add_source( struct domain * theDomain , const double dt ,
             printf("i = %d (in source() -- only for multiphase)\n", i);
         }
         source( c , rp , rm , dV , dt , theDomain->R_shock , cooling );
+        net_energy_from_cooling += c->dE_cool;
+        if((net_energy_from_cooling>0) & (c->dE_cool > 0))
+        {
+            printf("net heating about threshold -- cell %d; time %e [Myr]; dt = %e \n", 
+                i, theDomain->t / (1e6 * yr), dt);
+            printf("dE_cool/dt = %e [erg / Myr]\n", c->dE_cool / dt * (1e6 * yr));
+            printf("total energy added by heating = %e \n", theDomain->energy_added_by_cooling);
+            printf("net so far = %e \n", net_energy_from_cooling);
+            printf("dE_cool = %e \n", c->dE_cool);
+            printf("E(before cool) = %e \n", c->cons[TAU] - c->dE_cool);
+            printf("Z = %e \n", c->prim[ZZZ]);
+            printf("density = %e \n", c->prim[RHO]);
+            printf("velocity = %e \n", c->prim[VRR]);
+            printf("pressure = %e  \n", c->prim[VRR]);
+
+            fflush(stdout);
+        }
+
+        if((c->dE_cool>0) & ((c->dE_cool / (c->cons[TAU] - c->dE_cool)) > .01))
+        {
+            printf("significant fraction of net heating -- cell %d \n", i);
+            printf("dE_cool        = %e \n", c->dE_cool);
+            printf("E(before cool) = %e \n", c->cons[TAU] - c->dE_cool);
+            printf("dE = %e %%\n", c->dE_cool / (c->cons[TAU] - c->dE_cool) *100);
+            fflush(stdout);
+        }
 
 
         // ======== Verify post-conditions ========= //
@@ -578,7 +672,11 @@ void add_source( struct domain * theDomain , const double dt ,
             }
         }
         #endif
-    }   
+    }
+    if(net_energy_from_cooling > 0)   
+    {
+        theDomain->energy_added_by_cooling += net_energy_from_cooling;
+    }
 
 }
 
@@ -1257,4 +1355,5 @@ void check_multiphase(struct domain * theDomain)
         }
     }
 }
+
 

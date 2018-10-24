@@ -46,6 +46,7 @@ int setupDomain( struct domain * theDomain ,
     if ( error==1 ) return(error);
     setHydroParams( theDomain );
     setRiemannParams( theDomain );
+    theDomain->energy_added_by_cooling = 0;
 
     return 0;
 

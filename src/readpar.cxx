@@ -220,6 +220,40 @@ int read_par_file( struct domain * theDomain , int argc , char * argv [] )
     error += read_var( par_filename , 
                     "mass_loss"        , &(theList->mass_loss) , std::string("uniform") );
 
+    error += read_var( par_filename , 
+                       "with_turbulent_diffusion", 
+                       &(theList->with_turbulent_diffusion) ,
+                       false );
+
+    error += read_var( par_filename , 
+                       "with_physical_conduction", 
+                       &(theList->with_physical_conduction) ,
+                       false );
+
+    error += read_var( par_filename ,
+                       "C_turbulent_diffusion",
+                       &(theList->C_turbulent_diffusion) ,
+                       0.03 );
+
+    error += read_var( par_filename , 
+                       "with_anderson_acceleration", 
+                       &(theList->with_anderson_acceleration) ,
+                       false );
+
+    std::cout << "With turbulent diffusion: " 
+              << std::boolalpha << (theList->with_turbulent_diffusion) 
+              << std::endl;
+
+    std::cout << "With physical conduction: " 
+              << std::boolalpha << (theList->with_physical_conduction) 
+              << std::endl;
+
+    if( theList->with_turbulent_diffusion )
+    {
+        std::cout << "C_turbulent_diffusion: " << theList->C_turbulent_diffusion
+                  << std::endl;
+    }
+
 
     if( error > 0 )
     {

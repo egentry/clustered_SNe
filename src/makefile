@@ -144,7 +144,7 @@ endif
 
 ifeq ($(shell uname),Darwin)
 # Mac options
-CXX = clang++
+CXX = /usr/bin/clang++
 
 CXX_FLAGS = -Wall -std=c++11 -fPIC
 CXX_FLAGS_DEBUG = -g -O1
@@ -168,6 +168,10 @@ LIB_BOOST = -L/usr/local/lib -lboost_system -lboost_filesystem
 INC_GSL =
 LIB_GSL =
 
+LAPACKE_DIR = /usr/local/opt/lapack
+INC_LAPACKE = -I$(LAPACKE_DIR)/include
+LIB_LAPACKE = -L$(LAPACKE_DIR)/lib -llapacke
+
 #GRACKLE_DIR is needed for a define statement within cooling
 GRACKLE_DIR = $(HOME)/local/grackle
 INC_GRACKLE = -I$(GRACKLE_DIR)/include -DCONFIG_BFLOAT_8
@@ -178,8 +182,8 @@ DYNLIB_EXT = .dylib
 LIB_FLAGS = -install_name @rpath/$(EXE_NAME)$(DYNLIB_EXT)
 endif
 
-INC +=  $(INC_UUID) $(INC_SLUG) $(INC_BOOST) $(INC_GSL) $(INC_GRACKLE)
-LIB +=  $(LIB_UUID) $(LIB_SLUG) $(LIB_BOOST) $(LIB_GSL) $(LIB_GRACKLE)
+INC +=  $(INC_UUID) $(INC_SLUG) $(INC_BOOST) $(INC_GSL) $(INC_GRACKLE) $(INC_LAPACKE)
+LIB +=  $(LIB_UUID) $(LIB_SLUG) $(LIB_BOOST) $(LIB_GSL) $(LIB_GRACKLE) $(LIB_LAPACKE)
 
 #### General settings after setting system-dependent ones
 

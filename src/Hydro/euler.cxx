@@ -2,9 +2,11 @@
 #include <cmath>
 #include <assert.h>
 #include <stdlib.h>
+#include <functional>
 extern "C" {
 #include <grackle.h>
 }
+#include <lapacke.h>
 
 #include "../structure.H"
 #include "../cooling.H"
@@ -559,7 +561,7 @@ void source( struct cell * c,
             // if( r > (R_shock+(10*dr)) ) cached_cooling = true;
 
             c->dE_cool   = cooling->calc_cooling(c->prim, c->cons, dt , cached_cooling ) * dV;  
-            c->cons[TAU] += c->dE_cool;   
+            c->cons[TAU] += c->dE_cool;
         }
 
     }
@@ -599,8 +601,78 @@ double calc_T(const double * prim)
 
 }
 
-void conduction( struct cell * cL , struct cell * cR, 
-                 const double dA , const double dt )
+void artificial_conduction( struct cell * cL , struct cell * cR, 
+                            const double dA , const double dt )
+{
+
+    // ============================================= //
+    //
+    //  Calculate and add heat fluxes from artifical conduction,
+    //  using the formalism of Noh (1987), esp. Eq 2.3
+    //
+    //  Inputs:
+    //    - cL        - cell to the Left
+    //    - prim2     - cell to the Right
+    //    - dA        - interface area between cells [cm^2]
+    //    - dt        - timestep [s]
+    //
+    //  Static Variables:
+    //    - H_0 - shock conduction strength (scales like delta_u)
+    //    - H_1 - thermal conduction strength (scales like sound speed) 
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - overwrites cons[TAU] (energy) of both cells cL, cR
+    //      (cL, cR on left and right side of interface, respectively)
+    //
+    //  Notes:
+    //    - The physics doesn't care which is cL or cR,
+    //      but it *does* matter for the sign convention on velocities
+    //      - and velocity sign convention sets if it's compressing
+    //        (if not compressing, returns without adding flux)
+    //
+    // ============================================= // 
+
+    double prim_L[NUM_Q];
+    double prim_R[NUM_Q];
+
+    const double dr_L = .5*cL->dr;
+    const double dr_R = .5*cR->dr;
+
+    for( int q=0 ; q<NUM_Q ; ++q )
+    {
+        prim_L[q] = cL->prim[q] + cL->grad[q]*dr_L;
+        prim_R[q] = cR->prim[q] - cR->grad[q]*dr_R;
+    }
+
+    const double delta_u = prim_R[VRR] - prim_L[VRR];
+    if (delta_u > 0) return;
+
+    const double rho_average = 2 * (prim_L[RHO] * prim_R[RHO]) 
+                                 / (prim_L[RHO] + prim_R[RHO]);
+
+    // change in specific internal energy (E_int / mass)
+    // it's missing a factor of (gamma-1), but that's just a constant term
+    const double delta_E = ((prim_R[PPP]/prim_R[RHO]) - (prim_L[PPP]/prim_L[RHO])) / 2;
+
+    const double cs_L = std::sqrt(std::abs(GAMMA_LAW*prim_L[PPP]/prim_L[RHO]));
+    const double cs_R = std::sqrt(std::abs(GAMMA_LAW*prim_R[PPP]/prim_R[RHO]));
+    const double cs_average = 2 * (cs_L * cs_R)
+                                / (cs_L + cs_R);
+
+    // minus sign between the two terms (which doesn't show up in Noh),
+    // because of sign conventions + absolute values
+    const double H_L = rho_average * ( (H_0 * delta_u) - (H_1 * cs_average) ) * delta_E;
+
+    cL->cons[TAU] -= H_L * dA * dt;
+    cR->cons[TAU] += H_L * dA * dt;
+
+}
+
+void thermal_conduction( struct cell * cL , struct cell * cR, 
+                         const double dA , const double dt )
 {
 
     // ============================================= //
@@ -632,11 +704,11 @@ void conduction( struct cell * cL , struct cell * cR,
     // ======== Verify pre-conditions ========= //
     if (cL->multiphase)
     {
-        verify_multiphase_conditions(cL, "conduction()", "pre", "[left] ");
+        verify_multiphase_conditions(cL, "thermal_conduction()", "pre", "[left] ");
 
         // if (E_int_from_cons(cL->cons_hot) < 0)
         // {
-        //     printf("------ERROR in conduction() preconditions------- \n");
+        //     printf("------ERROR in thermal_conduction() preconditions------- \n");
         //     printf("[left] hot gas *internal* energy less than 0\n");
         //     printf("[left] E_int (hot)  = %e \n", E_int_from_cons(cL->cons_hot));
         //     printf("cL->cons_hot[TAU]   = %e \n", cL->cons_hot[TAU]);
@@ -647,7 +719,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
         // if (E_int_from_cons(cL->cons_cold) < 0)
         // {
-        //     printf("------ERROR in conduction() preconditions------- \n");
+        //     printf("------ERROR in thermal_conduction() preconditions------- \n");
         //     printf("[left] cold gas *internal* energy less than 0\n");
         //     printf("[left] E_int (cold)  = %e \n", E_int_from_cons(cL->cons_cold));
         //     printf("cL->cons_cold[TAU]   = %e \n", cL->cons_cold[TAU]);
@@ -659,11 +731,11 @@ void conduction( struct cell * cL , struct cell * cR,
 
     if (cR->multiphase)
     {
-        verify_multiphase_conditions(cR, "conduction()", "pre", "[right] ");
+        verify_multiphase_conditions(cR, "thermal_conduction()", "pre", "[right] ");
 
         // if (E_int_from_cons(cR->cons_hot) < 0)
         // {
-        //     printf("------ERROR in conduction() preconditions------- \n");
+        //     printf("------ERROR in thermal_conduction() preconditions------- \n");
         //     printf("[right] hot gas *internal* energy less than 0\n");
         //     printf("[right] E_int (hot) = %e \n", E_int_from_cons(cR->cons_hot));
         //     printf("cR->cons_hot[TAU]   = %e \n", cR->cons_hot[TAU]);
@@ -674,7 +746,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
         // if (E_int_from_cons(cR->cons_cold) < 0)
         // {
-        //     printf("------ERROR in conduction() preconditions------- \n");
+        //     printf("------ERROR in thermal_conduction() preconditions------- \n");
         //     printf("[right] cold gas *internal* energy less than 0\n");
         //     printf("[right] E_int (cold) = %e \n", E_int_from_cons(cR->cons_cold));
         //     printf("cR->cons_cold[TAU]   = %e \n", cR->cons_cold[TAU]);
@@ -699,7 +771,7 @@ void conduction( struct cell * cL , struct cell * cR,
     // first, check if the temperatures are relatively close
     // then, check if there are effectively equal
     // if so, skip the conduction routine 
-    //    (if you don't you might get silze divide-by-zero errors leading to NaN energy flux)
+    //    (if you don't you might get silent divide-by-zero errors leading to NaN energy flux)
     if (std::abs(std::log10(T_L/T_R)) < 1)
     {
         if (std::abs(1 - (T_L/T_R)) < .01)
@@ -710,7 +782,6 @@ void conduction( struct cell * cL , struct cell * cR,
             return;
         }
     }
-
 
     for( int q=0 ; q<NUM_Q ; ++q )
     {
@@ -725,7 +796,9 @@ void conduction( struct cell * cL , struct cell * cR,
     const double mu_R = get_mean_molecular_weight(prim_R[ZZZ]);
     const double mu = (mu_L + mu_R) / 2.;
 
-    // // Keller et al. 2014 -- Equation 4, based on Mac Low & McCray 1988
+    // // Keller et al. 2014 -- Equation 4, 
+    // // based on Mac Low & McCray 1988 (Equation 3, but with no T gradient?)
+    // // which is based on Cowie and McKee (1977; which only holds T>4e5 K?)
     const double dM_dt_unsat = (4.*M_PI * mu * m_proton) / (25. * k_boltzmann) * kappa_0
         * std::abs(std::pow(T_R, 5./2.) - std::pow(T_L, 5./2.)) / dx * dA; 
 
@@ -766,7 +839,6 @@ void conduction( struct cell * cL , struct cell * cR,
         sgn  = -1;
         x    = dM / cR->cons[DDD];
         dP   = x * cR->cons[SRR];
-        // dE   = (dM * c_s_R * c_s_R) + (dP*dP / (2*dM)); // internal + kinetic -- should I just transfer x * cons[TAU]?
         dE   = x * cR->cons[TAU];
         dM_Z = x * cR->cons[ZZZ];
     }
@@ -775,7 +847,6 @@ void conduction( struct cell * cL , struct cell * cR,
         sgn  = 1;
         x    = dM / cL->cons[DDD];
         dP   = x * cL->cons[SRR];
-        // dE   = (dM * c_s_L * c_s_L) + (dP*dP / (2*dM)); // internal + kinetic -- should I just transfer x * cons[TAU]?
         dE   = x * cL->cons[TAU];
         dM_Z = x * cL->cons[ZZZ];
     }
@@ -810,7 +881,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     //         if( (x_hot_L > 1 + rel_tol)  || (x_hot_L < 0))
     //         {
-    //             printf("------ERROR in conduction()------- \n");
+    //             printf("------ERROR in thermal_conduction()------- \n");
     //             printf("x_hot_L not within (0,1 + rel_tol) \n");
     //             printf("x_hot_L = %e \n", x_hot_L);
     //             printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
@@ -822,7 +893,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     //         if( (y_hot_L > 1 + rel_tol)  || (y_hot_L < 0))
     //         {
-    //             printf("------ERROR in conduction()------- \n");
+    //             printf("------ERROR in thermal_conduction()------- \n");
     //             printf("y_hot_L not within (0,1 + rel_tol) \n");
     //             printf("y_hot_L = %e \n", y_hot_L);
     //             printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
@@ -834,7 +905,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     //         if( (x_cold_L > 1 + rel_tol)  || (x_cold_L < 0))
     //         {
-    //             printf("------ERROR in conduction()------- \n");
+    //             printf("------ERROR in thermal_conduction()------- \n");
     //             printf("x_cold_L not within (0,1 + rel_tol) \n");
     //             printf("x_cold_L = %e \n", x_cold_L);
     //             printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
@@ -846,7 +917,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     //         if( (y_cold_L > 1 + rel_tol)  || (y_cold_L < 0))
     //         {
-    //             printf("------ERROR in conduction()------- \n");
+    //             printf("------ERROR in thermal_conduction()------- \n");
     //             printf("y_cold_L not within (0,1 + rel_tol) \n");
     //             printf("y_cold_L = %e \n", y_cold_L);
     //             printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
@@ -859,7 +930,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     //         if( std::abs(x_cold_L + x_hot_L - 1) >= rel_tol)
     //         {
-    //             printf("------ERROR in conduction()------- \n");
+    //             printf("------ERROR in thermal_conduction()------- \n");
     //             printf("x_cold_L + x_hot_L =/= 1 \n");
     //             printf("x_cold_L           = %e \n", x_cold_L);
     //             printf("x_hot_L            = %e \n", x_hot_L);
@@ -870,7 +941,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     //         if( std::abs(y_cold_L + y_hot_L - 1) >= rel_tol)
     //         {
-    //             printf("------ERROR in conduction()------- \n");
+    //             printf("------ERROR in thermal_conduction()------- \n");
     //             printf("y_cold_L + y_hot_L =/= 1 \n");
     //             printf("y_cold_L           = %e \n", y_cold_L);
     //             printf("y_hot_L            = %e \n", y_hot_L);
@@ -890,7 +961,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     //         if( (x_hot_R > 1 + rel_tol)  || (x_hot_R < 0))
     //         {
-    //             printf("------ERROR in conduction()------- \n");
+    //             printf("------ERROR in thermal_conduction()------- \n");
     //             printf("x_hot_R not within (0,1 + rel_tol) \n");
     //             printf("x_hot_R = %e \n", x_hot_R);
     //             printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
@@ -902,7 +973,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     //         if( (y_hot_R > 1 + rel_tol)  || (y_hot_R < 0))
     //         {
-    //             printf("------ERROR in conduction()------- \n");
+    //             printf("------ERROR in thermal_conduction()------- \n");
     //             printf("y_hot_R not within (0,1 + rel_tol) \n");
     //             printf("y_hot_R = %e \n", y_hot_R);
     //             printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
@@ -914,7 +985,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     //         if( (x_cold_R > 1 + rel_tol)  || (x_cold_R < 0))
     //         {
-    //             printf("------ERROR in conduction()------- \n");
+    //             printf("------ERROR in thermal_conduction()------- \n");
     //             printf("x_cold_R not within (0,1 + rel_tol) \n");
     //             printf("x_cold_R = %e \n", x_cold_R);
     //             printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
@@ -926,7 +997,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     //         if( (y_cold_R > 1 + rel_tol)  || (y_cold_R < 0))
     //         {
-    //             printf("------ERROR in conduction()------- \n");
+    //             printf("------ERROR in thermal_conduction()------- \n");
     //             printf("y_cold_R not within (0,1 + rel_tol) \n");
     //             printf("y_cold_R = %e \n", y_cold_R);
     //             printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
@@ -939,7 +1010,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     //         if( std::abs(x_cold_R + x_hot_R - 1) >= rel_tol)
     //         {
-    //             printf("------ERROR in conduction()------- \n");
+    //             printf("------ERROR in thermal_conduction()------- \n");
     //             printf("x_cold_R + x_hot_R =/= 1 \n");
     //             printf("x_cold_R           = %e \n", x_cold_R);
     //             printf("x_hot_R            = %e \n", x_hot_R);
@@ -950,7 +1021,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     //         if( std::abs(y_cold_R + y_hot_R - 1) >= rel_tol)
     //         {
-    //             printf("------ERROR in conduction()------- \n");
+    //             printf("------ERROR in thermal_conduction()------- \n");
     //             printf("y_cold_R + y_hot_R =/= 1 \n");
     //             printf("y_cold_R           = %e \n", y_cold_R);
     //             printf("y_hot_R            = %e \n", y_hot_R);
@@ -1071,7 +1142,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     if (dM < 0)
     {
-        printf("------ ERROR in conduction() postconditions------- \n");
+        printf("------ ERROR in thermal_conduction() postconditions------- \n");
         printf("Negative mass transfered! \n");
         printf("x = %e \n", x);
         assert(dM > 0);
@@ -1079,7 +1150,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     if( x < 0)
     {
-        printf("------ ERROR in conduction() postconditions------- \n");
+        printf("------ ERROR in thermal_conduction() postconditions------- \n");
         printf("Negative mass fraction transfered! \n");
         printf("x = %e \n", x);
         printf("T_L = %e \n", T_L);
@@ -1092,7 +1163,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
     if( x >= 1)
     {
-        printf("------ ERROR in conduction() postconditions------- \n");
+        printf("------ ERROR in thermal_conduction() postconditions------- \n");
         printf("Mass fraction >= 1 transfered! \n");
         printf("x = %e \n", x);
         printf("T_L = %e \n", T_L);
@@ -1105,11 +1176,11 @@ void conduction( struct cell * cL , struct cell * cR,
 
     if (cL->multiphase)
     {
-        verify_multiphase_conditions(cL, "conduction()", "post", "[left] ");
+        verify_multiphase_conditions(cL, "thermal_conduction()", "post", "[left] ");
 
         // if (E_int_from_cons(cL->cons_hot) < 0)
         // {
-        //     printf("------ERROR in conduction() postconditions------- \n");
+        //     printf("------ERROR in thermal_conduction() postconditions------- \n");
         //     printf("[left] hot gas *internal* energy less than 0\n");
         //     printf("[left] E_int (hot)  = %e \n", E_int_from_cons(cL->cons_hot));
         //     printf("cL->cons_hot[TAU]   = %e \n", cL->cons_hot[TAU]);
@@ -1120,7 +1191,7 @@ void conduction( struct cell * cL , struct cell * cR,
 
         // if (E_int_from_cons(cL->cons_cold) < 0)
         // {
-        //     printf("------ERROR in conduction() postconditions------- \n");
+        //     printf("------ERROR in thermal_conduction() postconditions------- \n");
         //     printf("[left] cold gas *internal* energy less than 0\n");
         //     printf("[left] E_int (cold)  = %e \n", E_int_from_cons(cL->cons_cold));
         //     printf("cL->cons_cold[TAU]   = %e \n", cL->cons_cold[TAU]);
@@ -1128,46 +1199,11 @@ void conduction( struct cell * cL , struct cell * cR,
 
         //     assert( E_int_from_cons(cL->cons_cold) > 0 );
         // }
-
-        // if ( (cL->cons_hot[TAU] / cL->cons[TAU]) > (1+rel_tol))
-        // {
-        //     printf("------ERROR in conduction() postconditions------- \n");
-        //     printf("[left] hot gas energy greater than total energy\n");
-        //     printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-        //     printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-        //     printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-
-        //     assert( (cL->cons_hot[TAU] / cL->cons[TAU]) < (1+rel_tol) );
-        // }
-
-        // if ( (cL->cons_cold[TAU] / cL->cons[TAU]) > (1+rel_tol))
-        // {
-        //     printf("------ERROR in conduction() postconditions------- \n");
-        //     printf("[left] cold gas energy greater than total energy\n");
-        //     printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-        //     printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-        //     printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-
-        //     assert( (cL->cons_cold[TAU] / cL->cons[TAU]) < (1+rel_tol) );
-        // }
-
-        // if ( std::abs(1-( (cL->cons_cold[TAU] + cL->cons_hot[TAU])/cL->cons[TAU])) > rel_tol)
-        // {
-        //     printf("------ERROR in conduction() postconditions------- \n");
-        //     printf("[left] cold energy + hot energy =/= total energy\n");
-        //     printf("cL->cons_cold[TAU]                      = %e \n", cL->cons_cold[TAU]);
-        //     printf("cL->cons_hot[TAU]                       = %e \n", cL->cons_hot[TAU]);
-        //     printf("cL->cons_cold[TAU] + cL->cons_hot[TAU]  = %e \n", cL->cons_cold[TAU] + cL->cons_hot[TAU]);
-        //     printf("cL->cons[TAU]                           = %e \n", cL->cons[TAU]);
-        //     printf("relative error  = %e \n", 1 - ( (cL->cons_cold[TAU] + cL->cons_hot[TAU]) / cL->cons[TAU]));
-
-        //     assert(  std::abs(1-( (cL->cons_cold[TAU] + cL->cons_hot[TAU])/cL->cons[TAU])) <= rel_tol);
-        // }
     }
 
     if (cR->multiphase)
     {
-        verify_multiphase_conditions(cR, "conduction()", "post", "[right] ");
+        verify_multiphase_conditions(cR, "thermal_conduction()", "post", "[right] ");
 
 
         // if (E_int_from_cons(cR->cons_hot) < 0)
@@ -1191,49 +1227,2579 @@ void conduction( struct cell * cL , struct cell * cR,
 
         //     assert( E_int_from_cons(cR->cons_cold) > 0 );
         // }
+    }
+}
 
-        // if ( (cR->cons_hot[TAU] / cR->cons[TAU]) > (1+rel_tol))
-        // {
-        //     printf("------ERROR in conduction() postconditions------- \n");
-        //     printf("[right] hot gas energy greater than total energy\n");
-        //     printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-        //     printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-        //     printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
 
-        //     assert( (cR->cons_hot[TAU] / cR->cons[TAU]) < (1+rel_tol) );
-        // }
+void thermal_conduction_explicit( struct domain * theDomain , const double dt )
+{
 
-        // if ( (cR->cons_cold[TAU] / cR->cons[TAU]) > (1+rel_tol))
-        // {
-        //     printf("------ERROR in conduction() postconditions------- \n");
-        //     printf("[right] cold gas energy greater than total energy\n");
-        //     printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-        //     printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-        //     printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
+    // ============================================= //
+    //
+    //  Calculate and add heat fluxes from *physical* conduction.
+    //
+    //  Inputs:
+    //    - theDomain    - the standard domain struct used throughout
+    //    - dt           - timestep [s]
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - affects cons for each cell.
+    //
+    // ============================================= // 
 
-        //     assert( (cR->cons_cold[TAU] / cR->cons[TAU]) < (1+rel_tol) );
-        // }
 
-        // if ( std::abs(1-( (cR->cons_cold[TAU] + cR->cons_hot[TAU])/cR->cons[TAU])) > rel_tol)
-        // {
-        //     printf("------ERROR in conduction() postconditions------- \n");
-        //     printf("[right] cold energy + hot energy =/= total energy\n");
-        //     printf("cR->cons_cold[TAU]                      = %e \n", cR->cons_cold[TAU]);
-        //     printf("cR->cons_hot[TAU]                       = %e \n", cR->cons_hot[TAU]);
-        //     printf("cR->cons_cold[TAU] + cR->cons_hot[TAU]  = %e \n", cR->cons_cold[TAU] + cR->cons_hot[TAU]);
-        //     printf("cR->cons[TAU]                           = %e \n", cR->cons[TAU]);
-        //     printf("relative error  = %e \n", 1 - ( (cR->cons_cold[TAU] + cR->cons_hot[TAU]) / cR->cons[TAU]));
+    struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
 
-        //     assert(  std::abs(1-( (cR->cons_cold[TAU] + cR->cons_hot[TAU])/cR->cons[TAU])) <= rel_tol);
-        // }
+    for( int i=Ng ; i<Nr-Ng ; ++i )
+    {
+        struct cell * cL = &(theCells[i]);
+        struct cell * cR = &(theCells[i+1]);
+        const double r = cL->riph;
+        const double dA = get_dA(r); 
+
+        double prim_L[NUM_Q];
+        double prim_R[NUM_Q];
+
+        const double dr_L = .5*cL->dr;
+        const double dr_R = .5*cR->dr;
+
+        const double dx = dr_L + dr_R;
+
+        const double T_L = calc_T(cL->prim);
+        const double T_R = calc_T(cR->prim);
+
+        // first, check if the temperatures are relatively close
+        // then, check if there are effectively equal
+        // if so, skip the conduction routine 
+        //    (if you don't you might get silent divide-by-zero errors leading to NaN energy flux)
+        if (std::abs(std::log10(T_L/T_R)) < 1)
+        {
+            if (std::abs(1 - (T_L/T_R)) < .01)
+            {
+                // effectively no temperature gradient; don't apply conduction
+                // otherwise you get silent divide-by-zero errors, leading to 
+                // fluxes that are NaN's
+                continue;
+            }
+        }
+
+        for( int q=0 ; q<NUM_Q ; ++q )
+        {
+            // extrapolate to boundary between cells
+            prim_L[q] = cL->prim[q] + cL->grad[q]*dr_L;
+            prim_R[q] = cR->prim[q] - cR->grad[q]*dr_R;
+        }
+
+        // // // // calculate *UNsaturated* flux
+        double prim_upwind[NUM_Q];
+        int sgn; // sign; 1 if mass is transfered right, -1 if mass transfered left
+        if( T_L < T_R )
+        {   
+            sgn = 1;
+            // left cell is colder and therefore "upwind"
+            for( int q=0 ; q<NUM_Q ; ++q )
+            {
+                prim_upwind[q] = prim_L[q];
+            }
+        }
+        else
+        {
+            sgn = -1;
+            // right cell is colder and therefore "upwind"
+            for( int q=0 ; q<NUM_Q ; ++q )
+            {
+                prim_upwind[q] = prim_R[q];
+            }
+        }
+
+        const double e_int_upwind = prim_upwind[PPP] / prim_upwind[RHO] 
+                                        / (GAMMA_LAW-1);
+
+        // const double dT_dr = (T_R - T_L) / (dx);
+
+        const double F_mass_unsat = kappa_0 * (2./7.) 
+                                    * (std::pow(T_R, 7./2.) - std::pow(T_L, 7./2.) ) 
+                                    / dx 
+                                    / e_int_upwind;
+
+
+
+        // calculate *SATURATED* flux
+        const double phi_s = 1.1; // see note near Eq. 8 of Cowie & McKee 1977
+        const double F_mass_sat = sgn * 5 
+                                      // * std::pow(GAMMA_LAW, -3./2.)
+                                      * phi_s 
+                                      * prim_upwind[RHO]
+                                      * std::pow(prim_upwind[PPP] / prim_upwind[RHO], 3./2) 
+                                      / e_int_upwind;
+
+
+        const double F_mass = sgn * std::min(std::abs(F_mass_unsat), 
+                                             std::abs(F_mass_sat));
+
+
+        const double dM   = dt * dA * F_mass;
+        const double dP   = dM * prim_upwind[VRR];
+        const double dE   = dM * ( 
+                                    (.5*std::pow(prim_upwind[VRR], 2.)
+                                  + (e_int_upwind))
+                                 );
+        const double dM_Z = dM * prim_upwind[ZZZ]; 
+
+        // Apply conductive fluxes
+
+        cL->cons[DDD] -= dM;
+        cR->cons[DDD] += dM;
+
+        cL->cons[SRR] -= dP;
+        cR->cons[SRR] += dP;
+
+        cL->cons[ZZZ] -= dM_Z;
+        cR->cons[ZZZ] += dM_Z;
+
+        cL->cons[TAU] -= dE;
+        cR->cons[TAU] += dE;
+
+
+        // ======== Verify post-conditions ========= //
+        // #ifndef NDEBUG
+        verify_multiphase_conditions(cL, "thermal_conduction_explicit()", "post", "[left] ");
+        verify_multiphase_conditions(cR, "thermal_conduction_explicit()", "post", "[right] ");
+        // #endif
+
+    }
+}
+
+int index_2d_to_1d(const int i, const int j, const int I_max, const int J_max)
+{
+    const int index_1d = (i*J_max) + j;
+    return index_1d;
+}
+
+void thermal_conduction_apply_linsolve_4eq( const double * U_old , 
+                                const double * U_guess , 
+                                double * U_new , 
+                                const double * r ,
+                                const double * V ,
+                                const double dt ,
+                                const int num_cells ,
+                                const int verbose )
+{
+
+    // ============================================= //
+    //
+    //  Linearizes and solves the conduction equation for an implicit _guess_
+    //  of U_guess. Returns a linearized solution U_new. For Picard iteration,
+    //  U_new becomes the U_guess of the next iteration.
+    //
+    //  Inputs:
+    //    - U_old, U_guess, U_new
+    //        - array of conservative _per unit volume_ variables
+    //        - has length 4*num_cells
+    //        - U_new is an output, and can be garbage on input
+    //    - r  - array of cell-centered radii for each cell
+    //    - V  - array of cell volumes
+    //    - dt - timestep
+    //    - num_cells - the number of cells considered, not including guard cells
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - U_new completely overwritten with result
+    //
+    //  Notes:
+    //    - The elements of U_* should be of the form
+    //         U_old[(4*i) + j] = U[cell i][conservative j]
+    //      where the 4 conservatives are, respectively:
+    //         rho, rho * u, rho * e, rho * Z
+    //    - The banded matrix solver we use is LAPACKE_dgbsv
+    //      (This uses the c binding for the fortran LAPACK package)
+    //    - For a good example of using LAPACK from c, and for the 
+    //      indexing convention, check out:
+    //      http://www.netlib.org/lapack/explore-html/d8/dd5/example___d_g_e_l_s__rowmajor_8c_source.html
+    //
+    // ============================================= // 
+
+    if(verbose)
+    {
+        printf("just entered thermal_conduction_apply_linsolve_4eq\n");
+        fflush(stdout);
     }
 
+
+
+    const int system_rank = 4*num_cells;
+
+    // Declare and initialize matrices so we can do:
+    // A x = b
+    // where b is `U_old`
+    // and A is determined using `U_guess`
+
+    double *A_matrix = new double[system_rank*system_rank];
+
+    // initialize linear algebra containers
+    for( int i=0 ; i<system_rank ; ++i )
+    {
+        for( int j=0 ; j<system_rank ; ++j )
+        {
+            A_matrix[index_2d_to_1d(i, j, system_rank, system_rank)] = 0.;
+        }
+    }
+
+    if(verbose)
+    {
+        printf("adding identity matrix\n");
+        fflush(stdout);
+    }
+
+    // add identity along diagonal
+    for( int i=0 ; i<system_rank ; ++i )
+    {
+        A_matrix[index_2d_to_1d(i, i, system_rank, system_rank)] = 1.;
+    }
+
+    for( int i=0 ; i<(num_cells-1) ; ++i )
+    {
+        // this is interface i + 1/2
+        const double r_interface = (r[i+1] + r[i]) / 2.;
+        const double dA = get_dA(r_interface);
+        const double dr = r[i+1] - r[i];
+
+        double prim_L[NUM_Q];
+        double prim_R[NUM_Q];
+
+        U_i_to_prim(U_guess, prim_L, i);
+        U_i_to_prim(U_guess, prim_R, i+1);
+
+        const double T_L = calc_T(prim_L);
+        const double T_R = calc_T(prim_R);
+
+        // first, check if the temperatures are relatively close
+        // then, check if there are effectively equal
+        // if so, skip the conduction routine 
+        //    (if you don't you might get silent divide-by-zero errors leading to NaN energy flux)
+        if (std::abs(std::log10(T_L/T_R)) < 1)
+        {
+            if (std::abs(1 - (T_L/T_R)) < .01)
+            {
+                // effectively no temperature gradient; don't apply conduction
+                // otherwise you get silent divide-by-zero errors, leading to 
+                // fluxes that are NaN's
+                continue;
+            }
+        }
+
+        // okay, so now we need to know if it's going to be saturated or unsaturated.
+        // The only real way to do this is actually calculate the mass flux.
+
+        double prim_upwind[NUM_Q];
+        double prim_downwind[NUM_Q];
+        int sgn; // sign; 1 if mass is transfered right, -1 if mass transfered left
+        int i_upwind;
+        int i_downwind;
+        if( T_L < T_R )
+        {   
+            i_upwind   = i;
+            i_downwind = i+1;
+            sgn        = 1;
+            // left cell is colder and therefore "upwind"
+            for( int q=0 ; q<NUM_Q ; ++q )
+            {
+                prim_upwind[q]   = prim_L[q];
+                prim_downwind[q] = prim_R[q];
+            }
+        }
+        else
+        {
+            i_upwind   = i + 1;
+            i_downwind = i;
+            sgn        = -1;
+            // right cell is colder and therefore "upwind"
+            for( int q=0 ; q<NUM_Q ; ++q )
+            {
+                prim_upwind[q]   = prim_R[q];
+                prim_downwind[q] = prim_L[q];
+            }
+        }
+
+        const double e_int_upwind = prim_upwind[PPP] / prim_upwind[RHO] 
+                                        / (GAMMA_LAW-1);
+
+        // const double dT_dr = (T_R - T_L) / (dx);
+
+        const double F_mass_unsat = kappa_0 * (2./7.) 
+                                    * (std::pow(T_R, 7./2.) - std::pow(T_L, 7./2.) ) 
+                                    / dr 
+                                    / e_int_upwind;
+
+        // calculate *SATURATED* flux
+        const double phi_s = 1.1; // see note near Eq. 8 of Cowie & McKee 1977
+        const double F_mass_sat = sgn * 5 
+                                      * phi_s 
+                                      * prim_downwind[RHO]
+                                      * std::pow(prim_downwind[PPP] / prim_downwind[RHO], 3./2.) 
+                                      / e_int_upwind;
+
+        if( !std::isfinite(F_mass_sat) )
+        {
+            printf("Value Error: F_mass_sat =  %e for interface between cells %d and %d\n", 
+                F_mass_sat, i, i+1);
+            printf("i_upwind = %d\n", i_upwind);
+            printf("sgn = %d\n", sgn);
+            printf("phi_s = %e\n", phi_s);
+            printf("prim_upwind[RHO] = %e\n", prim_upwind[RHO]);
+            printf("prim_upwind[PPP] = %e\n", prim_upwind[PPP]);
+            printf("P/rho^3/2 = %e\n", std::pow(prim_upwind[PPP]/prim_upwind[RHO],3./2.));
+            printf("e_int_upwind = %e\n", e_int_upwind);
+            printf("T_L = %e\n", T_L);
+            printf("T_R = %e\n", T_R);
+
+            printf("\n");
+            printf("U_guess[(4*i)+RHO] = %e\n", U_guess[(4*i)+RHO]);
+            printf("U_guess[(4*i)+VRR] = %e\n", U_guess[(4*i)+VRR]);
+            printf("U_guess[(4*i)+PPP] = %e\n", U_guess[(4*i)+PPP]);
+
+            printf("U_guess[(4*(i+1))+RHO] = %e\n", U_guess[(4*(i+1))+RHO]);
+            printf("U_guess[(4*(i+1))+VRR] = %e\n", U_guess[(4*(i+1))+VRR]);
+            printf("U_guess[(4*(i+1))+PPP] = %e\n", U_guess[(4*(i+1))+PPP]);
+
+            assert(std::isfinite(F_mass_sat));
+        }
+
+        if( !std::isfinite(F_mass_unsat) )
+        {
+            printf("Value Error: F_mass_unsat =  %e for interface between cells %d and %d\n", 
+                F_mass_unsat, i, i+1);
+            printf("i_upwind = %d\n", i_upwind);
+            printf("sgn = %d\n", sgn);
+
+            printf("T_L = %e\n", T_L);
+            printf("T_R = %e\n", T_R);
+
+            printf("std::pow(T_R, 7./2.) - std::pow(T_L, 7./2.) = %e\n", std::pow(T_R, 7./2.) - std::pow(T_L, 7./2.));            
+            printf("dr = %e\n", dr);
+            printf("e_int_upwind = %e\n", e_int_upwind);
+
+            printf("\n");
+            printf("U_guess[(4*i)+RHO] = %e\n", U_guess[(4*i)+RHO]);
+            printf("U_guess[(4*i)+VRR] = %e\n", U_guess[(4*i)+VRR]);
+            printf("U_guess[(4*i)+PPP] = %e\n", U_guess[(4*i)+PPP]);
+
+            printf("U_guess[(4*(i+1))+RHO] = %e\n", U_guess[(4*(i+1))+RHO]);
+            printf("U_guess[(4*(i+1))+VRR] = %e\n", U_guess[(4*(i+1))+VRR]);
+            printf("U_guess[(4*(i+1))+PPP] = %e\n", U_guess[(4*(i+1))+PPP]);
+
+            assert(std::isfinite(F_mass_unsat));
+        }
+
+
+        if( std::abs(F_mass_sat) > std::abs(F_mass_unsat))
+        {
+            // UNSATURATED REGIME
+
+            if( i == 0 )
+            {
+                if(verbose)
+                {
+                    printf("Interface between cells 0 + 1 unsaturated\n");
+                    printf("F_mass_sat   = %e\n", F_mass_sat);
+                    printf("F_mass_unsat = %e\n", F_mass_unsat);
+                    printf("T_L = %e\n", T_L);
+                    printf("T_R = %e\n", T_R);
+                }
+            }
+
+
+            double prim_centered[NUM_Q];
+            for( int q=0; q<NUM_Q ; ++q)
+            {
+                prim_centered[q] = (prim_L[q] + prim_R[q]) / 2.;
+            }
+            const double T_centered = calc_T(prim_centered);
+            const double mu_centered = get_mean_molecular_weight(prim_centered[ZZZ]);
+
+            const double C_unsat = kappa_0 
+                * (GAMMA_LAW-1)
+                * ( mu_centered * m_proton / k_boltzmann )
+                * std::pow(T_centered, 5./2.) 
+                / e_int_upwind;
+
+            double b_k[NUM_Q];
+            b_k[RHO] = - std::pow(prim_centered[RHO], -2.)
+                     * (- (prim_centered[RHO] * std::pow(prim_centered[VRR], 2.) / 2.) 
+                        + (prim_centered[PPP] / (GAMMA_LAW-1)));
+            b_k[VRR] = - std::pow(prim_centered[RHO], -2.);
+            b_k[PPP] = - std::pow(prim_centered[RHO], -1.);
+            b_k[ZZZ] = 0.;
+
+            for( int j=0 ; j<NUM_Q ; ++j)
+            {
+                const double d_j = dA * C_unsat 
+                                    * (U_guess[(4*i_upwind) + j]/prim_upwind[RHO])
+                                    / dr;
+
+                for( int k=0 ; k<NUM_Q ; ++k )
+                {
+                    A_matrix[index_2d_to_1d((4*i)     + j, (4*i) + k, 
+                                            system_rank, system_rank)] -= d_j
+                        * b_k[k]
+                        * dt
+                        / V[i];
+
+                    A_matrix[index_2d_to_1d((4*i)     + j, (4*(i+1)) + k, 
+                                            system_rank, system_rank)] += d_j
+                        * b_k[k]
+                        * dt
+                        / V[i];
+
+
+                    A_matrix[index_2d_to_1d((4*(i+1)) + j, (4*i) + k, 
+                                            system_rank, system_rank)] += d_j
+                        * b_k[k]
+                        * dt
+                        / V[i+1];
+
+                    A_matrix[index_2d_to_1d((4*(i+1)) + j, (4*(i+1)) + k, 
+                                            system_rank, system_rank)] -= d_j
+                        * b_k[k]
+                        * dt
+                        / V[i+1];
+                }
+            }
+        }
+        else
+        {
+            // SATURATED REGIME
+            // Okay, this one is easy. We don't have to recompute anything
+            // because the matrix is just going to be F_mass * (U/rho)_upwind
+
+            if( i == 0 )
+            {
+                if(verbose)
+                {
+                    printf("Interface between cells 0 + 1 saturated\n");
+                    printf("F_mass_sat   = %e\n", F_mass_sat);
+                    printf("F_mass_unsat = %e\n", F_mass_unsat);
+                    printf("T_L = %e\n", T_L);
+                    printf("T_R = %e\n", T_R);
+                    printf("dE = %e\n", F_mass_sat * dA * dt * e_int_upwind );
+                    printf("E_upwind   = %e\n", V[i_upwind]*U_old[(4*i_upwind)+PPP]);
+                    printf("E_downwind = %e\n", V[i_downwind]*U_old[(4*i_downwind)+PPP]);
+
+                    printf("\n");
+
+                    printf("phi_s = %e\n", phi_s);
+                    printf("prim_downwind[RHO] = %e\n", prim_downwind[RHO]);
+                    printf("prim_downwind[PPP] = %e\n", prim_downwind[PPP]);
+                    printf("prim_upwind[RHO]   = %e\n", prim_upwind[RHO]);
+                    printf("prim_upwind[PPP]   = %e\n", prim_upwind[PPP]);
+                    printf("V_upwind = %e\n", V[i_upwind]);
+                    printf("Q = %e\n",F_mass_sat * e_int_upwind );
+
+                    printf("dt = %e\n", dt);
+                    printf("dA = %e\n", dA);
+                }
+            }
+
+
+            const double F_mass_per_rho = F_mass_sat / prim_upwind[RHO];
+
+            for( int j=0 ; j<NUM_Q ; ++j)
+            {
+                A_matrix[index_2d_to_1d((4*i)     + j, (4*i_upwind) + j, 
+                         system_rank, system_rank)] += F_mass_per_rho
+                    * dA * dt
+                    / V[i];
+
+                A_matrix[index_2d_to_1d((4*(i+1)) + j, (4*i_upwind) + j, 
+                         system_rank, system_rank)] -= F_mass_per_rho
+                    * dA * dt
+                    / V[i+1];
+            }
+        }
+    }
+
+    for (int i=0 ; i<system_rank*system_rank; ++i)
+    {
+        if (!std::isfinite(A_matrix[i]))
+        {
+            printf("Non-finite value: A_matrix[i=%d]=%e\n", i, A_matrix[i]);
+            assert(std::isfinite(A_matrix[i]));
+        }
+    }
+
+    // At this point I should have the matrix fully constructed.
+    // Wow, it took a while to get to this stage.
+    // Gotta enjoy the view for a moment.
+
+    // Now it's time to call LAPACKE_dgbsv
+    // here are the docs: http://www.netlib.org/lapack/explore-html/d3/d49/group__double_g_bsolve_gafa35ce1d7865b80563bbed6317050ad7.html#gafa35ce1d7865b80563bbed6317050ad7
+
+    // to define
+    lapack_int N = system_rank;
+    lapack_int KL = 5;
+    lapack_int KU = 5;
+    lapack_int NRHS = 1;
+    // lapack_int LDAB = (2*KL) + KU + 1
+    lapack_int LDAB = N; // LAPACKE enforces LDAB >= N
+    double *AB = new double[N*N]();
+    lapack_int IPIV[N];
+    lapack_int LDB = NRHS; // The documentation makes this sound like N, but it actually needs NRHS...
+
+    double B[4*num_cells][1];
+    for( int i=0; i<system_rank; ++i)
+    {
+        B[i][0] = U_old[i];
+    }
+
+    // it'll be less bug-prone if I just use their conventions,
+    // and switch it back to 0 indexing at the end
+    // And yes, I really do mean <= for the stopping conditions
+    for( int j_fortran=1 ; j_fortran<=N ; ++j_fortran )
+    {
+        for( int i_fortran=std::max(1, j_fortran-KU) ; 
+                 i_fortran<=std::min(N, j_fortran+KL) ;
+                 ++i_fortran)
+        {
+            AB[index_2d_to_1d(KL + KU + 1 + i_fortran - j_fortran - 1, j_fortran-1,
+                              N, N)] = A_matrix[index_2d_to_1d(i_fortran-1, j_fortran-1,
+                                                               system_rank, system_rank)];
+        }
+    }
+
+
+    if(verbose)
+    {
+        printf("about to call LAPACKE_dgbsv\n");
+        fflush(stdout);
+    }
+
+    lapack_int INFO; // result status: 0 for success, <0 for (-INFO)th argument invalid; >0 and U(INFO, INFO)=0 for singular matrix and failed solution
+    INFO = LAPACKE_dgbsv(LAPACK_ROW_MAJOR,
+        N, // the number of linear equations
+        KL, // number of subdiagonals within the band
+        KU, // number of superdiagonals within the band
+        NRHS, // number of right hand sides (i.e. number of columns in B)
+        AB, // on input, this is matrix A *in band storage*; on exit it's the factorization
+        LDAB, // leading dimension of array AB (I think this is just N for me?)
+        IPIV, // pivot indices; just an output I don't need (size N)
+        *B, // B, on input it's B (NxNRHS); on exist if INFO=0, it's solution X
+        LDB // The documentation makes this sound like N, but it actually needs NRHS...
+        );
+
+    if( INFO > 0 )
+    {
+        printf("INFO positive. (INFO = %d)\n", INFO);
+        printf("That means it hit a singular matrix and failed.\n");
+        assert(INFO==0);
+    }
+    else if( INFO < 0 )
+    {
+        printf("INFO negative. (INFO = %d)\n", INFO);
+        printf("That means %dth input was invalid.\n", -INFO);
+        assert(INFO==0);
+    }
+
+
+    for( int i=0 ; i<N ; ++i)
+    {
+        U_new[i] = B[i][0];
+    }
+
+
+    // ======== Verify post-conditions ========= //
+    // #ifndef NDEBUG
+    for( int i=0 ; i<num_cells ; ++i)
+    {
+        if( (i==0) && (verbose) )
+        {
+            printf("------ TEST in thermal_conduction_apply_linsolve_4eq() postconditions------- \n");
+            printf("U_old[  (4*i) + RHO] = %e\n", U_old[  (4*i) + RHO]);
+            printf("U_guess[(4*i) + RHO] = %e\n", U_guess[(4*i) + RHO]);
+            printf("U_new[  (4*i) + RHO] = %e\n", U_new[  (4*i) + RHO]);
+
+            printf("U_old[  (4*i+1) + RHO] = %e\n", U_old[  (4*(i+1)) + RHO]);
+            printf("U_guess[(4*i+1) + RHO] = %e\n", U_guess[(4*(i+1)) + RHO]);
+            printf("U_new[  (4*i+1) + RHO] = %e\n", U_new[  (4*(i+1)) + RHO]);
+
+            double prim_L_old[NUM_Q];
+            double prim_L_new[NUM_Q];
+            U_i_to_prim(U_old, prim_L_old, i);
+            U_i_to_prim(U_new, prim_L_new, i);
+
+            double prim_R_old[NUM_Q];
+            double prim_R_new[NUM_Q];
+            U_i_to_prim(U_old, prim_R_old, i+1);
+            U_i_to_prim(U_new, prim_R_new, i+1);
+
+            printf("P_old[i+1] = %e\n", prim_R_old[PPP]);
+            printf("P_new[i+1] = %e\n", prim_R_new[PPP]);
+
+            printf("T_L_new = %e\n", calc_T(prim_L_new));
+            printf("T_R_new = %e\n", calc_T(prim_R_new));
+
+            printf("dt = %e [s]\n", dt);
+        }
+
+        if( U_new[(4*i) + RHO] < 0 )
+        {
+            printf("------ ERROR in thermal_conduction_apply_linsolve_4eq() postconditions------- \n");
+            printf("Negative density within cell i=%d!\n", i);
+            printf("U_old[  (4*i) + RHO] = %e\n", U_old[  (4*i) + RHO]);
+            printf("U_guess[(4*i) + RHO] = %e\n", U_guess[(4*i) + RHO]);
+            printf("U_new[  (4*i) + RHO] = %e\n", U_new[  (4*i) + RHO]);
+            printf("dt = %e [s]\n", dt);
+
+            assert(U_new[(4*i) + RHO] > 0);
+        }
+
+        if( U_new[(4*i) + PPP] < 0 )
+        {
+            printf("------ ERROR in thermal_conduction_apply_linsolve_4eq() postconditions------- \n");
+            printf("Negative energy density within cell i=%d!\n", i);
+            printf("U_old[  (4*i) + PPP] = %e\n", U_old[  (4*i) + PPP]);
+            printf("U_guess[(4*i) + PPP] = %e\n", U_guess[(4*i) + PPP]);
+            printf("U_new[  (4*i) + PPP] = %e\n", U_new[  (4*i) + PPP]);
+            printf("dt = %e [s]\n", dt);
+
+            assert(U_new[(4*i) + PPP] > 0);
+        }
+
+        if( U_new[(4*i) + ZZZ] < 0 )
+        {
+            printf("------ ERROR in thermal_conduction_apply_linsolve_4eq() postconditions------- \n");
+            printf("Negative metal density within cell i=%d!\n", i);
+            printf("U_old[  (4*i) + ZZZ] = %e\n", U_old[  (4*i) + ZZZ]);
+            printf("U_guess[(4*i) + ZZZ] = %e\n", U_guess[(4*i) + ZZZ]);
+            printf("U_new[  (4*i) + ZZZ] = %e\n", U_new[  (4*i) + ZZZ]);
+            printf("dt = %e [s]\n", dt);
+
+            assert(U_new[(4*i) + ZZZ] > 0);
+        }
+    }
+    // #endif
+
+    delete[] AB;
+    delete[] A_matrix;
+}
+
+void thermal_conduction_apply_linsolve( const double * e_int_old , 
+                                const double * e_int_guess , 
+                                double * e_int_new , 
+                                const double * r ,
+                                const double * V ,
+                                const double * rho ,
+                                const double * mu ,
+                                const double dt ,
+                                const int num_cells ,
+                                const int verbose )
+{
+
+    // ============================================= //
+    //
+    //  Linearizes and solves the conduction equation for an implicit _guess_
+    //  of e_int_guess. Returns a linearized solution e_int_new. 
+    //  For Picard iteration, e_int_new becomes e_int_guess of the next iteration.
+    //
+    //  Inputs:
+    //    - e_int_old, e_int_guess, e_int_new
+    //        - array of internal energy per unit mass
+    //        - has length num_cells
+    //        - e_int_new is an output, and can be garbage on input
+    //    - r  - array of cell-centered radii for each cell
+    //    - V   - array of cell volumes
+    //    - mu  - array of cell mean molecular weights
+    //    - rho - array of cell densities
+    //    - dt  - timestep
+    //    - num_cells - the number of cells considered, not including guard cells
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - e_int_new completely overwritten with result
+    //
+    //  Notes:
+    //    - The banded matrix solver we use is LAPACKE_dgbsv
+    //      (This uses the c binding for the fortran LAPACK package)
+    //    - For a good example of using LAPACK from c, and for the 
+    //      indexing convention, check out:
+    //      http://www.netlib.org/lapack/explore-html/d8/dd5/example___d_g_e_l_s__rowmajor_8c_source.html
+    //    - I chose a banded diagonal solver when I was trying to solve a more
+    //      complex problem. In principle, you could go back to using a simpler
+    //      tri-diagonal solver, but I've got this debugged already
+    //
+    // ============================================= // 
+
+    if(verbose)
+    {
+        printf("just entered thermal_conduction_apply_linsolve\n");
+        fflush(stdout);
+    }
+
+
+
+    const int system_rank = num_cells;
+
+    // Declare and initialize matrices so we can do:
+    // A x = b
+    // where b is `e_int_old`
+    // and A is determined using `e_int_guess`
+
+    double *A_matrix = new double[system_rank*system_rank];
+
+    // initialize linear algebra containers
+    for( int i=0 ; i<system_rank ; ++i )
+    {
+        for( int j=0 ; j<system_rank ; ++j )
+        {
+            A_matrix[index_2d_to_1d(i, j, system_rank, system_rank)] = 0.;
+        }
+    }
+
+    if(verbose)
+    {
+        printf("adding identity matrix\n");
+        fflush(stdout);
+    }
+
+    // add identity along diagonal
+    for( int i=0 ; i<system_rank ; ++i )
+    {
+        A_matrix[index_2d_to_1d(i, i, system_rank, system_rank)] = 1.;
+    }
+
+    for( int i=0 ; i<(num_cells-1) ; ++i )
+    {
+        // this is interface i + 1/2
+        const double r_interface = (r[i+1] + r[i]) / 2.;
+        const double dA = get_dA(r_interface);
+        const double dr = r[i+1] - r[i];
+
+        const double mu_L = mu[i];
+        const double mu_R = mu[i+1];
+
+        const double e_int_L = e_int_guess[i];
+        const double e_int_R = e_int_guess[i+1];
+
+        const double T_L = (mu_L * m_proton * (GAMMA_LAW-1) / k_boltzmann) * e_int_L;
+        const double T_R = (mu_R * m_proton * (GAMMA_LAW-1) / k_boltzmann) * e_int_R;
+
+        // first, check if the temperatures are relatively close
+        // then, check if there are effectively equal
+        // if so, skip the conduction routine 
+        //    (if you don't you might get silent divide-by-zero errors leading to NaN energy flux)
+        if (std::abs(std::log10(T_L/T_R)) < 1)
+        {
+            if (std::abs(1 - (T_L/T_R)) < .01)
+            {
+                // effectively no temperature gradient; don't apply conduction
+                // otherwise you get silent divide-by-zero errors, leading to 
+                // fluxes that are NaN's
+                continue;
+            }
+        }
+
+        // okay, so now we need to know if it's going to be saturated or unsaturated.
+        // The only real way to do this is actually calculate the energy flux.
+
+        double rho_upwind;
+        double e_int_upwind;
+
+        int sgn; // sign of dT/dr deriv; (+1 if energy is transfered left, -1 if energy transfered right)
+        int i_upwind;
+        int i_downwind;
+        if( e_int_L > e_int_R )
+        {   
+            i_upwind   = i;
+            i_downwind = i+1;
+            sgn        = -1;
+            // left cell is hotter and therefore "upwind"
+            rho_upwind = rho[i_upwind];
+            e_int_upwind = e_int_guess[i_upwind];
+        }
+        else
+        {
+            i_upwind   = i + 1;
+            i_downwind = i;
+            sgn        = +1;
+            // right cell is hotter and therefore "upwind"
+            rho_upwind = rho[i_upwind];
+            e_int_upwind = e_int_guess[i_upwind];
+        }
+
+        const double mu_average = (mu_L + mu_R) / 2.;
+        const double e_int_average = (e_int_L + e_int_R) / 2.;
+
+        const double Q_unsat = - kappa_0 * (2./7.) 
+                                         * std::pow(mu_average * m_proton * (GAMMA_LAW-1) / k_boltzmann, 7./2.)
+                                         * (std::pow(e_int_R, 7./2.) - std::pow(e_int_L, 7./2.) ) 
+                                         / dr;
+
+        // calculate *SATURATED* flux
+        const double phi_s = 1.1; // see note near Eq. 8 of Cowie & McKee 1977
+        const double Q_sat = - sgn * 5 
+                                   * phi_s 
+                                   * rho_upwind
+                                   * std::pow( (GAMMA_LAW-1) * e_int_upwind, 3./2.) ;
+
+        if( !std::isfinite(Q_sat) )
+        {
+            printf("Value Error: Q_sat =  %e for interface between cells %d and %d\n", 
+                Q_sat, i, i+1);
+            printf("i_upwind = %d\n", i_upwind);
+            printf("sgn = %d\n", sgn);
+            printf("phi_s = %e\n", phi_s);
+            printf("rho_upwind= %e\n", rho_upwind);
+            printf("e_int_upwind = %e\n", e_int_upwind);
+            printf("T_L = %e\n", T_L);
+            printf("T_R = %e\n", T_R);
+
+            printf("\n");
+            printf("e_int_guess[i] = %e\n", e_int_guess[i]);
+            printf("e_int_guess[i+1] = %e\n", e_int_guess[i+1]);
+
+            fflush(stdout);
+
+            assert(std::isfinite(Q_sat));
+        }
+
+        if( !std::isfinite(Q_unsat) )
+        {
+            printf("Value Error: Q_unsat =  %e for interface between cells %d and %d\n", 
+                Q_unsat, i, i+1);
+            printf("i_upwind = %d\n", i_upwind);
+            printf("sgn = %d\n", sgn);
+
+            printf("T_L = %e\n", T_L);
+            printf("T_R = %e\n", T_R);
+
+            printf("std::pow(T_R, 7./2.) - std::pow(T_L, 7./2.) = %e\n", std::pow(T_R, 7./2.) - std::pow(T_L, 7./2.));            
+            printf("dr = %e\n", dr);
+            printf("e_int_upwind = %e\n", e_int_upwind);
+
+            printf("\n");
+            printf("rho[i]           = %e\n", rho[i]);
+            printf("e_int_guess[i]   = %e\n", e_int_guess[i]);
+
+            printf("rho[i+1]         = %e\n", rho[i+1]);
+            printf("e_int_guess[i+1] = %e\n", e_int_guess[i+1]);
+
+            fflush(stdout);
+
+            assert(std::isfinite(Q_unsat));
+        }
+
+
+        if( std::abs(Q_sat) > std::abs(Q_unsat))
+        {
+            // UNSATURATED REGIME
+
+            if( i == 0 )
+            {
+                if(verbose)
+                {
+                    printf("Interface between cells 0 + 1 unsaturated\n");
+                    printf("Q_sat   = %e\n", Q_sat);
+                    printf("Q_unsat = %e\n", Q_unsat);
+                    printf("T_L = %e\n", T_L);
+                    printf("T_R = %e\n", T_R);
+                }
+            }
+
+            const double C_unsat = kappa_0 
+                * std::pow( mu_average * m_proton * (GAMMA_LAW-1) / k_boltzmann , 7./2.)
+                * std::pow(e_int_average, 5./2.) ;
+
+
+            A_matrix[index_2d_to_1d(i, i, 
+                                    system_rank, system_rank)] += C_unsat
+                * dA
+                * dt
+                / (V[i] * rho[i])
+                / dr;
+
+            A_matrix[index_2d_to_1d(i, i+1, 
+                                    system_rank, system_rank)] -= C_unsat
+                * dA
+                * dt
+                / (V[i] * rho[i])
+                / dr;
+
+
+            A_matrix[index_2d_to_1d(i+1, i, 
+                                    system_rank, system_rank)] -= C_unsat
+                * dA
+                * dt
+                / (V[i+1] * rho[i+1])
+                / dr;
+
+
+            A_matrix[index_2d_to_1d(i+1, i+1, 
+                                    system_rank, system_rank)] += C_unsat
+                * dA
+                * dt
+                / (V[i+1] * rho[i+1])
+                / dr;
+
+        }
+        else
+        {
+            // SATURATED REGIME
+            // Okay, this one is easy. We don't have to recompute anything
+            // because the matrix is just going to be F_mass * (U/rho)_upwind
+
+            if( i == 0 )
+            {
+                if(verbose)
+                {
+                    printf("Interface between cells 0 + 1 saturated\n");
+                    printf("Q_sat   = %e\n", Q_sat);
+                    printf("Q_unsat = %e\n", Q_unsat);
+                    printf("T_L = %e\n", T_L);
+                    printf("T_R = %e\n", T_R);
+                    printf("dE = %e\n", Q_sat * dA * dt );
+                    printf("E_upwind   = %e\n", V[i_upwind]   * rho[i_upwind]   * e_int_old[i_upwind]);
+                    printf("E_downwind = %e\n", V[i_downwind] * rho[i_downwind] * e_int_old[i_downwind]);
+
+                    printf("\n");
+
+                    printf("phi_s = %e\n", phi_s);
+                    printf("rho[i_upwind]         = %e\n", rho[i_upwind]);
+                    printf("rho[i_downwind]       = %e\n", rho[i_downwind]);
+                    printf("e_int_old[i_upwind]   = %e\n", e_int_old[i_upwind]);
+                    printf("e_int_old[i_downwind] = %e\n", e_int_old[i_downwind]);
+
+                    printf("V_upwind = %e\n", V[i_upwind]);
+
+                    printf("dt = %e\n", dt);
+                    printf("dA = %e\n", dA);
+                }
+            }
+
+            const double C_sat = 5 * phi_s
+                                   * std::pow(GAMMA_LAW-1, 3./2.)
+                                   * rho_upwind
+                                   * std::pow(e_int_upwind, 1./2.) ;
+
+            A_matrix[index_2d_to_1d(i, i_upwind, 
+                                    system_rank, system_rank)] -= C_sat
+                * sgn
+                * dA 
+                * dt
+                / (V[i] * rho[i]);
+
+            A_matrix[index_2d_to_1d(i+1, i_upwind, 
+                                    system_rank, system_rank)] += C_sat
+                * sgn
+                * dA 
+                * dt
+                / (V[i+1] * rho[i+1]);
+        }
+    }
+
+    for (int i=0 ; i<system_rank*system_rank; ++i)
+    {
+        if (!std::isfinite(A_matrix[i]))
+        {
+            printf("Non-finite value: A_matrix[i=%d]=%e\n", i, A_matrix[i]);
+            assert(std::isfinite(A_matrix[i]));
+        }
+    }
+
+    // Now it's time to call LAPACKE_dgbsv
+    // here are the docs: http://www.netlib.org/lapack/explore-html/d3/d49/group__double_g_bsolve_gafa35ce1d7865b80563bbed6317050ad7.html#gafa35ce1d7865b80563bbed6317050ad7
+
+    lapack_int N = system_rank;
+    lapack_int KL = 1;
+    lapack_int KU = 1;
+    lapack_int NRHS = 1;
+    // lapack_int LDAB = (2*KL) + KU + 1
+    lapack_int LDAB = N; // LAPACKE enforces LDAB >= N
+    double *AB = new double[N*N]();
+    lapack_int IPIV[N];
+    lapack_int LDB = NRHS; // The documentation makes this sound like N, but it actually needs NRHS...
+
+    double B[system_rank][1];
+    for( int i=0; i<system_rank; ++i)
+    {
+        B[i][0] = e_int_old[i];
+    }
+
+    // it'll be less bug-prone if I just use their conventions,
+    // and switch it back to 0 indexing at the end
+    // And yes, I really do mean <= for the stopping conditions
+    for( int j_fortran=1 ; j_fortran<=N ; ++j_fortran )
+    {
+        for( int i_fortran=std::max(1, j_fortran-KU) ; 
+                 i_fortran<=std::min(N, j_fortran+KL) ;
+                 ++i_fortran)
+        {
+            AB[index_2d_to_1d(KL + KU + 1 + i_fortran - j_fortran - 1, j_fortran-1,
+                              N, N)] = A_matrix[index_2d_to_1d(i_fortran-1, j_fortran-1,
+                                                               system_rank, system_rank)];
+        }
+    }
+
+
+    if(verbose)
+    {
+        printf("about to call LAPACKE_dgbsv\n");
+        fflush(stdout);
+    }
+
+    lapack_int INFO; // result status: 0 for success, <0 for (-INFO)th argument invalid; >0 and U(INFO, INFO)=0 for singular matrix and failed solution
+    INFO = LAPACKE_dgbsv(LAPACK_ROW_MAJOR,
+        N, // the number of linear equations
+        KL, // number of subdiagonals within the band
+        KU, // number of superdiagonals within the band
+        NRHS, // number of right hand sides (i.e. number of columns in B)
+        AB, // on input, this is matrix A *in band storage*; on exit it's the factorization
+        LDAB, // leading dimension of array AB (I think this is just N for me?)
+        IPIV, // pivot indices; just an output I don't need (size N)
+        *B, // B, on input it's B (NxNRHS); on exist if INFO=0, it's solution X
+        LDB // The documentation makes this sound like N, but it actually needs NRHS...
+        );
+
+    if( INFO > 0 )
+    {
+        printf("INFO positive. (INFO = %d)\n", INFO);
+        printf("That means it hit a singular matrix and failed.\n");
+        fflush(stdout);
+        assert(INFO==0);
+    }
+    else if( INFO < 0 )
+    {
+        printf("INFO negative. (INFO = %d)\n", INFO);
+        printf("That means %dth input was invalid.\n", -INFO);
+        fflush(stdout);
+        assert(INFO==0);
+    }
+
+
+    for( int i=0 ; i<N ; ++i)
+    {
+        e_int_new[i] = B[i][0];
+    }
+
+
+    // ======== Verify post-conditions ========= //
+    // #ifndef NDEBUG
+    for( int i=0 ; i<num_cells ; ++i)
+    {
+        if( (i==0) && (verbose) )
+        {
+            printf("------ TEST in thermal_conduction_apply_linsolve() postconditions------- \n");
+            printf("e_int_old[  i] = %e\n", e_int_old[i]);
+            printf("e_int_guess[i] = %e\n", e_int_guess[i]);
+            printf("e_int_new[  i] = %e\n", e_int_new[i]);
+
+            printf("e_int_old[  i+1] = %e\n", e_int_old[  i+1]);
+            printf("e_int_guess[i+1] = %e\n", e_int_guess[i+1]);
+            printf("e_int_new[  i+1] = %e\n", e_int_new[  i+1]);
+
+            const double mu_L = mu[i];
+            const double mu_R = mu[i+1];
+
+            const double mu_RR = mu[i+1];
+
+            const double T_L_new = (mu_L * m_proton * (GAMMA_LAW-1) / k_boltzmann) * e_int_new[i];
+            const double T_R_new = (mu_R * m_proton * (GAMMA_LAW-1) / k_boltzmann) * e_int_new[i+1];
+            const double T_RR_new = (mu_RR * m_proton * (GAMMA_LAW-1) / k_boltzmann) * e_int_new[i+2];
+
+            printf("T_L_new = %e\n", T_L_new);
+            printf("T_R_new = %e\n", T_R_new);
+            printf("T_RR_new = %e\n", T_RR_new);
+
+            printf("dt = %e [s]\n", dt);
+        }
+
+        if( e_int_new[i] < 0 )
+        {
+            printf("------ ERROR in thermal_conduction_apply_linsolve() postconditions------- \n");
+            printf("Negative specific internal energy within cell i=%d!\n", i);
+            printf("e_int_old[  i] = %e\n", e_int_old[  i]);
+            printf("e_int_guess[i] = %e\n", e_int_guess[i]);
+            printf("e_int_new[  i] = %e\n", e_int_new[  i]);
+            printf("dt = %e [s]\n", dt);
+
+            fflush(stdout);
+
+            assert(e_int_new[i] > 0);
+        }
+    }
+    // #endif
+
+    delete[] AB;
+    delete[] A_matrix;
+}
+
+void turbulent_diffusion_apply_linsolve( const double * Y_old , 
+                                         const double * Y_guess , 
+                                         double * Y_new , 
+                                         const double * r ,
+                                         const double * Vol ,
+                                         const double * v ,
+                                         const double dt ,
+                                         const double C_turbulent_diffusion ,
+                                         const int num_cells ,
+                                         const int verbose,
+                                         const bool allow_negatives )
+{
+
+    // ============================================= //
+    //
+    //  Note: this applies diffusion on a conservative variable _per unit volume_.
+    //  e.g. it applies to metal density, not metallicity.
+    //
+    //  Linearizes and solves the turbulent diffusion equation for an implicit 
+    //  _guess_ of Y_guess. Note: this part doesn't care about what `Y` is,
+    //  as long as it's a conservative variable per unit volume.
+    //  So we need separate wrappers `turbulent_diffusion_implicit_e_int`
+    //  and `turbulent_diffusion_implicit_metals` but not here.
+    //  Returns a linearized solution R_new. 
+    //  For Picard iteration, Y_new becomes Y_guess of the next iteration.
+    // 
+    //  Within my notes I use `A` as the conservative variable, but that'll get
+    //  confusing because I write the linearized matrix as `A` below. So `Y`
+    //  seemed to have the least amount of conflicts.
+    //
+    //  Inputs:
+    //    - Y_old, Y_guess, Y_new
+    //        - array of conservative per unit *volume*
+    //        - has length num_cells
+    //        - Y_new is an output, and can be garbage on input
+    //    - r   - array of cell-centered radii for each cell
+    //    - Vol - array of cell volumes
+    //    - v - array of cell fluid velocities
+    //    - dt  - timestep
+    //    - C_turbulent_diffusion - scales the location-variable diffusion coeff.
+    //                              ( D = C |S| h^2 )
+    //    - num_cells - the number of cells considered, not including guard cells
+    //    - verbose
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - Y_new completely overwritten with result
+    //
+    //  Notes:
+    //    - The banded matrix solver we use is LAPACKE_dgbsv
+    //      (This uses the c binding for the fortran LAPACK package)
+    //    - For a good example of using LAPACK from c, and for the 
+    //      indexing convention, check out:
+    //      http://www.netlib.org/lapack/explore-html/d8/dd5/example___d_g_e_l_s__rowmajor_8c_source.html
+    //    - I chose a banded diagonal solver when I was trying to solve a more
+    //      complex problem. In principle, you could go back to using a simpler
+    //      tri-diagonal solver, but I've got this debugged already
+    //
+    // ============================================= // 
+
+
+    if(verbose)
+    {
+        printf("just entered turbulent_diffusion_apply_linsolve\n");
+        fflush(stdout);
+    }
+
+
+    const int system_rank = num_cells;
+
+    // Declare and initialize matrices so we can do:
+    // A x = b
+    // where b is `Y_old`
+    // and A is determined using `Y_guess`
+
+    double *A_matrix = new double[system_rank*system_rank];
+
+    // initialize linear algebra containers
+    for( int i=0 ; i<system_rank ; ++i )
+    {
+        for( int j=0 ; j<system_rank ; ++j )
+        {
+            A_matrix[index_2d_to_1d(i, j, system_rank, system_rank)] = 0.;
+        }
+    }
+
+    if(verbose)
+    {
+        printf("adding identity matrix\n");
+        fflush(stdout);
+    }
+
+    // add identity along diagonal
+    for( int i=0 ; i<system_rank ; ++i )
+    {
+        A_matrix[index_2d_to_1d(i, i, system_rank, system_rank)] = 1.;
+    }
+
+
+
+    for( int i=0 ; i<(num_cells-1) ; ++i )
+    {
+        // this is interface i + 1/2
+        const double r_interface = (r[i+1] + r[i]) / 2.;
+        const double dr = r[i+1] - r[i];
+
+        // // // Create diffusion coefficient, D = C |S| h^2
+
+        const double dv_dr = (v[i+1] - v[i]) / dr;
+        const double v_interface = (v[i+1] + v[i]) / 2;
+
+        if(std::abs(dv_dr - (v_interface / r_interface)) < 1. / pc_unit )
+        {
+            // | dv/dr  - (v/r)| < 1 cm/s / pc
+            // velocity term negligible; don't waste time on noise
+            continue;
+        }
+
+        const double S_mag = std::sqrt(2./3.) 
+                             * std::abs(dv_dr - (v_interface/r_interface));
+        const double D = C_turbulent_diffusion * S_mag * std::pow(dr, 2.);
+        const double b = 4. * M_PI * std::pow(r_interface, 2.) * D / dr;
+
+        if( b < 0 )
+        {
+            printf("Value Error: b = %e  but should be non-negative for interface between cells %d and %d\n", 
+                b, i, i+1);
+            fflush(stdout);
+            assert(b >= 0);
+        }
+
+        if( !std::isfinite(b) )
+        {
+            printf("Value Error: b =  %e for interface between cells %d and %d\n", 
+                b, i, i+1);
+            fflush(stdout);
+            assert(std::isfinite(b));
+        }
+
+        A_matrix[index_2d_to_1d(i, i, 
+                                system_rank, system_rank)] += b
+            * dt
+            / Vol[i];
+
+        A_matrix[index_2d_to_1d(i, i+1, 
+                                system_rank, system_rank)] -= b
+            * dt
+            / Vol[i];
+
+
+        A_matrix[index_2d_to_1d(i+1, i, 
+                                system_rank, system_rank)] -= b
+            * dt
+            / Vol[i+1];
+
+
+        A_matrix[index_2d_to_1d(i+1, i+1, 
+                                system_rank, system_rank)] += b
+            * dt
+            / Vol[i+1];
+
+    }
+
+    for (int i=0 ; i<system_rank*system_rank; ++i)
+    {
+        if (!std::isfinite(A_matrix[i]))
+        {
+            printf("Non-finite value: A_matrix[i=%d]=%e\n", i, A_matrix[i]);
+            assert(std::isfinite(A_matrix[i]));
+        }
+    }
+
+    // Now it's time to call LAPACKE_dgbsv
+    // here are the docs: http://www.netlib.org/lapack/explore-html/d3/d49/group__double_g_bsolve_gafa35ce1d7865b80563bbed6317050ad7.html#gafa35ce1d7865b80563bbed6317050ad7
+
+    lapack_int N = system_rank;
+    lapack_int KL = 1;
+    lapack_int KU = 1;
+    lapack_int NRHS = 1;
+    // lapack_int LDAB = (2*KL) + KU + 1
+    lapack_int LDAB = N; // LAPACKE enforces LDAB >= N
+    double *AB = new double[N*N]();
+    lapack_int IPIV[N];
+    lapack_int LDB = NRHS; // The documentation makes this sound like N, but it actually needs NRHS...
+
+    double B[system_rank][1];
+    for( int i=0; i<system_rank; ++i)
+    {
+        B[i][0] = Y_old[i];
+    }
+
+    // it'll be less bug-prone if I just use their conventions,
+    // and switch it back to 0 indexing at the end
+    // And yes, I really do mean <= for the stopping conditions
+    for( int j_fortran=1 ; j_fortran<=N ; ++j_fortran )
+    {
+        for( int i_fortran=std::max(1, j_fortran-KU) ; 
+                 i_fortran<=std::min(N, j_fortran+KL) ;
+                 ++i_fortran)
+        {
+            AB[index_2d_to_1d(KL + KU + 1 + i_fortran - j_fortran - 1, j_fortran-1,
+                              N, N)] = A_matrix[index_2d_to_1d(i_fortran-1, j_fortran-1,
+                                                               system_rank, system_rank)];
+        }
+    }
+
+    if(verbose)
+    {
+        printf("about to call LAPACKE_dgbsv\n");
+        fflush(stdout);
+    }
+
+    lapack_int INFO; // result status: 0 for success, <0 for (-INFO)th argument invalid; >0 and U(INFO, INFO)=0 for singular matrix and failed solution
+    INFO = LAPACKE_dgbsv(LAPACK_ROW_MAJOR,
+        N, // the number of linear equations
+        KL, // number of subdiagonals within the band
+        KU, // number of superdiagonals within the band
+        NRHS, // number of right hand sides (i.e. number of columns in B)
+        AB, // on input, this is matrix A *in band storage*; on exit it's the factorization
+        LDAB, // leading dimension of array AB (I think this is just N for me?)
+        IPIV, // pivot indices; just an output I don't need (size N)
+        *B, // B, on input it's B (NxNRHS); on exist if INFO=0, it's solution X
+        LDB // The documentation makes this sound like N, but it actually needs NRHS...
+        );
+
+    if( INFO > 0 )
+    {
+        printf("INFO positive. (INFO = %d)\n", INFO);
+        printf("That means it hit a singular matrix and failed.\n");
+        fflush(stdout);
+        assert(INFO==0);
+    }
+    else if( INFO < 0 )
+    {
+        printf("INFO negative. (INFO = %d)\n", INFO);
+        printf("That means %dth input was invalid.\n", -INFO);
+        fflush(stdout);
+        assert(INFO==0);
+    }
+
+
+    for( int i=0 ; i<N ; ++i)
+    {
+        Y_new[i] = B[i][0];
+    }
+
+
+    // ======== Verify post-conditions ========= //
+    // #ifndef NDEBUG
+    for( int i=0 ; i<num_cells ; ++i)
+    {
+        if( (i==0) && (verbose) )
+        {
+            printf("------ TEST in turbulent_diffusion_apply_linsolve() postconditions------- \n");
+            printf("Y_old[  i] = %e\n", Y_old[i]);
+            printf("Y_guess[i] = %e\n", Y_guess[i]);
+            printf("Y_new[  i] = %e\n", Y_new[i]);
+
+            printf("Y_old[  i+1] = %e\n", Y_old[  i+1]);
+            printf("Y_guess[i+1] = %e\n", Y_guess[i+1]);
+            printf("Y_new[  i+1] = %e\n", Y_new[  i+1]);
+
+            printf("dt = %e [s]\n", dt);
+        }
+
+        if( !allow_negatives )
+        {
+            if( Y_new[i] < 0 )
+            {
+                printf("------ ERROR in turbulent_diffusion_apply_linsolve() postconditions------- \n");
+                printf("Negative Y within cell i=%d!\n", i);
+                printf("Y_old[  i] = %e\n", Y_old[  i]);
+                printf("Y_guess[i] = %e\n", Y_guess[i]);
+                printf("Y_new[  i] = %e\n", Y_new[  i]);
+                printf("dt = %e [s]\n", dt);
+
+                fflush(stdout);
+
+                assert(Y_new[i] > 0);
+            }
+        }
+
+    }
+    // #endif
+
+    delete[] AB;
+    delete[] A_matrix;
+}
+
+void U_i_to_prim( const double * U , double * prim , const int i )
+{
+
+    const double rho = U[(4*i) + RHO];
+    const double v   = U[(4*i) + VRR] / rho;
+    const double P = (GAMMA_LAW-1)*(U[(4*i)+PPP] - .5*std::pow(U[(4*i)+VRR],2.) / U[(4*i)+RHO]);
+    const double Z   = U[(4*i) + ZZZ] / rho;
+
+    prim[RHO] = rho;
+    prim[VRR] = v;
+    prim[PPP] = P;
+    prim[ZZZ] = Z;
+}
+
+double max_norm( const double * A , const double * B, const int size )
+{
+
+    // ============================================= //
+    //
+    //  Calculate the L-infinity (max) norm between two arrays
+    //
+    //  Inputs:
+    //    - A, B - vectors of equal size
+    //    - size - the size of the arrays
+    //
+    //  Returns:
+    //    - max_distance - the max difference between corresponding elements
+    //
+    //  Side effects:
+    //    None
+    //
+    // ============================================= // 
+
+    double max_distance = 0;
+    for( int i=0; i<size ; ++i )
+    {
+        const double distance = std::abs(A[i] - B[i]);
+        if( distance > max_distance )
+        {
+            max_distance = distance;
+        }
+    }
+
+    return max_distance;
+}
+
+void thermal_conduction_implicit( struct domain * theDomain , const double dt )
+{
+
+    // ============================================= //
+    //
+    //  Calculate and add heat fluxes from *physical* conduction.
+    //
+    //  Inputs:
+    //    - theDomain    - the standard domain struct used throughout
+    //    - dt           - timestep [s]
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - affects cons for each cell.
+    //
+    //  Notes:
+    //    - The banded matrix solver we use is LAPACKE_dgbsv
+    //      (This uses the c binding for the fortran LAPACK package)
+    //    - For a good example of using LAPACK from c, and for the 
+    //      indexing convention, check out:
+    //      http://www.netlib.org/lapack/explore-html/d8/dd5/example___d_g_e_l_s__rowmajor_8c_source.html
+    //
+    // ============================================= // 
+
+    // printf("Entered thermal_conduction_implicit\n");
+    // fflush(stdout);
+
+
+    struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
+
+    const int num_cells = Nr-Ng-Ng;
+
+    double e_int_old[num_cells];
+    double e_int_guess[num_cells];
+    double e_int_new[num_cells];
+
+    double r[num_cells];
+    double V[num_cells];
+    double rho[num_cells];
+    double mu[num_cells];
+
+    for( int i_old_arrays=Ng ; i_old_arrays<Nr-Ng ; ++i_old_arrays )
+    {
+        const struct cell * c = &(theCells[i_old_arrays]);
+
+        const int i_new_arrays = i_old_arrays - 1;
+
+        r[i_new_arrays] = c->riph - (c->dr/2.); // cell *centered* radius
+        V[i_new_arrays] = get_dV(c->riph, c->riph - c->dr); // cell volume
+
+        rho[i_new_arrays] = c->prim[RHO];
+        mu[i_new_arrays] = get_mean_molecular_weight(c->prim[ZZZ]);
+
+        e_int_old[i_new_arrays] = c->prim[PPP] / c->prim[RHO] / (GAMMA_LAW-1);
+    }
+
+    // initialize my first e_int_guess using the previous conditions
+    for( int i=0 ; i<num_cells ; ++i )
+    {
+        e_int_guess[i] = e_int_old[i];
+    }
+
+    std::function<void(const double *, 
+                       const double *, 
+                             double *)> lambda_apply_linsolve = [&] (const double * values_old,
+                                            const double * values_guess,
+                                            double * values_new) {
+        thermal_conduction_apply_linsolve(values_old, values_guess, values_new, 
+                                  r, V, rho, mu, dt, num_cells, 0 );
+    };
+
+    if(theDomain->theParList.with_anderson_acceleration)
+    {
+        Anderson_acceleration(e_int_old, e_int_guess, e_int_new,
+                              num_cells, lambda_apply_linsolve, 
+                              "thermal_conduction_implicit");
+    }
+    else
+    {
+        Picard_iteration(e_int_old, e_int_guess, e_int_new,
+                         num_cells, lambda_apply_linsolve, 
+                         "thermal_conduction_implicit");
+    }
+
+
+    // Update cons using the difference in e_int
+    for( int i_linsolve=0 ; i_linsolve<num_cells ; ++i_linsolve )
+    {
+        const int i_cells = i_linsolve + 1; 
+        struct cell * c = &(theCells[i_cells]);
+
+        const double mass = rho[i_linsolve] * V[i_linsolve];
+        const double de_int = e_int_new[i_linsolve] - e_int_old[i_linsolve];
+        const double dE = mass * de_int;
+
+        c->cons[TAU] += dE;
+    }
+
+
+    // ======== Verify post-conditions ========= //
+    // #ifndef NDEBUG
+    for( int i=Ng ; i<Nr-Ng ; ++i )
+    {
+        struct cell * c = &(theCells[i]);
+        if( c->cons[DDD] <= 0 )
+        {
+            printf("------ ERROR in thermal_conduction_implicit() postconditions------- \n");
+            printf("Cell i=%d has negative mass! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[DDD] > 0);
+        }
+
+        if( c->cons[TAU] <= 0 )
+        {
+            printf("------ ERROR in thermal_conduction_implicit() postconditions------- \n");
+            printf("Cell i=%d has negative energy! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[TAU] > 0);
+        }
+
+        if( c->cons[ZZZ] <= 0 )
+        {
+            printf("------ ERROR in thermal_conduction_implicit() postconditions------- \n");
+            printf("Cell i=%d has negative metal content! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[ZZZ] > 0);
+        }
+    }
+    // #endif
 
 }
 
 
+void conduction_implicit_4eq( struct domain * theDomain , const double dt )
+{
 
-void subgrid_conduction( struct cell * c , const double dt )
+    // ============================================= //
+    //
+    //  Calculate and add heat fluxes from *physical* conduction.
+    //
+    //  Inputs:
+    //    - theDomain    - the standard domain struct used throughout
+    //    - dt           - timestep [s]
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - affects cons for each cell.
+    //
+    //  Notes:
+    //    - The banded matrix solver we use is LAPACKE_dgbsv
+    //      (This uses the c binding for the fortran LAPACK package)
+    //    - For a good example of using LAPACK from c, and for the 
+    //      indexing convention, check out:
+    //      http://www.netlib.org/lapack/explore-html/d8/dd5/example___d_g_e_l_s__rowmajor_8c_source.html
+    //
+    // ============================================= // 
+
+    // printf("Entered conduction_implicit_4eq\n");
+    // fflush(stdout);
+
+
+    struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
+
+    const int num_cells = Nr-Ng-Ng;
+
+    const int system_rank = 4*num_cells;
+
+    double U_old[system_rank];
+    double U_guess[system_rank];
+    double U_new[system_rank];
+
+    double r[num_cells];
+    double V[num_cells];
+
+    for( int i=Ng ; i<Nr-Ng ; ++i )
+    {
+        const struct cell * c = &(theCells[i]);
+
+        const double rho_e = .5*c->prim[RHO]*std::pow(c->prim[VRR], 2.) 
+                             + c->prim[PPP]/(GAMMA_LAW-1);
+
+        // NOTE: The code below makes it seem like RHO, VRR, PPP, ZZZ is correctly ordered.
+        //       It is not! VRR=2, while PPP=1, so this is out-of-order
+        //       In theory you can just change the enum, but I'm not sure if I
+        //       Hard coded any other indices, so I'll just try to _always_
+        //       Make sure I'm using the enums here.
+
+        U_old[(4*(i-1)) + RHO] = c->prim[RHO];
+        U_old[(4*(i-1)) + VRR] = c->prim[RHO] * c->prim[VRR];
+        U_old[(4*(i-1)) + PPP] = rho_e;
+
+        U_old[(4*(i-1)) + ZZZ] = c->prim[RHO] * c->prim[ZZZ];
+
+        r[i-1] = c->riph - (c->dr/2.); // cell *centered* radius
+        V[i-1] = get_dV(c->riph, c->riph - c->dr); // cell volume
+    }
+
+    // initialize my first U_guess, using the previous conditions
+    for( int i=0 ; i<system_rank ; ++i )
+    {
+        U_guess[i] = U_old[i];
+    }
+
+    // const int verbose = 0;
+    // thermal_conduction_apply_linsolve_4eq(U_old, U_guess, U_new, r, V, dt, num_cells , verbose );
+
+    const int num_iterations_max = 10;
+    for( int j = 0; j < num_iterations_max ; ++j)
+    {
+        printf("\n=======implicit iteration j=%d ========\n\n", j);
+
+        thermal_conduction_apply_linsolve_4eq(U_old, U_guess, U_new, r, V, dt, num_cells , 0 );
+
+        for( int i=0 ; i<system_rank ; ++i )
+        {
+            U_guess[i] = U_new[i];
+        }
+    }
+
+    printf("\n=======implicit iteration (final) ========\n\n");
+    thermal_conduction_apply_linsolve_4eq(U_old, U_guess, U_new, r, V, dt, num_cells , 1 );
+
+    // ======== Verify post-conditions ========= //
+    // #ifndef NDEBUG
+    for( int i=Ng ; i<Nr-Ng ; ++i )
+    {
+        struct cell * c = &(theCells[i]);
+        if( c->cons[DDD] <= 0 )
+        {
+            printf("------ ERROR in conduction_implicit_4eq() postconditions------- \n");
+            printf("Cell i=%d has negative mass! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[TAU]);
+            printf("c->cons[SRR] = %e \n", c->cons[TAU]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[TAU]);
+
+            assert(c->cons[DDD] > 0);
+        } 
+
+        if( c->cons[TAU] <= 0 )
+        {
+            printf("------ ERROR in conduction_implicit_4eq() postconditions------- \n");
+            printf("Cell i=%d has negative energy! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[TAU]);
+            printf("c->cons[SRR] = %e \n", c->cons[TAU]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[TAU]);
+
+            assert(c->cons[TAU] > 0);
+        } 
+
+        if( c->cons[ZZZ] <= 0 )
+        {
+            printf("------ ERROR in conduction_implicit_4eq() postconditions------- \n");
+            printf("Cell i=%d has negative metal content! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[TAU]);
+            printf("c->cons[SRR] = %e \n", c->cons[TAU]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[TAU]);
+
+            assert(c->cons[ZZZ] > 0);
+        } 
+    }
+    // #endif
+
+    assert(false);
+}
+
+void turbulent_diffusion_implicit_E_int_density( struct domain * theDomain , 
+                                                 const double dt )
+{
+    // ============================================= //
+    //
+    //  Calculate and apply mass-tracing fluxes due to unresolved
+    //  turbulent mixing.
+    //
+    //  The general ideal is described at:
+    //    https://github.com/egentry/clustered_SNe/wiki/Turbulent-diffusion-prescription
+    //  I haven't yet pushed my notebook going more into the math, but it
+    //    *might* be visible here:
+    //    https://www.dropbox.com/s/xowqsculq4t6yzf/turbulent%20diffusion%20write%20up.ipynb?dl=0
+    //
+    //  Inputs:
+    //    - theDomain    - the standard domain struct used throughout
+    //    - dt           - timestep [s]
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - affects cons for each cell. (specifically the energy field)
+    //
+    //  Notes:
+    //    - The banded matrix solver we use is LAPACKE_dgbsv
+    //      (This uses the c binding for the fortran LAPACK package)
+    //    - For a good example of using LAPACK from c, and for the 
+    //      indexing convention, check out:
+    //      http://www.netlib.org/lapack/explore-html/d8/dd5/example___d_g_e_l_s__rowmajor_8c_source.html
+    //
+    // ============================================= // 
+
+    // printf("Entered turbulent_diffusion_implicit_E_int_density\n");
+    // fflush(stdout);
+
+    assert(false); // deprecated in favor of turbulent_diffusion_implicit_E_tot_density
+
+    struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
+
+    const int num_cells = Nr-Ng-Ng;
+
+    double E_int_density_old[num_cells];
+    double E_int_density_guess[num_cells];
+    double E_int_density_new[num_cells];
+
+    double r[num_cells];
+    double Vol[num_cells];
+    double v[num_cells];
+
+    for( int i_old_arrays=Ng ; i_old_arrays<Nr-Ng ; ++i_old_arrays )
+    {
+        const struct cell * c = &(theCells[i_old_arrays]);
+
+        const int i_new_arrays = i_old_arrays - 1;
+
+        r[i_new_arrays] = c->riph - (c->dr/2.); // cell *centered* radius
+        Vol[i_new_arrays] = get_dV(c->riph, c->riph - c->dr); // cell volume
+
+        v[i_new_arrays] = c->prim[VRR];
+
+        E_int_density_old[i_new_arrays] = c->prim[PPP] / (GAMMA_LAW-1);
+    }
+
+    // initialize my first E_int_density_guess using the previous conditions
+    for( int i=0 ; i<num_cells ; ++i )
+    {
+        E_int_density_guess[i] = E_int_density_old[i];
+    }
+
+    std::function<void(const double *, 
+                       const double *, 
+                             double *)> lambda_apply_linsolve = [&] (const double * values_old,
+                                            const double * values_guess,
+                                            double * values_new) {
+        turbulent_diffusion_apply_linsolve(values_old, values_guess, values_new,
+                                           r, Vol, v, dt, 
+                                           theDomain->theParList.C_turbulent_diffusion,
+                                           num_cells, 0 );
+    };
+
+    if(theDomain->theParList.with_anderson_acceleration)
+    {
+        Anderson_acceleration(E_int_density_old, E_int_density_guess, 
+                              E_int_density_new,
+                              num_cells, lambda_apply_linsolve,
+                              "turbulent_diffusion_implicit_E_int_density");
+    }
+    else
+    {
+        Picard_iteration(E_int_density_old, E_int_density_guess, 
+                         E_int_density_new,
+                         num_cells, lambda_apply_linsolve,
+                         "turbulent_diffusion_implicit_E_int_density");
+    }
+
+
+    double dE_total = 0;
+    // Update cons using the difference in e_int
+    for( int i_linsolve=0 ; i_linsolve<num_cells ; ++i_linsolve )
+    {
+        const int i_cells = i_linsolve + 1; 
+        struct cell * c = &(theCells[i_cells]);
+
+        const double dE_int_density = E_int_density_new[i_linsolve] - E_int_density_old[i_linsolve];
+        const double dE = Vol[i_linsolve] * dE_int_density;
+
+        c->cons[TAU] += dE;
+        c->dE_diffusion = dE;
+        dE_total += dE;
+    }
+
+
+    // ======== Verify post-conditions ========= //
+    // #ifndef NDEBUG
+    if(std::abs(dE_total) > (1e51 * 1e-15))
+    {
+        double E_total = 0;
+        for( int i_linsolve=0 ; i_linsolve<num_cells ; ++i_linsolve )
+        {
+            const int i_cells = i_linsolve + 1; 
+            const struct cell * c = &(theCells[i_cells]);
+            E_total += c->cons[TAU];
+        }
+        printf("------ ERROR in turbulent_diffusion_implicit_E_int_density() postconditions------- \n");
+        printf("dE_total outside of threshold! \n");
+        printf("dE_total  = %e \n", dE_total);
+        printf("E_total   = %e \n", E_total);
+
+            assert(std::abs(dE_total) < (1e51 * 1e-15));   
+    }
+    for( int i=Ng ; i<Nr-Ng ; ++i )
+    {
+        struct cell * c = &(theCells[i]);
+        if( c->cons[DDD] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_E_int_density() postconditions------- \n");
+            printf("Cell i=%d has negative mass! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[DDD] > 0);
+        }
+
+        if( c->cons[TAU] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_E_int_density() postconditions------- \n");
+            printf("Cell i=%d has negative energy! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[TAU] > 0);
+        }
+
+        if( c->cons[ZZZ] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_E_int_density() postconditions------- \n");
+            printf("Cell i=%d has negative metal content! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[ZZZ] > 0);
+        }
+    }
+    // #endif
+
+}
+
+void turbulent_diffusion_implicit_E_tot_density( struct domain * theDomain , 
+                                                 const double dt )
+{
+    // ============================================= //
+    //
+    //  Calculate and apply mass-tracing fluxes due to unresolved
+    //  turbulent mixing.
+    //
+    //  The general ideal is described at:
+    //    https://github.com/egentry/clustered_SNe/wiki/Turbulent-diffusion-prescription
+    //  I haven't yet pushed my notebook going more into the math, but it
+    //    *might* be visible here:
+    //    https://www.dropbox.com/s/xowqsculq4t6yzf/turbulent%20diffusion%20write%20up.ipynb?dl=0
+    //
+    //  Inputs:
+    //    - theDomain    - the standard domain struct used throughout
+    //    - dt           - timestep [s]
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - affects cons for each cell. (specifically the energy field)
+    //
+    //  Notes:
+    //    - The banded matrix solver we use is LAPACKE_dgbsv
+    //      (This uses the c binding for the fortran LAPACK package)
+    //    - For a good example of using LAPACK from c, and for the 
+    //      indexing convention, check out:
+    //      http://www.netlib.org/lapack/explore-html/d8/dd5/example___d_g_e_l_s__rowmajor_8c_source.html
+    //
+    // ============================================= // 
+
+    // printf("Entered turbulent_diffusion_implicit_E_tot_density\n");
+    // fflush(stdout);
+
+    struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
+
+    const int num_cells = Nr-Ng-Ng;
+
+    double E_tot_density_old[num_cells];
+    double E_tot_density_guess[num_cells];
+    double E_tot_density_new[num_cells];
+
+    double r[num_cells];
+    double Vol[num_cells];
+    double v[num_cells];
+
+    for( int i_old_arrays=Ng ; i_old_arrays<Nr-Ng ; ++i_old_arrays )
+    {
+        const struct cell * c = &(theCells[i_old_arrays]);
+
+        const int i_new_arrays = i_old_arrays - 1;
+
+        r[i_new_arrays] = c->riph - (c->dr/2.); // cell *centered* radius
+        Vol[i_new_arrays] = get_dV(c->riph, c->riph - c->dr); // cell volume
+
+        v[i_new_arrays] = c->prim[VRR];
+
+        const double E_int_density = c->prim[PPP] / (GAMMA_LAW-1);
+        const double E_kin_density = .5 * c->prim[RHO] * c->prim[VRR] * c->prim[VRR];
+
+        E_tot_density_old[i_new_arrays] = E_int_density + E_kin_density;
+    }
+
+    // initialize my first E_tot_density_guess using the previous conditions
+    for( int i=0 ; i<num_cells ; ++i )
+    {
+        E_tot_density_guess[i] = E_tot_density_old[i];
+    }
+
+    std::function<void(const double *, 
+                       const double *, 
+                             double *)> lambda_apply_linsolve = [&] (const double * values_old,
+                                            const double * values_guess,
+                                            double * values_new) {
+        turbulent_diffusion_apply_linsolve(values_old, values_guess, values_new,
+                                           r, Vol, v, dt, 
+                                           theDomain->theParList.C_turbulent_diffusion,
+                                           num_cells, 0 );
+    };
+
+    if(theDomain->theParList.with_anderson_acceleration)
+    {
+        Anderson_acceleration(E_tot_density_old, E_tot_density_guess, 
+                              E_tot_density_new,
+                              num_cells, lambda_apply_linsolve,
+                              "turbulent_diffusion_implicit_E_tot_density");
+    }
+    else
+    {
+        Picard_iteration(E_tot_density_old, E_tot_density_guess, 
+                         E_tot_density_new,
+                         num_cells, lambda_apply_linsolve,
+                         "turbulent_diffusion_implicit_E_tot_density");
+    }
+
+
+    double dE_total = 0;
+    // Update cons using the difference in e_tot
+    for( int i_linsolve=0 ; i_linsolve<num_cells ; ++i_linsolve )
+    {
+        const int i_cells = i_linsolve + 1; 
+        struct cell * c = &(theCells[i_cells]);
+
+        const double dE_tot_density = E_tot_density_new[i_linsolve] - E_tot_density_old[i_linsolve];
+        const double dE = Vol[i_linsolve] * dE_tot_density;
+
+        c->cons[TAU] += dE;
+        dE_total += dE;
+    }
+
+
+    // ======== Verify post-conditions ========= //
+    // #ifndef NDEBUG
+    if(std::abs(dE_total) > (1e51 * 1e-15))
+    {
+        double E_total = 0;
+        for( int i_linsolve=0 ; i_linsolve<num_cells ; ++i_linsolve )
+        {
+            const int i_cells = i_linsolve + 1; 
+            const struct cell * c = &(theCells[i_cells]);
+            E_total += c->cons[TAU];
+        }
+        printf("------ ERROR in turbulent_diffusion_implicit_E_tot_density() postconditions------- \n");
+        printf("dE_total outside of threshold! \n");
+        printf("dE_total  = %e \n", dE_total);
+        printf("E_total   = %e \n", E_total);
+
+            assert(std::abs(dE_total) < (1e51 * 1e-15));   
+    }
+    for( int i=Ng ; i<Nr-Ng ; ++i )
+    {
+        struct cell * c = &(theCells[i]);
+        if( c->cons[DDD] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_E_tot_density() postconditions------- \n");
+            printf("Cell i=%d has negative mass! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[DDD] > 0);
+        }
+
+        if( c->cons[TAU] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_E_tot_density() postconditions------- \n");
+            printf("Cell i=%d has negative energy! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[TAU] > 0);
+        }
+
+        if( c->cons[ZZZ] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_E_tot_density() postconditions------- \n");
+            printf("Cell i=%d has negative metal content! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[ZZZ] > 0);
+        }
+    }
+    // #endif
+
+}
+
+void turbulent_diffusion_implicit_momentum_density( struct domain * theDomain , 
+                                                    const double dt )
+{
+    // ============================================= //
+    //
+    //  Calculate and apply mass-tracing fluxes due to unresolved
+    //  turbulent mixing.
+    //
+    //  The general ideal is described at:
+    //    https://github.com/egentry/clustered_SNe/wiki/Turbulent-diffusion-prescription
+    //  I haven't yet pushed my notebook going more into the math, but it
+    //    *might* be visible here:
+    //    https://www.dropbox.com/s/xowqsculq4t6yzf/turbulent%20diffusion%20write%20up.ipynb?dl=0
+    //
+    //  Inputs:
+    //    - theDomain    - the standard domain struct used throughout
+    //    - dt           - timestep [s]
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - affects cons for each cell. (specifically the energy field)
+    //
+    //  Notes:
+    //    - The banded matrix solver we use is LAPACKE_dgbsv
+    //      (This uses the c binding for the fortran LAPACK package)
+    //    - For a good example of using LAPACK from c, and for the 
+    //      indexing convention, check out:
+    //      http://www.netlib.org/lapack/explore-html/d8/dd5/example___d_g_e_l_s__rowmajor_8c_source.html
+    //
+    // ============================================= // 
+
+    // printf("Entered turbulent_diffusion_implicit_momentum_density\n");
+    // fflush(stdout);
+
+    struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
+
+    const int num_cells = Nr-Ng-Ng;
+
+    double momentum_density_old[num_cells];
+    double momentum_density_guess[num_cells];
+    double momentum_density_new[num_cells];
+
+    double r[num_cells];
+    double Vol[num_cells];
+    double v[num_cells];
+
+    for( int i_old_arrays=Ng ; i_old_arrays<Nr-Ng ; ++i_old_arrays )
+    {
+        const struct cell * c = &(theCells[i_old_arrays]);
+
+        const int i_new_arrays = i_old_arrays - 1;
+
+        r[i_new_arrays] = c->riph - (c->dr/2.); // cell *centered* radius
+        Vol[i_new_arrays] = get_dV(c->riph, c->riph - c->dr); // cell volume
+
+        v[i_new_arrays] = c->prim[VRR];
+
+        momentum_density_old[i_new_arrays] = c->prim[VRR] * c->prim[RHO];
+    }
+
+    // initialize my first momentum_density_guess using the previous conditions
+    for( int i=0 ; i<num_cells ; ++i )
+    {
+        momentum_density_guess[i] = momentum_density_old[i];
+    }
+
+    std::function<void(const double *, 
+                       const double *, 
+                             double *)> lambda_apply_linsolve = [&] (const double * values_old,
+                                            const double * values_guess,
+                                            double * values_new) {
+        turbulent_diffusion_apply_linsolve(values_old, values_guess, values_new,
+                                           r, Vol, v, dt, 
+                                           theDomain->theParList.C_turbulent_diffusion,
+                                           num_cells, 0, true );
+    };
+
+    if(theDomain->theParList.with_anderson_acceleration)
+    {
+        Anderson_acceleration(momentum_density_old, momentum_density_guess, 
+                              momentum_density_new,
+                              num_cells, lambda_apply_linsolve,
+                              "turbulent_diffusion_implicit_momentum_density");
+    }
+    else
+    {
+        Picard_iteration(momentum_density_old, momentum_density_guess, 
+                         momentum_density_new,
+                         num_cells, lambda_apply_linsolve,
+                         "turbulent_diffusion_implicit_momentum_density");
+    }
+
+
+    // double dE_total = 0;
+    // Update cons using the difference in e_int
+    for( int i_linsolve=0 ; i_linsolve<num_cells ; ++i_linsolve )
+    {
+        const int i_cells = i_linsolve + 1; 
+        struct cell * c = &(theCells[i_cells]);
+
+        const double d_momentum_density = momentum_density_new[i_linsolve] - momentum_density_old[i_linsolve];
+        const double d_momentum = Vol[i_linsolve] * d_momentum_density;
+
+        c->cons[SRR] += d_momentum;
+        // c->dE_diffusion = dE;
+        // dE_total += dE;
+    }
+
+
+    // ======== Verify post-conditions ========= //
+    // #ifndef NDEBUG
+    // if(std::abs(dE_total) > (1e51 * 1e-15))
+    // {
+    //     double E_total = 0;
+    //     for( int i_linsolve=0 ; i_linsolve<num_cells ; ++i_linsolve )
+    //     {
+    //         const int i_cells = i_linsolve + 1; 
+    //         const struct cell * c = &(theCells[i_cells]);
+    //         E_total += c->cons[TAU];
+    //     }
+    //     printf("------ ERROR in turbulent_diffusion_implicit_E_int_density() postconditions------- \n");
+    //     printf("dE_total outside of threshold! \n");
+    //     printf("dE_total  = %e \n", dE_total);
+    //     printf("E_total   = %e \n", E_total);
+
+    //         assert(std::abs(dE_total) < (1e51 * 1e-15));   
+    // }
+    for( int i=Ng ; i<Nr-Ng ; ++i )
+    {
+        struct cell * c = &(theCells[i]);
+        if( c->cons[DDD] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_momentum_density() postconditions------- \n");
+            printf("Cell i=%d has negative mass! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[DDD] > 0);
+        }
+
+        if( c->cons[TAU] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_momentum_density() postconditions------- \n");
+            printf("Cell i=%d has negative energy! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[TAU] > 0);
+        }
+
+        if( c->cons[ZZZ] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_momentum_density() postconditions------- \n");
+            printf("Cell i=%d has negative metal content! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[ZZZ] > 0);
+        }
+    }
+    // #endif
+
+}
+
+void turbulent_diffusion_implicit_metal_density( struct domain * theDomain , 
+                                                 const double dt )
+{
+    // ============================================= //
+    //
+    //  Calculate and apply mass-tracing fluxes due to unresolved
+    //  turbulent mixing.
+    //
+    //  The general ideal is described at:
+    //    https://github.com/egentry/clustered_SNe/wiki/Turbulent-diffusion-prescription
+    //  I haven't yet pushed my notebook going more into the math, but it
+    //    *might* be visible here:
+    //    https://www.dropbox.com/s/xowqsculq4t6yzf/turbulent%20diffusion%20write%20up.ipynb?dl=0
+    //
+    //  Inputs:
+    //    - theDomain    - the standard domain struct used throughout
+    //    - dt           - timestep [s]
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - affects cons for each cell. (specificall the metal mass field)
+    //
+    //  Notes:
+    //    - The banded matrix solver we use is LAPACKE_dgbsv
+    //      (This uses the c binding for the fortran LAPACK package)
+    //    - For a good example of using LAPACK from c, and for the 
+    //      indexing convention, check out:
+    //      http://www.netlib.org/lapack/explore-html/d8/dd5/example___d_g_e_l_s__rowmajor_8c_source.html
+    //
+    // ============================================= // 
+
+    // printf("Entered turbulent_diffusion_implicit_metal_density\n");
+    // fflush(stdout);
+
+    struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
+
+    const int num_cells = Nr-Ng-Ng;
+
+    double metal_density_old[num_cells];
+    double metal_density_guess[num_cells];
+    double metal_density_new[num_cells];
+
+    double r[num_cells];
+    double Vol[num_cells];
+    double v[num_cells];
+
+    for( int i_old_arrays=Ng ; i_old_arrays<Nr-Ng ; ++i_old_arrays )
+    {
+        const struct cell * c = &(theCells[i_old_arrays]);
+
+        const int i_new_arrays = i_old_arrays - 1;
+
+        r[i_new_arrays] = c->riph - (c->dr/2.); // cell *centered* radius
+        Vol[i_new_arrays] = get_dV(c->riph, c->riph - c->dr); // cell volume
+
+        v[i_new_arrays] = c->prim[VRR];
+
+        metal_density_old[i_new_arrays] = c->prim[ZZZ] * c->prim[RHO];
+    }
+
+    // initialize my first metal_density_guess using the previous conditions
+    for( int i=0 ; i<num_cells ; ++i )
+    {
+        metal_density_guess[i] = metal_density_old[i];
+    }
+
+    std::function<void(const double *, 
+                       const double *, 
+                             double *)> lambda_apply_linsolve = [&] (const double * values_old,
+                                            const double * values_guess,
+                                            double * values_new) {
+        turbulent_diffusion_apply_linsolve(values_old, values_guess, values_new,
+                                           r, Vol, v, dt, 
+                                           theDomain->theParList.C_turbulent_diffusion,
+                                           num_cells, 0 );
+    };
+
+    if(theDomain->theParList.with_anderson_acceleration)
+    {
+        Anderson_acceleration(metal_density_old, metal_density_guess, metal_density_new,
+                         num_cells, lambda_apply_linsolve,
+                         "turbulent_diffusion_implicit_metal_density");
+    }
+    else
+    {
+        Picard_iteration(metal_density_old, metal_density_guess, metal_density_new,
+                         num_cells, lambda_apply_linsolve,
+                         "turbulent_diffusion_implicit_metal_density");
+    }
+
+
+    // Update cons using the difference in metals
+    for( int i_linsolve=0 ; i_linsolve<num_cells ; ++i_linsolve )
+    {
+        const int i_cells = i_linsolve + 1; 
+        struct cell * c = &(theCells[i_cells]);
+
+        const double d_metal_density = metal_density_new[i_linsolve] - metal_density_old[i_linsolve];
+        const double d_metal = Vol[i_linsolve] * d_metal_density;
+
+        c->cons[ZZZ] += d_metal;
+    }
+
+
+    // ======== Verify post-conditions ========= //
+    // #ifndef NDEBUG
+    for( int i=Ng ; i<Nr-Ng ; ++i )
+    {
+        struct cell * c = &(theCells[i]);
+        if( c->cons[DDD] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_metal_density() postconditions------- \n");
+            printf("Cell i=%d has negative mass! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[DDD] > 0);
+        }
+
+        if( c->cons[TAU] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_metal_density() postconditions------- \n");
+            printf("Cell i=%d has negative energy! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[TAU] > 0);
+        }
+
+        if( c->cons[ZZZ] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_metal_density() postconditions------- \n");
+            printf("Cell i=%d has negative metal content! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[ZZZ] > 0);
+        }
+    }
+    // #endif
+
+}
+
+
+void turbulent_diffusion_implicit_mass_density( struct domain * theDomain , 
+                                                const double dt )
+{
+    // ============================================= //
+    //
+    //  Calculate and apply mass-tracing fluxes due to unresolved
+    //  turbulent mixing.
+    //
+    //  The general ideal is described at:
+    //    https://github.com/egentry/clustered_SNe/wiki/Turbulent-diffusion-prescription
+    //  I haven't yet pushed my notebook going more into the math, but it
+    //    *might* be visible here:
+    //    https://www.dropbox.com/s/xowqsculq4t6yzf/turbulent%20diffusion%20write%20up.ipynb?dl=0
+    //
+    //  Inputs:
+    //    - theDomain    - the standard domain struct used throughout
+    //    - dt           - timestep [s]
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - affects cons for each cell. (specifically the mass field)
+    //
+    //  Notes:
+    //    - The banded matrix solver we use is LAPACKE_dgbsv
+    //      (This uses the c binding for the fortran LAPACK package)
+    //    - For a good example of using LAPACK from c, and for the 
+    //      indexing convention, check out:
+    //      http://www.netlib.org/lapack/explore-html/d8/dd5/example___d_g_e_l_s__rowmajor_8c_source.html
+    //
+    // ============================================= // 
+
+    // printf("Entered turbulent_diffusion_implicit_mass_density\n");
+    // fflush(stdout);
+
+
+    struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
+
+    const int num_cells = Nr-Ng-Ng;
+
+    double mass_density_old[num_cells];
+    double mass_density_guess[num_cells];
+    double mass_density_new[num_cells];
+
+    double r[num_cells];
+    double Vol[num_cells];
+    double v[num_cells];
+
+    for( int i_old_arrays=Ng ; i_old_arrays<Nr-Ng ; ++i_old_arrays )
+    {
+        const struct cell * c = &(theCells[i_old_arrays]);
+
+        const int i_new_arrays = i_old_arrays - 1;
+
+        r[i_new_arrays] = c->riph - (c->dr/2.); // cell *centered* radius
+        Vol[i_new_arrays] = get_dV(c->riph, c->riph - c->dr); // cell volume
+
+        v[i_new_arrays] = c->prim[VRR];
+
+        mass_density_old[i_new_arrays] = c->prim[RHO];
+    }
+
+    // initialize my first mass_density_guess using the previous conditions
+    for( int i=0 ; i<num_cells ; ++i )
+    {
+        mass_density_guess[i] = mass_density_old[i];
+    }
+
+    std::function<void(const double *, 
+                       const double *, 
+                             double *)> lambda_apply_linsolve = [&] (const double * values_old,
+                                            const double * values_guess,
+                                            double * values_new) {
+        turbulent_diffusion_apply_linsolve(values_old, values_guess, values_new,
+                                           r, Vol, v, dt, 
+                                           theDomain->theParList.C_turbulent_diffusion,
+                                           num_cells, 0 );
+    };
+
+    if(theDomain->theParList.with_anderson_acceleration)
+    {
+        Anderson_acceleration(mass_density_old, mass_density_guess, 
+                              mass_density_new,
+                              num_cells, lambda_apply_linsolve,
+                              "turbulent_diffusion_implicit_mass_density");
+    }
+    else
+    {
+        Picard_iteration(mass_density_old, mass_density_guess, mass_density_new,
+                         num_cells, lambda_apply_linsolve,
+                         "turbulent_diffusion_implicit_mass_density");
+    }
+
+    // Update cons using the difference in metals
+    for( int i_linsolve=0 ; i_linsolve<num_cells ; ++i_linsolve )
+    {
+        const int i_cells = i_linsolve + 1; 
+        struct cell * c = &(theCells[i_cells]);
+
+        const double d_mass_density = mass_density_new[i_linsolve] - mass_density_old[i_linsolve];
+        const double d_mass = Vol[i_linsolve] * d_mass_density;
+
+        c->cons[DDD] += d_mass;
+    }
+
+
+    // ======== Verify post-conditions ========= //
+    // #ifndef NDEBUG
+    for( int i=Ng ; i<Nr-Ng ; ++i )
+    {
+        struct cell * c = &(theCells[i]);
+        if( c->cons[DDD] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_mass_density() postconditions------- \n");
+            printf("Cell i=%d has negative mass! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[DDD] > 0);
+        }
+
+        if( c->cons[TAU] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_mass_density() postconditions------- \n");
+            printf("Cell i=%d has negative energy! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[TAU] > 0);
+        }
+
+        if( c->cons[ZZZ] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit_mass_density() postconditions------- \n");
+            printf("Cell i=%d has negative metal content! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[ZZZ] > 0);
+        }
+    }
+    // #endif
+
+}
+
+void subgrid_thermal_conduction( struct cell * c , const double dt )
 {
 
     // ============================================= //
@@ -1269,89 +3835,11 @@ void subgrid_conduction( struct cell * c , const double dt )
     const double rel_tol = 1e-5; // relative tolerance for float comparison
     if (c->multiphase)
     {
-        if (c->cons_hot[DDD] < 0)
-        {
-            printf("------ERROR in subgrid_conduction() preconditions------- \n");
-            printf("hot gas mass less than 0\n");
-            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-
-            assert( c->cons_hot[DDD] > 0 );
-        }
-
-        if (c->cons_cold[DDD] < 0)
-        {
-            printf("------ERROR in subgrid_conduction() preconditions------- \n");
-            printf("cold gas mass less than 0\n");
-            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-
-            assert( c->cons_cold[DDD] > 0 );
-        }
-
-        if ( (c->cons_hot[DDD] / c->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in subgrid_conduction() preconditions------- \n");
-            printf("hot gas mass greater than total mass\n");
-            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-
-            assert( (c->cons_hot[DDD] / c->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( (c->cons_cold[DDD] / c->cons[DDD]) > (1+rel_tol))
-        {
-            printf("------ERROR in subgrid_conduction() preconditions------- \n");
-            printf("cold gas mass greater than total mass\n");
-            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-
-            assert( (c->cons_cold[DDD] / c->cons[DDD]) < (1+rel_tol) );
-        }
-
-        if ( std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) > rel_tol)
-        {
-            printf("------ERROR in subgrid_conduction() preconditions------- \n");
-            printf("cold mass + hot mass =/= total mass\n");
-            printf("c->cons_cold[DDD] = %e \n", c->cons_cold[DDD]);
-            printf("c->cons_hot[DDD]  = %e \n", c->cons_hot[DDD]);
-            printf("c->cons[DDD]      = %e \n", c->cons[DDD]);
-
-            assert(  std::abs(1-( (c->cons_cold[DDD] + c->cons_hot[DDD])/c->cons[DDD])) <= rel_tol);
-        }
-
-
-
-
-        if (c->cons_hot[TAU] < 0)
-        {
-            printf("------ERROR in subgrid_conduction() preconditions------- \n");
-            printf("hot gas energy less than 0\n");
-            printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
-            printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-            printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
-
-            assert( c->cons_hot[TAU] > 0 );
-        }
-
-        if (c->cons_cold[TAU] < 0)
-        {
-            printf("------ERROR in subgrid_conduction() preconditions------- \n");
-            printf("cold gas energy less than 0\n");
-            printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
-            printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
-            printf("c->cons[TAU]      = %e \n", c->cons[TAU]);
-
-            assert( c->cons_cold[TAU] > 0 );
-        }
+        verify_multiphase_conditions(c, "subgrid_thermal_conduction()", "pre");
 
         // if (E_int_from_cons(c->cons_hot) < 0)
         // {
-        //     printf("------ERROR in subgrid_conduction() preconditions------- \n");
+        //     printf("------ERROR in subgrid_thermal_conduction() preconditions------- \n");
         //     printf("hot gas *internal* energy less than 0\n");
         //     printf("E_int (hot)  = %e \n", E_int_from_cons(c->cons_hot));
         //     printf("c->cons_hot[TAU]   = %e \n", c->cons_hot[TAU]);
@@ -1362,7 +3850,7 @@ void subgrid_conduction( struct cell * c , const double dt )
 
         // if (E_int_from_cons(c->cons_cold) < 0)
         // {
-        //     printf("------ERROR in subgrid_conduction() preconditions------- \n");
+        //     printf("------ERROR in subgrid_thermal_conduction() preconditions------- \n");
         //     printf("cold gas *internal* energy less than 0\n");
         //     printf("E_int (cold)  = %e \n", E_int_from_cons(c->cons_cold));
         //     printf("c->cons_cold[TAU]   = %e \n", c->cons_cold[TAU]);
@@ -1373,7 +3861,7 @@ void subgrid_conduction( struct cell * c , const double dt )
 
         // if ( (c->cons_hot[TAU] / c->cons[TAU]) > (1+rel_tol))
         // {
-        //     printf("------ERROR in subgrid_conduction() preconditions------- \n");
+        //     printf("------ERROR in subgrid_thermal_conduction() preconditions------- \n");
         //     printf("hot gas energy greater than total energy\n");
         //     printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
         //     printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
@@ -1384,7 +3872,7 @@ void subgrid_conduction( struct cell * c , const double dt )
 
         // if ( (c->cons_cold[TAU] / c->cons[TAU]) > (1+rel_tol))
         // {
-        //     printf("------ERROR in subgrid_conduction() preconditions------- \n");
+        //     printf("------ERROR in subgrid_thermal_conduction() preconditions------- \n");
         //     printf("cold gas energy greater than total energy\n");
         //     printf("c->cons_hot[TAU]  = %e \n", c->cons_hot[TAU]);
         //     printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
@@ -1395,7 +3883,7 @@ void subgrid_conduction( struct cell * c , const double dt )
 
         // if ( std::abs(1-( (c->cons_cold[TAU] + c->cons_hot[TAU])/c->cons[TAU])) > rel_tol)
         // {
-        //     printf("------ERROR in subgrid_conduction() preconditions------- \n");
+        //     printf("------ERROR in subgrid_thermal_conduction() preconditions------- \n");
         //     printf("cold energy + hot energy =/= total energy\n");
         //     printf("c->cons_cold[TAU]                      = %e \n", c->cons_cold[TAU]);
         //     printf("c->cons_hot[TAU]                       = %e \n", c->cons_hot[TAU]);
@@ -1455,7 +3943,7 @@ void subgrid_conduction( struct cell * c , const double dt )
 
     if (!std::isfinite(dM_b_dt_unsat))
     {
-        printf("------ ERROR in subgrid_conduction()------- \n");
+        printf("------ ERROR in subgrid_thermal_conduction()------- \n");
         printf("Non-finite unsaturated conduction rate! \n");
         printf("dM_b_dt_unsat = %e \n", dM_b_dt_unsat);
         printf("T_hot         = %e \n", T_hot);
@@ -1467,7 +3955,7 @@ void subgrid_conduction( struct cell * c , const double dt )
 
     if (!std::isfinite(dM_b_dt_sat))
     {
-        printf("------ ERROR in subgrid_conduction()------- \n");
+        printf("------ ERROR in subgrid_thermal_conduction()------- \n");
         printf("Non-finite saturated conduction rate! \n");
         printf("dM_b_dt_sat       = %e \n", dM_b_dt_sat);
         printf("c->V_cold         = %e \n", c->V_cold);
@@ -1483,7 +3971,7 @@ void subgrid_conduction( struct cell * c , const double dt )
 
     if (dM_b < 0)
     {
-        printf("------ ERROR in subgrid_conduction()------- \n");
+        printf("------ ERROR in subgrid_thermal_conduction()------- \n");
         printf("Negative mass transfered! \n");
         printf("dM_b = %e \n", dM_b);
         assert(dM_b > 0);
@@ -1491,7 +3979,7 @@ void subgrid_conduction( struct cell * c , const double dt )
 
     if( x < 0)
     {
-        printf("------ ERROR in subgrid_conduction()------- \n");
+        printf("------ ERROR in subgrid_thermal_conduction()------- \n");
         printf("Negative mass fraction transfered! \n");
         printf("x = %e \n", x);
         printf("T_hot = %e \n", T_hot);
@@ -1506,7 +3994,7 @@ void subgrid_conduction( struct cell * c , const double dt )
     if( x >= 1)
     {
         const double T_cold = calc_T(c->prim_cold);
-        printf("------ ERROR in subgrid_conduction()------- \n");
+        printf("------ ERROR in subgrid_thermal_conduction()------- \n");
         printf("Mass fraction >= 1 transfered! \n");
         printf("x       = %e \n", x);
         printf("T_hot   = %e \n", T_hot);
@@ -1530,7 +4018,7 @@ void subgrid_conduction( struct cell * c , const double dt )
     if (c->cons_cold[TAU] <= 0)
     {
 
-        printf("------ ERROR in subgrid_conduction()------- \n");
+        printf("------ ERROR in subgrid_thermal_conduction()------- \n");
         printf("No cold energy to begin with! \n");
         printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
         assert(0 < c->cons_cold[TAU]);
@@ -1541,7 +4029,7 @@ void subgrid_conduction( struct cell * c , const double dt )
     {
         const double T_cold = calc_T(c->prim_cold);
 
-        printf("------ ERROR in subgrid_conduction()------- \n");
+        printf("------ ERROR in subgrid_thermal_conduction()------- \n");
         printf("All energy transfered! \n");
         printf("dE                = %e \n", dE);
         printf("c->cons_cold[TAU] = %e \n", c->cons_cold[TAU]);
@@ -1550,9 +4038,6 @@ void subgrid_conduction( struct cell * c , const double dt )
 
         assert(dE < c->cons_cold[TAU]);
     }   
-
-
-
 
     // Apply conductive fluxes
 
@@ -1572,11 +4057,11 @@ void subgrid_conduction( struct cell * c , const double dt )
     // ======== Verify post-conditions ========= //
     if (c->multiphase)
     {
-        verify_multiphase_conditions(c, "subgrid_conduction()", "post");
+        verify_multiphase_conditions(c, "subgrid_thermal_conduction()", "post");
 
         // if (E_int_from_cons(c->cons_hot) < 0)
         // {
-        //     printf("------ERROR in subgrid_conduction() postconditions------- \n");
+        //     printf("------ERROR in subgrid_thermal_conduction() postconditions------- \n");
         //     printf("hot gas *internal* energy less than 0\n");
         //     printf("E_int (hot)  = %e \n", E_int_from_cons(c->cons_hot));
         //     printf("c->cons_hot[TAU]   = %e \n", c->cons_hot[TAU]);
@@ -1587,7 +4072,7 @@ void subgrid_conduction( struct cell * c , const double dt )
 
         // if (E_int_from_cons(c->cons_cold) < 0)
         // {
-        //     printf("------ERROR in subgrid_conduction() postconditions------- \n");
+        //     printf("------ERROR in subgrid_thermal_conduction() postconditions------- \n");
         //     printf("cold gas *internal* energy less than 0\n");
         //     printf("E_int (cold)  = %e \n", E_int_from_cons(c->cons_cold));
         //     printf("c->cons_cold[TAU]   = %e \n", c->cons_cold[TAU]);
@@ -1714,10 +4199,10 @@ double mindt( const double * prim , const double w ,
 }
 
 void verify_multiphase_conditions( const struct cell * c ,
-                                  const char * fn_name ,
-                                  const char * pre_post_specifier ,
-                                  const char * cell_specifier ,
-                                  const double rel_tol )
+                                   const char * fn_name ,
+                                   const char * pre_post_specifier ,
+                                   const char * cell_specifier ,
+                                   const double rel_tol )
 {
     #ifndef NDEBUG
 
@@ -1831,4 +4316,496 @@ void verify_multiphase_conditions( const struct cell * c ,
 
     #endif
 }
+
+
+void Picard_iteration( const double * values_old ,
+                             double * values_guess ,
+                             double * values_new , // will be overwritten
+                       const int num_values , 
+                       std::function<void(const double *, const double *, double *)> lambda_apply_linsolve,
+                       const char * calling_fn_name ,
+                       const double iteration_tolerance , // default arg
+                       const int num_iterations_max , // default arg
+                       const double alpha_relaxation  // default arg
+                       )
+    // ============================================= //
+    //
+    //  Wraps the iterative solving of an implicit equation using Picard
+    //  iteration with a relaxation parameter
+    //
+    //  Inputs:
+    //    - values_old, values_guess, values_new
+    //        - arrays of the variable to be solved for (all doubles)
+    //        - all have equal length, `num_cells`
+    //          variables to be passed to `lambda_apply_linsolve`
+    //        - `values_new` is purely an output, and can be garbage on input
+    //    - num_values
+    //        - length of `values_*`
+    //    - lambda_apply_linsolve
+    //        - function that takes `values_old`, `values_guess` and `values_new`
+    //          and creates a new guess in the place of `values_new`
+    //        - typically a closure around another function, made by a lambda                       const char * calling_fn_name , 
+    //    - calling_fn_name 
+    //        - a string to specify when you called Picard_iteration,
+    //          for use within debugging/error print statements
+    //    - iteration_tolerance
+    //        - try to iterate until each new value changes by less than
+    //          a factor of `iteration_tolerance` from the guess
+    //          e.g. if `iteration_tolerance = 1.05`, you want a less than 5% 
+    //          change between `guess` and `new`.
+    //    - num_iterations_max
+    //        - cutoff the iteration after `num_iterations_max` no matter what
+    //        - ensures reasonable runtime, but indicates potentially large
+    //          numberical errors
+    //    - alpha_relaxation
+    //        - the relaxation parameter, such that:
+    //            - alpha = 1.0: just use new value returned by `lambda_apply_linsolve`
+    //            - alpha = 0.0: never updates `values_guess`
+    //                           (basically just re-runs )
+    //      
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - affects `values_guess` and `values_new`
+    //
+    // ============================================= // 
+{
+    // ======== Verify pre-conditions ========= //
+    if( num_values <= 0 )
+    {
+        printf("------ERROR in Picard_iteration() preconditions------- \n");
+        printf("`num_values` must be greater than 0, not %d\n",
+               num_values);
+        assert( num_values > 0 );
+    }
+
+    if( iteration_tolerance <= 0 )
+    {
+        printf("------ERROR in Picard_iteration() preconditions------- \n");
+        printf("`iteration_tolerance` must be greater than 0, not %e\n",
+               iteration_tolerance);
+        assert( iteration_tolerance > 0 );
+    }
+
+    if( num_iterations_max <= 0 )
+    {
+        printf("------ERROR in Picard_iteration() preconditions------- \n");
+        printf("`num_iterations_max` must be greater than 0, not %d\n",
+               num_iterations_max);
+        assert( num_iterations_max > 0 );
+    }
+
+    if( (alpha_relaxation <= 0) || (alpha_relaxation >= 1))
+    {
+        printf("------ERROR in Picard_iteration() preconditions------- \n");
+        printf("`alpha_relaxation` must be in (0, 1), not %f\n",
+               alpha_relaxation);
+        assert((alpha_relaxation > 0) && (alpha_relaxation < 1));
+    }
+
+
+    // ======== Primary Code ========= //
+
+    for( int j = 0; j < num_iterations_max ; ++j)
+    {
+        // printf("\n=======implicit iteration j=%d ========\n\n", j);
+
+        // given values_old and values_guess, overwrites values_new
+        lambda_apply_linsolve(values_old, values_guess, values_new);
+
+        double log_guess_old[num_values];
+        double log_guess_new[num_values];
+
+        bool stop_early = false;
+        for( int i=0 ; i<num_values ; ++i )
+        {
+            log_guess_old[i] = std::log(values_guess[i]);
+            log_guess_new[i] = std::log(values_new[i]);
+        }   
+
+        const double max_log_distance = max_norm(log_guess_old, 
+                                                 log_guess_new,
+                                                 num_values);
+
+        if( max_log_distance < std::abs(std::log(iteration_tolerance)) )
+        {
+            stop_early = true;
+        }
+
+        if( j == (num_iterations_max-1) )
+        {
+            if( !stop_early )
+            {
+                printf("reached num_iterations_max = %d within `Picard_iteration` called from %s\n", 
+                    num_iterations_max,
+                    calling_fn_name);
+            } 
+        }
+
+        for( int i=0 ; i<num_values ; ++i )
+        {
+            values_guess[i] =     alpha_relaxation  * values_new[i] 
+                             + (1-alpha_relaxation) * values_guess[i];
+        }
+
+        if( stop_early )
+        {
+            break;
+        }
+    }
+
+}
+
+
+void Anderson_acceleration( const double * values_old ,
+                                  double * values_guess ,
+                                  double * values_new , // will be overwritten
+                            const int num_values , 
+                            std::function<void(const double *, const double *, double *)> lambda_apply_linsolve,
+                            const char * calling_fn_name ,
+                            const double iteration_tolerance , // default arg
+                            const int num_iterations_max, // default arg
+                            const int history_max
+                           )
+    // ============================================= //
+    //
+    //  Wraps the iterative solving of an implicit equation using Anderson-
+    //  accelerated iteration.
+    //
+    //  Inputs:
+    //    - values_old, values_guess, values_new
+    //        - arrays of the variable to be solved for (all doubles)
+    //        - all have equal length, `num_cells`
+    //          variables to be passed to `lambda_apply_linsolve`
+    //        - `values_new` is purely an output, and can be garbage on input
+    //    - num_values
+    //        - length of `values_*`
+    //    - lambda_apply_linsolve
+    //        - function that takes `values_old`, `values_guess` and `values_new`
+    //          and creates a new guess in the place of `values_new`
+    //        - typically a closure around another function, made by a lambda
+    //    - calling_fn_name 
+    //        - a string to specify when you called Anderson_acceleration,
+    //          for use within debugging/error print statements
+    //    - iteration_tolerance
+    //        - try to iterate until each new value changes by less than
+    //          a factor of `iteration_tolerance` from the guess
+    //          e.g. if `iteration_tolerance = 1.05`, you want a less than 5% 
+    //          change between `guess` and `new`.
+    //    - num_iterations_max
+    //        - cutoff the iteration after `num_iterations_max` no matter what
+    //        - ensures reasonable runtime, but indicates potentially large
+    //          numberical errors
+    //    - history_max
+    //        - use up to the most recent `history_max` for Anderson acceleration
+    //
+    //      
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - affects `values_guess` and `values_new`
+    //
+    // ============================================= // 
+{
+    // ======== Verify pre-conditions ========= //
+    if( num_values <= 0 )
+    {
+        printf("------ERROR in Anderson_acceleration() preconditions------- \n");
+        printf("`num_values` must be greater than 0, not %d\n",
+               num_values);
+        assert( num_values > 0 );
+    }
+
+    if( iteration_tolerance <= 0 )
+    {
+        printf("------ERROR in Anderson_acceleration() preconditions------- \n");
+        printf("`iteration_tolerance` must be greater than 0, not %e\n",
+               iteration_tolerance);
+        assert( iteration_tolerance > 0 );
+    }
+
+    if( num_iterations_max <= 0 )
+    {
+        printf("------ERROR in Anderson_acceleration() preconditions------- \n");
+        printf("`num_iterations_max` must be greater than 0, not %d\n",
+               num_iterations_max);
+        assert( num_iterations_max > 0 );
+    }
+
+    if( history_max <= 0 )
+    {
+        printf("------ERROR in Anderson_acceleration() preconditions------- \n");
+        printf("`history_max` must be greater than 0, not %d\n",
+               history_max);
+        assert( history_max > 0 );
+    }
+
+    // ======== Primary Code ========= //
+
+    double *R = new double [history_max * num_values];
+    double G[num_values][history_max];
+
+
+    double xi[1][history_max];
+
+
+    for( int j = 0; j < num_iterations_max ; ++j)
+    {
+        printf("\n=======anderson implicit iteration j=%d ========\n\n", j);
+        int history;
+        if( (j+1) < history_max )
+        {
+            // history is 1-index because it is a counting number
+            history = j + 1; 
+        }
+        else
+        {
+            history = history_max;
+        }
+
+        // these must be reset *each time*
+        double zeros[num_values][1];
+        for( int i = 0 ; i<num_values ; ++i) zeros[i][0] = 0.0;
+
+        double ones[1][history_max];
+        for( int i = 0 ; i<history_max ; ++i) ones[0][i] = 1.0;
+
+        double one[1][1] = {{1.0}};
+
+
+        // given values_old and values_guess, overwrites values_new
+        lambda_apply_linsolve(values_old, values_guess, values_new);
+
+        // ============ quit early? ================= //
+        // do this before the potentially-unneeded extra linear algebra
+
+        double log_guess_old[num_values];
+        double log_guess_new[num_values];
+
+        for( int i=0 ; i<num_values ; ++i )
+        {
+            log_guess_old[i] = std::log(values_guess[i]);
+            log_guess_new[i] = std::log(values_new[i]);
+        }   
+
+        const double max_log_distance = max_norm(log_guess_old, 
+                                                 log_guess_new,
+                                                 num_values);
+
+        if( max_log_distance < std::abs(std::log(iteration_tolerance)) )
+        {
+
+            break; // stop early
+        }
+        else
+        {
+            if( j == (num_iterations_max-1) )
+            {
+                printf("reached num_iterations_max = %d within `Anderson_acceleration` called from %s\n", 
+                    num_iterations_max,
+                    calling_fn_name);
+            }
+        }
+
+        // ============ linear algebra to generate a new guess ============= //
+
+
+        // index that will cycle through columns of R, G using modulus wrapping
+        const int current_column = j % history_max;
+
+        for( int i=0 ; i<num_values ; ++i)
+        {
+            G[i][current_column] = values_new[i];
+
+            // note, I'm using column major ordering, because that makes it 
+            // simpler to pass to LAPACKE
+            R[(num_values*current_column) + i] = (values_new[i] - values_guess[i]) / values_new[i];
+        }
+
+        // copy R to a temperature matrix, because A is likely to be overwritten
+        // within the lapack call
+        double *A = new double [history * num_values];
+        for( int i=0; i<history*num_values ; ++i) A[i] = R[i];
+
+        // pass to LAPACKe_dgglse
+        // fortran documentation:  http://www.netlib.org/lapack/explore-html-3.6.1/d0/d85/dgglse_8f_a131c0fa85b2fb29d385ce87b199bf9aa.html
+        //
+        // Notation notes:
+        // Mine   | theirs
+        // ----------------
+        //  A     |   A    
+        //  ones  |   B
+        //  zeros |   c
+        //  one   |   d
+        //  xi    |   x
+
+        // but note that if j < history_max, we only want to use a subset
+        // of R, G and not the entire thing!
+        //
+        // Fortunately, since I set up R using column major ordering,
+        // I only have to change the value I set for N. Any later rows will
+        // simply be ignored during the constrained linear solve.
+
+
+        lapack_int M = num_values;
+        lapack_int N = history;
+        lapack_int P = 1;
+        lapack_int LDA = M;
+        lapack_int LDB = 1;
+
+        lapack_int INFO; // result status: 0 for success
+
+        INFO = LAPACKE_dgglse(
+            LAPACK_COL_MAJOR,
+            M, 
+            N,
+            P,
+            A,
+            LDA,
+            *ones,
+            LDB,
+            *zeros,
+            *one,
+            *xi);
+
+        if( INFO != 0 )
+        {
+            printf("INFO non-zero, indicating error. (INFO = %d)\n", INFO);
+            assert(INFO==0);
+        }
+
+        double sum = 0;
+        for( int i=0 ; i<history ; ++i) sum += xi[0][i];
+        if( (sum < .95) || (sum > 1.05))
+        {
+            printf("sum not equal to 1. (sum = %f)\n", sum);
+            for( int i=0 ; i<history ; ++i) printf("xi[%d] = %f\n", i, xi[0][i]);
+            printf("INFO = %d\n", INFO);
+            printf("`one` = %f\n", one[0][0]);
+
+            assert((sum>.95) && (sum<1.05));
+        }
+        // printf("`one` = %f\n", one[0][0]);
+
+
+        for( int i=0 ; i<num_values ; ++i )
+        {
+            // for picard iteration, this is where the "interesting" bit was
+            // (the relaxation parameter)
+
+            // now use the xi to get a weighted average of G rows
+            // and then use this as our actual next guess
+            values_new[i] = 0;
+            for( int k=0 ; k<history ; ++k)
+            {
+                values_guess[i] += G[i][k] * xi[0][k];
+            }
+        }
+
+        printf("weights: \n\n");
+        for( int i=0 ; i<history ; ++i) printf("xi[%d] = %f\n", i, xi[0][i]);
+        printf("\n");
+        printf("sum = %f\n", sum);
+        printf("\n\n\n");
+        printf("current column = %d\n", current_column);
+
+        delete[] A;
+
+    }
+
+    delete[] R;
+
+}
+
+double total_energy_of_all_cells(const struct domain * theDomain)
+{
+    const struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
+
+    double E_total = 0;
+    for( int i=Ng ; i<Nr-Ng ; ++i )
+    {
+        const struct cell * c = &(theCells[i]);
+        E_total += c->cons[TAU];
+    }
+
+    return E_total;
+}
+
+double total_energy_of_all_cells_from_prim(const struct domain * theDomain)
+{
+    const struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
+
+    double E_total = 0;
+    for( int i=Ng ; i<Nr-Ng ; ++i )
+    {
+        const struct cell * c = &(theCells[i]);
+        const double mass = c->cons[DDD];
+        const double v = c->prim[VRR];
+        E_total += .5 * mass * v * v;
+        E_total += mass * (1./(GAMMA_LAW-1.)) * c->prim[PPP] / c->prim[RHO]; 
+    }
+
+    return E_total;
+}
+
+EnergyChecker::EnergyChecker( const struct domain * theDomain,
+                              const char * target_function_name )
+    :   target_function_name(target_function_name)
+{
+    #ifndef NDEBUG
+    this->set(theDomain);
+    #endif
+}
+
+void EnergyChecker::set(const struct domain * theDomain)
+{
+    E_total_before = total_energy_of_all_cells(theDomain);
+}
+
+void EnergyChecker::check(const struct domain * theDomain)
+{
+    #ifndef NDEBUG
+    const double E_total_after = total_energy_of_all_cells(theDomain);
+
+    const double dE = E_total_after - E_total_before;
+
+    const double rel_tol = 1e-10;
+    const double abs_tol = 1e51 * rel_tol;
+
+    if( std::abs(dE) > abs_tol )
+    {
+        printf("ERROR: dE exceeds abs_tol after '%s' \n",
+            target_function_name);
+        printf("E before: %e \n", E_total_before);
+        printf("E after:  %e \n", E_total_after);
+        printf("dE:       %e \n", dE);
+        fflush(stdout);
+
+        assert(std::abs(dE) < abs_tol);
+    }
+
+    if( std::abs((dE / E_total_before)) > rel_tol )
+    {
+        printf("ERROR: dE exceeds rel_tol after %s \n",
+            target_function_name);
+        printf("E before: %e \n", E_total_before);
+        printf("E after:  %e \n", E_total_after);
+        printf("dE:       %e \n", dE);
+        printf("dE (%%):   %f \n", 1 - (dE / E_total_before));
+        fflush(stdout);
+
+
+
+        assert( std::abs( (dE / E_total_before)) < rel_tol );
+    }
+    #endif
+}
+
+
 

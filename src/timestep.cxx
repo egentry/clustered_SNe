@@ -18,6 +18,19 @@
 
 void update_initial_energies( struct domain * theDomain )
 {
+    // ============================================= //
+    //
+    //  Only used for Keller subgrid conduction method
+    //  Updates a tracker of the initial kinetic and thermal energies
+    //    for each cell.
+    //  Also updates the energy split between the hot and cold subgrid components
+    //  Also updates the mass split between hot and cold
+    //  
+    //
+    //  Inputs:
+    //     - theDomain    - the standard domain struct used throughout
+    //
+    // ============================================= //
     struct cell * theCells = theDomain->theCells;
     const int Nr = theDomain->Nr;
     const int Ng = theDomain->Ng;   
@@ -133,7 +146,7 @@ void substep( struct domain * theDomain , double RK ,
     //                    - see note within adjustRK
     //     - dt           - time elapsed within substep
     //     - first_step   - is this the first substep within an overall step?
-    //     - last_step    - is this the 
+    //     - last_step    - is this the last substep within an overall step?
     //
     //  Outputs:
     //       None
@@ -157,25 +170,47 @@ void substep( struct domain * theDomain , double RK ,
 
     update_initial_energies( theDomain );
 
+    EnergyChecker energy_checker_flux(theDomain, "radial_flux");
+    // energy_checker_flux.set( theDomain );
     radial_flux( theDomain , dt );
-    add_source( theDomain , dt , cooling );
+    energy_checker_flux.check( theDomain );
 
+    EnergyChecker energy_checker_source(theDomain, "add_source");
+    // energy_checker_source.set( theDomain );
+    add_source( theDomain , dt , cooling );
+    if(!theDomain->theParList.With_Cooling) energy_checker_source.check( theDomain );
+
+    EnergyChecker energy_checker_move_cells(theDomain, "move_cells");
+    // energy_checker_move_cells.set( theDomain );
     if( first_step ) move_cells( theDomain , dt );
     calc_dr( theDomain );
+    energy_checker_move_cells.check( theDomain );
 
-    fix_negative_energies( theDomain );
+
+
+
+    // fix_negative_energies( theDomain );
 
     calc_prim( theDomain );
 
     if( last_step )
     {
+        EnergyChecker energy_checker_amr(theDomain, "AMR");
+        // energy_checker_amr.set( theDomain );
         AMR( theDomain );
+        energy_checker_amr.check( theDomain );
+
+
         theDomain->R_shock = ICs->find_shock( theDomain );
         ICs->possibly_extend_grid( theDomain );
-        check_multiphase( theDomain );
+        // check_multiphase( theDomain );
 
     }
+    EnergyChecker energy_checker_boundary(theDomain, "boundary");
+    // energy_checker_boundary.set( theDomain );
     boundary( theDomain );
+    energy_checker_boundary.check( theDomain );
+
 
 }
 

@@ -169,6 +169,8 @@ void Initial_Conditions::setup_cells( struct domain * theDomain )
 
         c->E_kin_initial = 0;
         c->E_int_initial = 0;
+
+        c->dE_diffusion = 0;
     }
 
     boundary( theDomain );

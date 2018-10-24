@@ -14,6 +14,8 @@ extern "C" {
 #include "../structure.H"
 #include "../geometry.H"
 #include "../blast.H" // sort_by_lifetime
+#include "../Hydro/euler.H" // total_energy_of_all_cells
+
 
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
@@ -63,6 +65,13 @@ void create_checkpoint( struct domain * theDomain , const char * filestart ,
         fprintf(pFile,"\n");
     }
     fclose( pFile );
+
+    printf("total energy of all cells = %e ergs \n", 
+        total_energy_of_all_cells(theDomain));
+    printf("total energy of all cells = %e ergs (from prims)\n",
+        total_energy_of_all_cells_from_prim(theDomain));
+    fflush(stdout);
+
 
 }
 

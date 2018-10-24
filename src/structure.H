@@ -54,6 +54,12 @@ struct param_list{
     
     std::string mass_loss;
 
+    bool with_turbulent_diffusion;
+    bool with_physical_conduction;
+    double C_turbulent_diffusion;
+    bool with_anderson_acceleration;
+
+
 };
 
 struct domain{
@@ -98,6 +104,8 @@ struct domain{
 
     double R_shock;
 
+    double energy_added_by_cooling;
+
 
 };
 
@@ -114,6 +122,7 @@ struct cell{
     double E_int_old; 
     double dV_old; 
     double dE_cool; // negative for cooling, positive for heating
+    double dE_diffusion; // for turbulent diffusion; same sign convention as dE_cool
 
     int multiphase; // 0 if single phase, 1 if multiphase
     // hot phase: T > 1e5 
