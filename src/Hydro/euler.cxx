@@ -671,565 +671,6 @@ void artificial_conduction( struct cell * cL , struct cell * cR,
 
 }
 
-void thermal_conduction( struct cell * cL , struct cell * cR, 
-                         const double dA , const double dt )
-{
-
-    // ============================================= //
-    //
-    //  Calculate and add heat fluxes from *physical* conduction,
-    //  using the equations of Keller et al. (2014), section 2 (eq. 4 & 6)
-    //
-    //  Inputs:
-    //    - cL        - cell to the Left
-    //    - cR        - cell to the Right
-    //    - dA        - interface area between cells [cm^2]
-    //    - dt        - timestep [s]
-    //
-    //  Returns:
-    //       void
-    //
-    //  Side effects:
-    //    - overwrites cons[DDD] (mass) and cons[TAU] (energy) 
-    //      of both cells cL, cR (cL, cR on left and right side of interface, respectively)
-    //    - if either cell is flagged as multiphase, it'll also overwrite
-    //      cons_hot[DDD], cons_cold[DDD], cons_hot[TAU], cons_cold[TAU]
-    //      of that cell
-    //
-    //  Notes:
-    //    - Sign convention for dM_dt: always positive
-    //
-    // ============================================= // 
-
-    // ======== Verify pre-conditions ========= //
-    if (cL->multiphase)
-    {
-        verify_multiphase_conditions(cL, "thermal_conduction()", "pre", "[left] ");
-
-        // if (E_int_from_cons(cL->cons_hot) < 0)
-        // {
-        //     printf("------ERROR in thermal_conduction() preconditions------- \n");
-        //     printf("[left] hot gas *internal* energy less than 0\n");
-        //     printf("[left] E_int (hot)  = %e \n", E_int_from_cons(cL->cons_hot));
-        //     printf("cL->cons_hot[TAU]   = %e \n", cL->cons_hot[TAU]);
-        //     printf("cL->cons[TAU]       = %e \n", cL->cons[TAU]);
-
-        //     assert( E_int_from_cons(cL->cons_hot) > 0 );
-        // }
-
-        // if (E_int_from_cons(cL->cons_cold) < 0)
-        // {
-        //     printf("------ERROR in thermal_conduction() preconditions------- \n");
-        //     printf("[left] cold gas *internal* energy less than 0\n");
-        //     printf("[left] E_int (cold)  = %e \n", E_int_from_cons(cL->cons_cold));
-        //     printf("cL->cons_cold[TAU]   = %e \n", cL->cons_cold[TAU]);
-        //     printf("cL->cons[TAU]        = %e \n", cL->cons[TAU]);
-
-        //     assert( E_int_from_cons(cL->cons_cold) > 0 );
-        // }
-    }
-
-    if (cR->multiphase)
-    {
-        verify_multiphase_conditions(cR, "thermal_conduction()", "pre", "[right] ");
-
-        // if (E_int_from_cons(cR->cons_hot) < 0)
-        // {
-        //     printf("------ERROR in thermal_conduction() preconditions------- \n");
-        //     printf("[right] hot gas *internal* energy less than 0\n");
-        //     printf("[right] E_int (hot) = %e \n", E_int_from_cons(cR->cons_hot));
-        //     printf("cR->cons_hot[TAU]   = %e \n", cR->cons_hot[TAU]);
-        //     printf("cR->cons[TAU]       = %e \n", cR->cons[TAU]);
-
-        //     assert( E_int_from_cons(cR->cons_hot) > 0 );
-        // }
-
-        // if (E_int_from_cons(cR->cons_cold) < 0)
-        // {
-        //     printf("------ERROR in thermal_conduction() preconditions------- \n");
-        //     printf("[right] cold gas *internal* energy less than 0\n");
-        //     printf("[right] E_int (cold) = %e \n", E_int_from_cons(cR->cons_cold));
-        //     printf("cR->cons_cold[TAU]   = %e \n", cR->cons_cold[TAU]);
-        //     printf("cR->cons[TAU]        = %e \n", cR->cons[TAU]);
-
-        //     assert( E_int_from_cons(cR->cons_cold) > 0 );
-        // }
-    }
-
-
-    double prim_L[NUM_Q];
-    double prim_R[NUM_Q];
-
-    const double dr_L = .5*cL->dr;
-    const double dr_R = .5*cR->dr;
-
-    const double dx = dr_L + dr_R;
-
-    const double T_L = calc_T(cL->prim);
-    const double T_R = calc_T(cR->prim);
-
-    // first, check if the temperatures are relatively close
-    // then, check if there are effectively equal
-    // if so, skip the conduction routine 
-    //    (if you don't you might get silent divide-by-zero errors leading to NaN energy flux)
-    if (std::abs(std::log10(T_L/T_R)) < 1)
-    {
-        if (std::abs(1 - (T_L/T_R)) < .01)
-        {
-            // effectively no temperature gradient; don't apply conduction
-            // otherwise you get silent divide-by-zero errors, leading to 
-            // fluxes that are NaN's
-            return;
-        }
-    }
-
-    for( int q=0 ; q<NUM_Q ; ++q )
-    {
-        // extrapolate to boundary between cells
-        prim_L[q] = cL->prim[q] + cL->grad[q]*dr_L;
-        prim_R[q] = cR->prim[q] - cR->grad[q]*dr_R;
-    }
-
-    // calculate *UNsaturated* flux
-
-    const double mu_L = get_mean_molecular_weight(prim_L[ZZZ]);
-    const double mu_R = get_mean_molecular_weight(prim_R[ZZZ]);
-    const double mu = (mu_L + mu_R) / 2.;
-
-    // // Keller et al. 2014 -- Equation 4, 
-    // // based on Mac Low & McCray 1988 (Equation 3, but with no T gradient?)
-    // // which is based on Cowie and McKee (1977; which only holds T>4e5 K?)
-    const double dM_dt_unsat = (4.*M_PI * mu * m_proton) / (25. * k_boltzmann) * kappa_0
-        * std::abs(std::pow(T_R, 5./2.) - std::pow(T_L, 5./2.)) / dx * dA; 
-
-    // calculate *saturated* flux
-    const double c_s_L = std::sqrt(std::abs(GAMMA_LAW*prim_L[PPP]/prim_L[RHO]));
-    const double c_s_R = std::sqrt(std::abs(GAMMA_LAW*prim_R[PPP]/prim_R[RHO]));
-
-
-    const double phi_s = 1.1; // see note near Eq. 8 of Cowie & McKee 1977
-    double dM_dt_sat;
-    if (T_L > T_R)
-    {
-        // left cell hotter -- use the [colder] right cell's sound speed + pressure
-        const double q = 5 * phi_s * c_s_R * prim_R[PPP];
-        dM_dt_sat = q * dA / (c_s_R*c_s_R); // it's the colder cell's energy which is transported
-    }
-    else
-    {
-        // right cell hotter -- use the [colder] left cell's sound speed + pressure
-        const double q = 5 * phi_s * c_s_L * prim_L[PPP];
-        dM_dt_sat = q * dA / (c_s_L*c_s_L);
-    }
-
-    const double dM_dt = std::min(dM_dt_unsat, dM_dt_sat);
-    const double dM = dM_dt * dt;
-
-
-    // should I be calculating fluxes from primitives instead of conservatives?
-
-
-    double x; // mass fraction of transfered flux, relative to initial cell
-    double dP; // transfered momentum
-    double dE; // transfered energy
-    double dM_Z; // transfered mass of metals
-    int sgn; // sign; 1 if mass is transfered right, -1 if mass transfered left
-    if (T_L > T_R)
-    {
-        sgn  = -1;
-        x    = dM / cR->cons[DDD];
-        dP   = x * cR->cons[SRR];
-        dE   = x * cR->cons[TAU];
-        dM_Z = x * cR->cons[ZZZ];
-    }
-    else
-    {
-        sgn  = 1;
-        x    = dM / cL->cons[DDD];
-        dP   = x * cL->cons[SRR];
-        dE   = x * cL->cons[TAU];
-        dM_Z = x * cL->cons[ZZZ];
-    }
-
-
-    // before applying fluxes, get multiphase mass + energy fractions
-    // NOTE: in theory x_hot_L + x_cold_L = 1, but this gets tricky when they are
-    // vastly different magnitudes. Rather than assuming x_cold_L = 1 - x_hot_L,
-    // we'll calculate both x_hot_L and x_cold_L seperately, just in case.
-
-    // double x_hot_L  = 0; // mass fraction of hot gas in left  cell, if multiphase
-    // double x_hot_R  = 0; // mass fraction of hot gas in right cell, if multiphase
-
-    // double y_hot_L  = 0; // energy fraction of hot gas in left  cell, if multiphase
-    // double y_hot_R  = 0; // energy fraction of hot gas in right cell, if multiphase
-
-    // double x_cold_L = 0; // mass fraction of cold gas in left  cell, if multiphase
-    // double x_cold_R = 0; // mass fraction of cold gas in right cell, if multiphase
-
-    // double y_cold_L = 0; // energy fraction of cold gas in left  cell, if multiphase
-    // double y_cold_R = 0; // energy fraction of cold gas in right cell, if multiphase
-
-
-
-    // if (cL->multiphase)
-    // {
-    //     x_hot_L  = cL->cons_hot[DDD] / cL->cons[DDD];
-    //     y_hot_L  = E_int_from_cons(cL->cons_hot) / E_int_from_cons(cL->cons);
-
-    //     x_cold_L = cL->cons_cold[DDD] / cL->cons[DDD];
-    //     y_cold_L = E_int_from_cons(cL->cons_cold) / E_int_from_cons(cL->cons);
-
-    //         if( (x_hot_L > 1 + rel_tol)  || (x_hot_L < 0))
-    //         {
-    //             printf("------ERROR in thermal_conduction()------- \n");
-    //             printf("x_hot_L not within (0,1 + rel_tol) \n");
-    //             printf("x_hot_L = %e \n", x_hot_L);
-    //             printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-    //             printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-    //             printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-    //             assert( (x_hot_L > 0) && (x_hot_L < 1 + rel_tol) );
-    //         }
-
-    //         if( (y_hot_L > 1 + rel_tol)  || (y_hot_L < 0))
-    //         {
-    //             printf("------ERROR in thermal_conduction()------- \n");
-    //             printf("y_hot_L not within (0,1 + rel_tol) \n");
-    //             printf("y_hot_L = %e \n", y_hot_L);
-    //             printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-    //             printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-    //             printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-
-    //             assert( (y_hot_L > 0) && (y_hot_L < 1 + rel_tol) );
-    //         }
-
-    //         if( (x_cold_L > 1 + rel_tol)  || (x_cold_L < 0))
-    //         {
-    //             printf("------ERROR in thermal_conduction()------- \n");
-    //             printf("x_cold_L not within (0,1 + rel_tol) \n");
-    //             printf("x_cold_L = %e \n", x_cold_L);
-    //             printf("cL->cons_hot[DDD]  = %e \n", cL->cons_hot[DDD]);
-    //             printf("cL->cons_cold[DDD] = %e \n", cL->cons_cold[DDD]);
-    //             printf("cL->cons[DDD]      = %e \n", cL->cons[DDD]);
-
-    //             assert( (x_cold_L > 0) && (x_cold_L < 1 + rel_tol) );
-    //         }
-
-    //         if( (y_cold_L > 1 + rel_tol)  || (y_cold_L < 0))
-    //         {
-    //             printf("------ERROR in thermal_conduction()------- \n");
-    //             printf("y_cold_L not within (0,1 + rel_tol) \n");
-    //             printf("y_cold_L = %e \n", y_cold_L);
-    //             printf("cL->cons_hot[TAU]  = %e \n", cL->cons_hot[TAU]);
-    //             printf("cL->cons_cold[TAU] = %e \n", cL->cons_cold[TAU]);
-    //             printf("cL->cons[TAU]      = %e \n", cL->cons[TAU]);
-
-    //             assert( (y_cold_L > 0) && (y_cold_L < 1 + rel_tol) );
-    //         }
-
-
-    //         if( std::abs(x_cold_L + x_hot_L - 1) >= rel_tol)
-    //         {
-    //             printf("------ERROR in thermal_conduction()------- \n");
-    //             printf("x_cold_L + x_hot_L =/= 1 \n");
-    //             printf("x_cold_L           = %e \n", x_cold_L);
-    //             printf("x_hot_L            = %e \n", x_hot_L);
-    //             printf("x_cold_L + x_hot_L = %e \n", x_cold_L + x_hot_L);
-
-    //             assert( std::abs(x_cold_L + x_hot_L - 1) < rel_tol);
-    //         }
-
-    //         if( std::abs(y_cold_L + y_hot_L - 1) >= rel_tol)
-    //         {
-    //             printf("------ERROR in thermal_conduction()------- \n");
-    //             printf("y_cold_L + y_hot_L =/= 1 \n");
-    //             printf("y_cold_L           = %e \n", y_cold_L);
-    //             printf("y_hot_L            = %e \n", y_hot_L);
-    //             printf("y_cold_L + y_hot_L = %e \n", y_cold_L + y_hot_L);
-
-    //             assert( std::abs(y_cold_L + y_hot_L - 1) < rel_tol);
-    //         }
-
-    // }
-    // if (cR->multiphase)
-    // {
-    //     x_hot_R  = cR->cons_hot[DDD] / cR->cons[DDD];
-    //     y_hot_R  = E_int_from_cons(cR->cons_hot) / E_int_from_cons(cR->cons);
-
-    //     x_cold_R = cR->cons_cold[DDD] / cR->cons[DDD];
-    //     y_cold_R = E_int_from_cons(cR->cons_cold) / E_int_from_cons(cR->cons);
-
-    //         if( (x_hot_R > 1 + rel_tol)  || (x_hot_R < 0))
-    //         {
-    //             printf("------ERROR in thermal_conduction()------- \n");
-    //             printf("x_hot_R not within (0,1 + rel_tol) \n");
-    //             printf("x_hot_R = %e \n", x_hot_R);
-    //             printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-    //             printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-    //             printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-    //             assert( (x_hot_R > 0) && (x_hot_R < 1 + rel_tol) );
-    //         }
-
-    //         if( (y_hot_R > 1 + rel_tol)  || (y_hot_R < 0))
-    //         {
-    //             printf("------ERROR in thermal_conduction()------- \n");
-    //             printf("y_hot_R not within (0,1 + rel_tol) \n");
-    //             printf("y_hot_R = %e \n", y_hot_R);
-    //             printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-    //             printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-    //             printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-
-    //             assert( (y_hot_R > 0) && (y_hot_R < 1 + rel_tol) );
-    //         }
-
-    //         if( (x_cold_R > 1 + rel_tol)  || (x_cold_R < 0))
-    //         {
-    //             printf("------ERROR in thermal_conduction()------- \n");
-    //             printf("x_cold_R not within (0,1 + rel_tol) \n");
-    //             printf("x_cold_R = %e \n", x_cold_R);
-    //             printf("cR->cons_hot[DDD]  = %e \n", cR->cons_hot[DDD]);
-    //             printf("cR->cons_cold[DDD] = %e \n", cR->cons_cold[DDD]);
-    //             printf("cR->cons[DDD]      = %e \n", cR->cons[DDD]);
-
-    //             assert( (x_cold_R > 0) && (x_cold_R < 1 + rel_tol) );
-    //         }
-
-    //         if( (y_cold_R > 1 + rel_tol)  || (y_cold_R < 0))
-    //         {
-    //             printf("------ERROR in thermal_conduction()------- \n");
-    //             printf("y_cold_R not within (0,1 + rel_tol) \n");
-    //             printf("y_cold_R = %e \n", y_cold_R);
-    //             printf("cR->cons_hot[TAU]  = %e \n", cR->cons_hot[TAU]);
-    //             printf("cR->cons_cold[TAU] = %e \n", cR->cons_cold[TAU]);
-    //             printf("cR->cons[TAU]      = %e \n", cR->cons[TAU]);
-
-    //             assert( (y_cold_R > 0) && (y_cold_R < 1 + rel_tol) );
-    //         }
-            
-
-    //         if( std::abs(x_cold_R + x_hot_R - 1) >= rel_tol)
-    //         {
-    //             printf("------ERROR in thermal_conduction()------- \n");
-    //             printf("x_cold_R + x_hot_R =/= 1 \n");
-    //             printf("x_cold_R           = %e \n", x_cold_R);
-    //             printf("x_hot_R            = %e \n", x_hot_R);
-    //             printf("x_cold_R + x_hot_R = %e \n", x_cold_R + x_hot_R);
-
-    //             assert( std::abs(x_cold_R + x_hot_R - 1) < rel_tol);
-    //         }
-
-    //         if( std::abs(y_cold_R + y_hot_R - 1) >= rel_tol)
-    //         {
-    //             printf("------ERROR in thermal_conduction()------- \n");
-    //             printf("y_cold_R + y_hot_R =/= 1 \n");
-    //             printf("y_cold_R           = %e \n", y_cold_R);
-    //             printf("y_hot_R            = %e \n", y_hot_R);
-    //             printf("y_cold_R + y_hot_R = %e \n", y_cold_R + y_hot_R);
-
-    //             assert( std::abs(y_cold_R + y_hot_R - 1) < rel_tol);
-    //         }
-    // }
-
-    // const double E_int_L_before = E_int_from_cons(cL->cons);
-    // const double E_int_R_before = E_int_from_cons(cR->cons);
-
-    // Apply conductive fluxes
-
-    cL->cons[DDD] -= sgn * dM;
-    cR->cons[DDD] += sgn * dM;
-
-    cL->cons[SRR] -= sgn * dP;
-    cR->cons[SRR] += sgn * dP;
-
-    cL->cons[ZZZ] -= sgn * dM_Z;
-    cR->cons[ZZZ] += sgn * dM_Z;
-
-    cL->cons[TAU] -= sgn * dE; // dE already contains both kinetic and thermal energy
-    cR->cons[TAU] += sgn * dE; // dE already contains both kinetic and thermal energy
-
-
-    // const double E_int_L_after = E_int_from_cons(cL->cons);
-    // const double E_int_R_after = E_int_from_cons(cR->cons);
-
-
-    // question: should I only be applying fluxes from 
-    // cold subgrid to hot subgrid, if possible?
-    // That seems like it could lead to errors since the fluxes are 
-    // computed using the total cell values
-    // 
-    // For now, transfer from/to both subgrid components
-    if (cL->multiphase)
-    {
-        // const double dM_L = - sgn * dM;
-        // const double dP_L = - sgn * dP;
-        // const double dE_L = - sgn * dE;
-
-        // const double dE_int_L = E_int_L_after - E_int_L_before;
-        // const double dE_kin_L = dE_L - dE_int_L;
-
-        // const double z_hot_L  = cL->cons_hot[ZZZ]  / cL->cons_hot[DDD];
-        // const double z_cold_L = cL->cons_cold[ZZZ] / cL->cons_cold[DDD];
-
-        cL->cons_hot[DDD]  -= cL->x_hot  * sgn * dM;      
-        cL->cons_cold[DDD] -= cL->x_cold * sgn * dM;     
-
-        cL->cons_hot[SRR]  -= cL->x_hot  * sgn * dP;      
-        cL->cons_cold[SRR] -= cL->x_cold * sgn * dP;    
-
-        cL->cons_hot[ZZZ]  -= cL->x_hot  * cL->z_hot  * sgn * dM;      
-        cL->cons_cold[ZZZ] -= cL->x_cold * cL->z_cold * sgn * dM; 
-
-        // cL->cons_hot[TAU]  += (y_hot_L  * dE_int_L) + (x_hot_L  * dE_kin_L);      
-        // cL->cons_cold[TAU] += (y_cold_L * dE_int_L) + (x_cold_L * dE_kin_L); 
-
-        // cL->cons_hot[TAU]  -= y_hot_L  * sgn * dE;      
-        // cL->cons_cold[TAU] -= y_cold_L * sgn * dE; 
-    }
-
-
-    if (cR->multiphase)
-    {
-
-        // const double dM_R = + sgn * dM;
-        // const double dP_R = + sgn * dP;
-        // const double dE_R = + sgn * dE;
-
-        // const double dE_int_R = E_int_R_after - E_int_R_before;
-        // const double dE_kin_R = dE_R - dE_int_R;
-
-        // const double z_hot_R  = cR->cons_hot[ZZZ]  / cR->cons_hot[DDD];
-        // const double z_cold_R = cR->cons_cold[ZZZ] / cR->cons_cold[DDD];
-
-        cR->cons_hot[DDD]  += cR->x_hot  * sgn * dM;      
-        cR->cons_cold[DDD] += cR->x_cold * sgn * dM;      
-
-        cR->cons_hot[SRR]  += cR->x_hot  * sgn * dP;      
-        cR->cons_cold[SRR] += cR->x_cold * sgn * dP; 
-
-        cR->cons_hot[ZZZ]  -= cR->x_hot  * cR->z_hot  * sgn * dM;      
-        cR->cons_cold[ZZZ] -= cR->x_cold * cR->z_cold * sgn * dM; 
-
-        // cR->cons_hot[TAU]  += (y_hot_R  * dE_int_R) + (x_hot_R  * dE_kin_R);      
-        // cR->cons_cold[TAU] += (y_cold_R * dE_int_R) + (x_cold_R * dE_kin_R);
-
-        // cR->cons_hot[TAU]  += y_hot_R  * sgn * dE;      
-        // cR->cons_cold[TAU] += y_cold_R * sgn * dE; 
-    }
-
-
-
-    // ======== Verify post-conditions ========= //
-    // #ifndef NDEBUG
-
-    // if (dM_dt_sat < dM_dt_unsat)
-    // {
-    //     // // not a post-condition, but a useful diagnostic
-    //     printf("using saturated form of conduction\n");
-    //     printf("T_L = %e \n", T_L);
-    //     printf("T_R = %e \n", T_R);
-
-    //     printf("dT^5/2 = %e \n", std::abs(std::pow(T_R, 5./2.) - std::pow(T_L, 5./2.)));
-
-    //     printf("dM_dt_unsat = %e \n", dM_dt_unsat);
-    //     printf("dM_dt_sat   = %e \n", dM_dt_sat);
-    //     printf("dt          = %e \n", dt);
-    //     printf("M_L         = %e \n", cL->cons[DDD]);
-    //     printf("M_R         = %e \n", cR->cons[DDD]);
-
-    // }
-    // printf("sgn * x = %e \n", sgn * x);
-
-    if (dM < 0)
-    {
-        printf("------ ERROR in thermal_conduction() postconditions------- \n");
-        printf("Negative mass transfered! \n");
-        printf("x = %e \n", x);
-        assert(dM > 0);
-    }
-
-    if( x < 0)
-    {
-        printf("------ ERROR in thermal_conduction() postconditions------- \n");
-        printf("Negative mass fraction transfered! \n");
-        printf("x = %e \n", x);
-        printf("T_L = %e \n", T_L);
-        printf("T_R = %e \n", T_R);
-
-        printf("dM_dt_unsat = %e \n", dM_dt_unsat);
-        printf("dM_dt_sat   = %e \n", dM_dt_sat);
-        assert(x >= 0);
-    } 
-
-    if( x >= 1)
-    {
-        printf("------ ERROR in thermal_conduction() postconditions------- \n");
-        printf("Mass fraction >= 1 transfered! \n");
-        printf("x = %e \n", x);
-        printf("T_L = %e \n", T_L);
-        printf("T_R = %e \n", T_R);
-
-        printf("dM_dt_unsat = %e \n", dM_dt_unsat);
-        printf("dM_dt_sat   = %e \n", dM_dt_sat);
-        assert(x < 1);
-    } 
-
-    if (cL->multiphase)
-    {
-        verify_multiphase_conditions(cL, "thermal_conduction()", "post", "[left] ");
-
-        // if (E_int_from_cons(cL->cons_hot) < 0)
-        // {
-        //     printf("------ERROR in thermal_conduction() postconditions------- \n");
-        //     printf("[left] hot gas *internal* energy less than 0\n");
-        //     printf("[left] E_int (hot)  = %e \n", E_int_from_cons(cL->cons_hot));
-        //     printf("cL->cons_hot[TAU]   = %e \n", cL->cons_hot[TAU]);
-        //     printf("cL->cons[TAU]       = %e \n", cL->cons[TAU]);
-
-        //     assert( E_int_from_cons(cL->cons_hot) > 0 );
-        // }
-
-        // if (E_int_from_cons(cL->cons_cold) < 0)
-        // {
-        //     printf("------ERROR in thermal_conduction() postconditions------- \n");
-        //     printf("[left] cold gas *internal* energy less than 0\n");
-        //     printf("[left] E_int (cold)  = %e \n", E_int_from_cons(cL->cons_cold));
-        //     printf("cL->cons_cold[TAU]   = %e \n", cL->cons_cold[TAU]);
-        //     printf("cL->cons[TAU]        = %e \n", cL->cons[TAU]);
-
-        //     assert( E_int_from_cons(cL->cons_cold) > 0 );
-        // }
-    }
-
-    if (cR->multiphase)
-    {
-        verify_multiphase_conditions(cR, "thermal_conduction()", "post", "[right] ");
-
-
-        // if (E_int_from_cons(cR->cons_hot) < 0)
-        // {
-        //     printf("------ERROR in riemann() postconditions------- \n");
-        //     printf("[right] hot gas *internal* energy less than 0\n");
-        //     printf("[right] E_int (hot) = %e \n", E_int_from_cons(cR->cons_hot));
-        //     printf("cR->cons_hot[TAU]   = %e \n", cR->cons_hot[TAU]);
-        //     printf("cR->cons[TAU]       = %e \n", cR->cons[TAU]);
-
-        //     assert( E_int_from_cons(cR->cons_hot) > 0 );
-        // }
-
-        // if (E_int_from_cons(cR->cons_cold) < 0)
-        // {
-        //     printf("------ERROR in riemann() postconditions------- \n");
-        //     printf("[right] cold gas *internal* energy less than 0\n");
-        //     printf("[right] E_int (cold) = %e \n", E_int_from_cons(cR->cons_cold));
-        //     printf("cR->cons_cold[TAU]   = %e \n", cR->cons_cold[TAU]);
-        //     printf("cR->cons[TAU]        = %e \n", cR->cons[TAU]);
-
-        //     assert( E_int_from_cons(cR->cons_cold) > 0 );
-        // }
-    }
-}
-
 
 void thermal_conduction_explicit( struct domain * theDomain , const double dt )
 {
@@ -2767,6 +2208,7 @@ void thermal_conduction_implicit( struct domain * theDomain , const double dt )
 
 
     // Update cons using the difference in e_int
+    double dE_total = 0;
     for( int i_linsolve=0 ; i_linsolve<num_cells ; ++i_linsolve )
     {
         const int i_cells = i_linsolve + 1; 
@@ -2777,11 +2219,30 @@ void thermal_conduction_implicit( struct domain * theDomain , const double dt )
         const double dE = mass * de_int;
 
         c->cons[TAU] += dE;
+        dE_total += dE;
     }
+    theDomain->energy_added_by_thermal_conduction += dE_total;
 
 
     // ======== Verify post-conditions ========= //
     // #ifndef NDEBUG
+    if(std::abs(dE_total) > (1e51 * 1e-10))
+    {
+        double E_total = 0;
+        for( int i_linsolve=0 ; i_linsolve<num_cells ; ++i_linsolve )
+        {
+            const int i_cells = i_linsolve + 1; 
+            const struct cell * c = &(theCells[i_cells]);
+            E_total += c->cons[TAU];
+        }
+        printf("------ ERROR in thermal_conduction_implicit() postconditions------- \n");
+        printf("dE_total outside of threshold! \n");
+        printf("dE_total  = %e \n", dE_total);
+        printf("E_total   = %e \n", E_total);
+
+        assert(std::abs(dE_total) < (1e51 * 1e-10));   
+    }
+
     for( int i=Ng ; i<Nr-Ng ; ++i )
     {
         struct cell * c = &(theCells[i]);
@@ -3254,6 +2715,8 @@ void turbulent_diffusion_implicit_E_tot_density( struct domain * theDomain ,
         c->cons[TAU] += dE;
         dE_total += dE;
     }
+    theDomain->energy_added_by_turbulent_diffusion += dE_total;
+
 
 
     // ======== Verify post-conditions ========= //
@@ -3272,8 +2735,9 @@ void turbulent_diffusion_implicit_E_tot_density( struct domain * theDomain ,
         printf("dE_total  = %e \n", dE_total);
         printf("E_total   = %e \n", E_total);
 
-            assert(std::abs(dE_total) < (1e51 * 1e-15));   
+        assert(std::abs(dE_total) < (1e51 * 1e-15));   
     }
+
     for( int i=Ng ; i<Nr-Ng ; ++i )
     {
         struct cell * c = &(theCells[i]);
@@ -3832,7 +3296,6 @@ void subgrid_thermal_conduction( struct cell * c , const double dt )
     }
 
     // ======== Verify pre-conditions ========= //
-    const double rel_tol = 1e-5; // relative tolerance for float comparison
     if (c->multiphase)
     {
         verify_multiphase_conditions(c, "subgrid_thermal_conduction()", "pre");

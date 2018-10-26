@@ -27,8 +27,6 @@ void source( struct cell * c ,
              const double R_shock , Cooling * cooling );
 void artificial_conduction( struct cell * cL , struct cell * cR, 
                             const double dA , const double dt );
-void thermal_conduction( struct cell * cL , struct cell * cR, 
-                         const double dA , const double dt );
 void vel( const double * prim1 , const double * prim2 , 
           double * Sl , double * Sr , double * Ss );
 double mindt( const double * prim , const double w , 

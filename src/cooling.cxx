@@ -57,16 +57,8 @@ const std::string Equilibrium_Cooling::class_name = "equilibrium";
 Equilibrium_Cooling::Equilibrium_Cooling( bool with_cooling ) 
     :   Cooling(with_cooling,
         class_name),
-        grid_rank(1),
         field_size(1)
 {
-
-    // for ( int i=0 ; i<3 ; ++i )
-    // {
-    //     grid_start[i] = 0;
-    //     grid_end[i] = field_size - 1;
-    //     grid_dimension[i] = 1;
-    // }
 
 }
 
@@ -82,12 +74,6 @@ double Equilibrium_Cooling::calc_cooling( const double * prim , const double * c
     // declare fluid variable arrays (will need more for other chemistries)
     // gr_float *density, *energy, *x_velocity, *y_velocity, *z_velocity;
     // gr_float *metal_density;
-
-    grackle_field_data my_fields;
-
-    my_fields.grid_dimension = new int[3];
-    my_fields.grid_start = new int[3];
-    my_fields.grid_end = new int[3];
 
     my_fields.density         = new gr_float[field_size];
     my_fields.internal_energy = new gr_float[field_size];
@@ -110,11 +96,7 @@ double Equilibrium_Cooling::calc_cooling( const double * prim , const double * c
         my_fields.z_velocity[i]       = 0;
         my_fields.metal_density[i]    = prim[ZZZ] * my_fields.density[i];
     }
-    for (int i = 0;i < 3;i++) {
-        my_fields.grid_dimension[i] = 1; // the active dimension not including ghost zones.
-        my_fields.grid_start[i] = 0;
-        my_fields.grid_end[i] = field_size-1;
-    }
+
 
     if (solve_chemistry(&cooling_units, &my_fields,
                                 dt / cooling_units.time_units
@@ -128,9 +110,6 @@ double Equilibrium_Cooling::calc_cooling( const double * prim , const double * c
         * cooling_units.velocity_units * cooling_units.velocity_units;
     dE_saved = dE;
 
-    delete my_fields.grid_dimension;
-    delete my_fields.grid_start;
-    delete my_fields.grid_end;
     delete my_fields.density;
     delete my_fields.internal_energy;
     delete my_fields.x_velocity;
@@ -200,5 +179,15 @@ void Equilibrium_Cooling::setup_cooling( const struct domain * theDomain )
     printf("use_grackle: %d \n", grackle_data->use_grackle);
     grackle_verbose=1;
 
+    my_fields.grid_dimension = new int[3];
+    my_fields.grid_start = new int[3];
+    my_fields.grid_end = new int[3];
+
+    for (int i = 0 ; i < 3 ; i++) 
+    {
+        my_fields.grid_dimension[i] = 1; // the active dimension not including ghost zones.
+        my_fields.grid_start[i] = 0;
+        my_fields.grid_end[i] = field_size-1;
+    }
 
 };

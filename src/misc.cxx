@@ -197,6 +197,7 @@ void adjust_RK_cons( struct domain * theDomain , const double RK )
     //            "Total Variation Diminishing Runge-Kutta Schemes"
     //            Mathematics of Computation
     //            http://www.ams.org/journals/mcom/1998-67-221/S0025-5718-98-00913-2/S0025-5718-98-00913-2.pdf
+    //       for 2nd order, see equation 2.4
     //
     // ============================================= //
 
@@ -572,8 +573,8 @@ void radial_flux( struct domain * theDomain , const double dt )
             printf("i = %d (radial_flux() -- multiphase))\n", i);
         }
         riemann( cL , cR , r , dA , dt );
-        // thermal_conduction( cL , cR , dA , dt ); // Keller's inter-cell conduction
-        // subgrid_thermal_conduction(cL, dt);
+        // artificial_conduction( cL , cR , dA , dt ); // Noh's artificial conduction
+        // subgrid_thermal_conduction(cL, dt); // Keller's inter-cell conduction
     }
 
     if(theDomain->theParList.with_physical_conduction)

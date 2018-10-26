@@ -171,23 +171,17 @@ void substep( struct domain * theDomain , double RK ,
     update_initial_energies( theDomain );
 
     EnergyChecker energy_checker_flux(theDomain, "radial_flux");
-    // energy_checker_flux.set( theDomain );
     radial_flux( theDomain , dt );
     energy_checker_flux.check( theDomain );
 
     EnergyChecker energy_checker_source(theDomain, "add_source");
-    // energy_checker_source.set( theDomain );
     add_source( theDomain , dt , cooling );
     if(!theDomain->theParList.With_Cooling) energy_checker_source.check( theDomain );
 
     EnergyChecker energy_checker_move_cells(theDomain, "move_cells");
-    // energy_checker_move_cells.set( theDomain );
     if( first_step ) move_cells( theDomain , dt );
     calc_dr( theDomain );
     energy_checker_move_cells.check( theDomain );
-
-
-
 
     // fix_negative_energies( theDomain );
 
@@ -196,7 +190,6 @@ void substep( struct domain * theDomain , double RK ,
     if( last_step )
     {
         EnergyChecker energy_checker_amr(theDomain, "AMR");
-        // energy_checker_amr.set( theDomain );
         AMR( theDomain );
         energy_checker_amr.check( theDomain );
 
@@ -207,7 +200,6 @@ void substep( struct domain * theDomain , double RK ,
 
     }
     EnergyChecker energy_checker_boundary(theDomain, "boundary");
-    // energy_checker_boundary.set( theDomain );
     boundary( theDomain );
     energy_checker_boundary.check( theDomain );
 
