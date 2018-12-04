@@ -72,6 +72,9 @@ double getmindt( const struct domain * theDomain )
 
         if(theDomain->theParList.with_physical_conduction)
         {
+            const double electron_charge = 4.8032047e-10; // Fr
+            const double electron_mass = 9.109383e-28;
+
             const double gamma = 5. / 3.;
             const double mu = get_mean_molecular_weight(c->prim[ZZZ]);
             const double e_int = c->prim[PPP] / c->prim[RHO] / (gamma-1);
@@ -84,10 +87,19 @@ double getmindt( const struct domain * theDomain )
             const double C_sat = 5 * phi_s * std::pow(gamma-1, 3./2.) 
                 * std::pow(e_int, .5);
 
-            const double dt_unsat = dr*dr / C_unsat;
+
+            const double C_spitzer = std::pow(e_int, 5./2.) 
+                * std::pow( mu * m_proton * ((5./3.)-1) , 7./2.)
+                / (std::pow(electron_mass, .5) * std::pow(electron_charge, 4.)) ;
+
+
+            // const double dt_unsat = dr*dr / C_unsat;
+            const double dt_unsat = dr*dr / C_spitzer;
+
             const double dt_sat = dr / C_sat / 5.;
 
-            const double dt_conduction = std::max(dt_unsat, dt_sat);
+            // const double dt_conduction = std::max(dt_unsat, dt_sat);
+            const double dt_conduction = dt_unsat;
             if(dt_conduction < dt_temp)
             {
                 printf("replacing dt_temp (%e) with dt_conduction (%e)\n",
@@ -585,10 +597,14 @@ void radial_flux( struct domain * theDomain , const double dt )
 
     if(theDomain->theParList.with_turbulent_diffusion)
     {
-        turbulent_diffusion_implicit_mass_density(  theDomain , dt );
-        turbulent_diffusion_implicit_momentum_density(  theDomain , dt );
-        turbulent_diffusion_implicit_E_tot_density( theDomain , dt );
-        turbulent_diffusion_implicit_metal_density( theDomain , dt );
+        // turbulent_diffusion_implicit_mass_density(  theDomain , dt );
+        // turbulent_diffusion_implicit_momentum_density(  theDomain , dt );
+        // turbulent_diffusion_implicit_E_tot_density( theDomain , dt );
+        // turbulent_diffusion_implicit_metal_density( theDomain , dt );
+
+        EnergyChecker energy_checker_turb(theDomain, "turbulent_diffusion_implicit");
+        turbulent_diffusion_implicit( theDomain , dt );
+        energy_checker_turb.check( theDomain );
     }
 
 }

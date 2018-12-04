@@ -64,6 +64,8 @@ void turbulent_diffusion_implicit_E_tot_density( struct domain * theDomain ,
 void turbulent_diffusion_implicit_metal_density( struct domain * theDomain ,
                                                  const double dt );
 
+void turbulent_diffusion_implicit( struct domain * theDomain ,
+                                   const double dt );
 
 
 void U_i_to_prim( const double * U , double * prim , const int i );
@@ -88,6 +90,17 @@ void thermal_conduction_apply_linsolve( const double * e_int_old ,
                                 const int num_cells ,
                                 const int verbose );
 
+void spitzer_thermal_conduction_apply_linsolve( const double * e_int_old ,
+                                const double * e_int_guess ,
+                                double * e_int_new ,
+                                const double * r ,
+                                const double * V ,
+                                const double * rho ,
+                                const double * mu ,
+                                const double dt ,
+                                const int num_cells ,
+                                const int verbose );
+
 void turbulent_diffusion_apply_linsolve( const double * Y_old ,
                                          const double * Y_guess ,
                                          double * Y_new ,
@@ -99,6 +112,22 @@ void turbulent_diffusion_apply_linsolve( const double * Y_old ,
                                          const int num_cells ,
                                          const int verbose ,
                                          const bool allow_negatives = false );
+double turbulent_diffusion_calculate_b(
+    const double r_left ,
+    const double r_right ,
+    const double v_left ,
+    const double v_right ,
+    const double C_turbulent_diffusion 
+     );
+
+void turbulent_diffusion_get_fluxes( const double * densities , 
+                                           double * mass_fluxes ,
+                                     const double * r ,
+                                     const double * v ,
+                                     const double C_turbulent_diffusion ,
+                                     const int num_cells ,
+                                     const int verbose = 0 );
+
 
 double max_norm( const double * A , const double * B, const int size );
 

@@ -105,6 +105,8 @@ struct domain{
     double R_shock;
 
     double energy_added_by_cooling;
+    double energy_added_by_turbulent_diffusion;
+    double energy_added_by_thermal_conduction;
 
 
 };

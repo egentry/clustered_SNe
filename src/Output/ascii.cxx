@@ -66,11 +66,35 @@ void create_checkpoint( struct domain * theDomain , const char * filestart ,
     }
     fclose( pFile );
 
+    #ifndef NDEBUG
     printf("total energy of all cells = %e ergs \n", 
         total_energy_of_all_cells(theDomain));
     printf("total energy of all cells = %e ergs (from prims)\n",
         total_energy_of_all_cells_from_prim(theDomain));
+
+    // note, these are approximately _upper limits_ on the 
+    // contributions from each.  This is because it is somewhat
+    // double counting (or more like 1.5x counting) the change
+    // during a 2nd-order Runge Kutta step
+    if( theDomain->theParList.With_Cooling )
+    {
+    printf("energy added by cooling (only counting timesteps with net increase)  = %.2e ergs \n", 
+        theDomain->energy_added_by_cooling);
+    }
+
+    if( theDomain->theParList.with_turbulent_diffusion )
+    {
+    printf("net energy added by turbulent diffusion errors  = %.2e ergs \n", 
+        theDomain->energy_added_by_turbulent_diffusion);
+    }
+
+    if( theDomain->theParList.with_physical_conduction )
+    {
+    printf("net energy added by thermal conduction errors  = %.2e ergs \n", 
+        theDomain->energy_added_by_thermal_conduction);
+    }
     fflush(stdout);
+    #endif
 
 
 }

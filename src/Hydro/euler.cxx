@@ -1483,6 +1483,9 @@ void thermal_conduction_apply_linsolve( const double * e_int_old ,
                                          * (std::pow(e_int_R, 7./2.) - std::pow(e_int_L, 7./2.) ) 
                                          / dr;
 
+
+
+
         // calculate *SATURATED* flux
         const double phi_s = 1.1; // see note near Eq. 8 of Cowie & McKee 1977
         const double Q_sat = - sgn * 5 
@@ -1554,9 +1557,13 @@ void thermal_conduction_apply_linsolve( const double * e_int_old ,
                 }
             }
 
+
             const double C_unsat = kappa_0 
                 * std::pow( mu_average * m_proton * (GAMMA_LAW-1) / k_boltzmann , 7./2.)
                 * std::pow(e_int_average, 5./2.) ;
+
+
+
 
 
             A_matrix[index_2d_to_1d(i, i, 
@@ -1781,6 +1788,334 @@ void thermal_conduction_apply_linsolve( const double * e_int_old ,
     delete[] A_matrix;
 }
 
+void spitzer_thermal_conduction_apply_linsolve( const double * e_int_old , 
+                                const double * e_int_guess , 
+                                double * e_int_new , 
+                                const double * r ,
+                                const double * V ,
+                                const double * rho ,
+                                const double * mu ,
+                                const double dt ,
+                                const int num_cells ,
+                                const int verbose )
+{
+
+    // ============================================= //
+    //
+    //  Linearizes and solves the conduction equation for an implicit _guess_
+    //  of e_int_guess. Returns a linearized solution e_int_new. 
+    //  For Picard iteration, e_int_new becomes e_int_guess of the next iteration.
+    //
+    //  Inputs:
+    //    - e_int_old, e_int_guess, e_int_new
+    //        - array of internal energy per unit mass
+    //        - has length num_cells
+    //        - e_int_new is an output, and can be garbage on input
+    //    - r  - array of cell-centered radii for each cell
+    //    - V   - array of cell volumes
+    //    - mu  - array of cell mean molecular weights
+    //    - rho - array of cell densities
+    //    - dt  - timestep
+    //    - num_cells - the number of cells considered, not including guard cells
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - e_int_new completely overwritten with result
+    //
+    //  Notes:
+    //    - The banded matrix solver we use is LAPACKE_dgbsv
+    //      (This uses the c binding for the fortran LAPACK package)
+    //    - For a good example of using LAPACK from c, and for the 
+    //      indexing convention, check out:
+    //      http://www.netlib.org/lapack/explore-html/d8/dd5/example___d_g_e_l_s__rowmajor_8c_source.html
+    //    - I chose a banded diagonal solver when I was trying to solve a more
+    //      complex problem. In principle, you could go back to using a simpler
+    //      tri-diagonal solver, but I've got this debugged already
+    //
+    // ============================================= // 
+
+    if(verbose)
+    {
+        printf("just entered thermal_conduction_apply_linsolve\n");
+        fflush(stdout);
+    }
+
+
+
+    const int system_rank = num_cells;
+
+    // Declare and initialize matrices so we can do:
+    // A x = b
+    // where b is `e_int_old`
+    // and A is determined using `e_int_guess`
+
+    double *A_matrix = new double[system_rank*system_rank];
+
+    // initialize linear algebra containers
+    for( int i=0 ; i<system_rank ; ++i )
+    {
+        for( int j=0 ; j<system_rank ; ++j )
+        {
+            A_matrix[index_2d_to_1d(i, j, system_rank, system_rank)] = 0.;
+        }
+    }
+
+    if(verbose)
+    {
+        printf("adding identity matrix\n");
+        fflush(stdout);
+    }
+
+    // add identity along diagonal
+    for( int i=0 ; i<system_rank ; ++i )
+    {
+        A_matrix[index_2d_to_1d(i, i, system_rank, system_rank)] = 1.;
+    }
+
+    for( int i=0 ; i<(num_cells-1) ; ++i )
+    {
+        // this is interface i + 1/2
+        const double r_interface = (r[i+1] + r[i]) / 2.;
+        const double dA = get_dA(r_interface);
+        const double dr = r[i+1] - r[i];
+
+        const double mu_L = mu[i];
+        const double mu_R = mu[i+1];
+
+        const double e_int_L = e_int_guess[i];
+        const double e_int_R = e_int_guess[i+1];
+
+        const double T_L = (mu_L * m_proton * (GAMMA_LAW-1) / k_boltzmann) * e_int_L;
+        const double T_R = (mu_R * m_proton * (GAMMA_LAW-1) / k_boltzmann) * e_int_R;
+
+        // first, check if the temperatures are relatively close
+        // then, check if there are effectively equal
+        // if so, skip the conduction routine 
+        //    (if you don't you might get silent divide-by-zero errors leading to NaN energy flux)
+        if (std::abs(std::log10(T_L/T_R)) < 1)
+        {
+            if (std::abs(1 - (T_L/T_R)) < .01)
+            {
+                // effectively no temperature gradient; don't apply conduction
+                // otherwise you get silent divide-by-zero errors, leading to 
+                // fluxes that are NaN's
+                continue;
+            }
+        }
+
+        // okay, so now we need to know if it's going to be saturated or unsaturated.
+        // The only real way to do this is actually calculate the energy flux.
+
+        double rho_upwind;
+        double e_int_upwind;
+
+        int sgn; // sign of dT/dr deriv; (+1 if energy is transfered left, -1 if energy transfered right)
+        int i_upwind;
+        int i_downwind;
+        if( e_int_L > e_int_R )
+        {   
+            i_upwind   = i;
+            i_downwind = i+1;
+            sgn        = -1;
+            // left cell is hotter and therefore "upwind"
+            rho_upwind = rho[i_upwind];
+            e_int_upwind = e_int_guess[i_upwind];
+        }
+        else
+        {
+            i_upwind   = i + 1;
+            i_downwind = i;
+            sgn        = +1;
+            // right cell is hotter and therefore "upwind"
+            rho_upwind = rho[i_upwind];
+            e_int_upwind = e_int_guess[i_upwind];
+        }
+
+        const double mu_average = (mu_L + mu_R) / 2.;
+        const double e_int_average = (e_int_L + e_int_R) / 2.;
+
+
+        const double electron_charge = 4.8032047e-10; // Fr
+        const double electron_mass = 9.109383e-28;
+
+        const double C_spitzer = std::pow(e_int_average, 5./2.) 
+                * std::pow( mu_average * m_proton * (GAMMA_LAW-1) , 7./2.)
+                / (std::pow(electron_mass, .5) * std::pow(electron_charge, 4.)) ;
+
+
+
+
+
+        A_matrix[index_2d_to_1d(i, i, 
+                                system_rank, system_rank)] += C_spitzer
+            * dA
+            * dt
+            / (V[i] * rho[i])
+            / dr;
+
+        A_matrix[index_2d_to_1d(i, i+1, 
+                                system_rank, system_rank)] -= C_spitzer
+            * dA
+            * dt
+            / (V[i] * rho[i])
+            / dr;
+
+
+        A_matrix[index_2d_to_1d(i+1, i, 
+                                system_rank, system_rank)] -= C_spitzer
+            * dA
+            * dt
+            / (V[i+1] * rho[i+1])
+            / dr;
+
+
+        A_matrix[index_2d_to_1d(i+1, i+1, 
+                                system_rank, system_rank)] += C_spitzer
+            * dA
+            * dt
+            / (V[i+1] * rho[i+1])
+            / dr;
+    }
+
+
+    for (int i=0 ; i<system_rank*system_rank; ++i)
+    {
+        if (!std::isfinite(A_matrix[i]))
+        {
+            printf("Non-finite value: A_matrix[i=%d]=%e\n", i, A_matrix[i]);
+            assert(std::isfinite(A_matrix[i]));
+        }
+    }
+
+    // Now it's time to call LAPACKE_dgbsv
+    // here are the docs: http://www.netlib.org/lapack/explore-html/d3/d49/group__double_g_bsolve_gafa35ce1d7865b80563bbed6317050ad7.html#gafa35ce1d7865b80563bbed6317050ad7
+
+    lapack_int N = system_rank;
+    lapack_int KL = 1;
+    lapack_int KU = 1;
+    lapack_int NRHS = 1;
+    // lapack_int LDAB = (2*KL) + KU + 1
+    lapack_int LDAB = N; // LAPACKE enforces LDAB >= N
+    double *AB = new double[N*N]();
+    lapack_int IPIV[N];
+    lapack_int LDB = NRHS; // The documentation makes this sound like N, but it actually needs NRHS...
+
+    double B[system_rank][1];
+    for( int i=0; i<system_rank; ++i)
+    {
+        B[i][0] = e_int_old[i];
+    }
+
+    // it'll be less bug-prone if I just use their conventions,
+    // and switch it back to 0 indexing at the end
+    // And yes, I really do mean <= for the stopping conditions
+    for( int j_fortran=1 ; j_fortran<=N ; ++j_fortran )
+    {
+        for( int i_fortran=std::max(1, j_fortran-KU) ; 
+                 i_fortran<=std::min(N, j_fortran+KL) ;
+                 ++i_fortran)
+        {
+            AB[index_2d_to_1d(KL + KU + 1 + i_fortran - j_fortran - 1, j_fortran-1,
+                              N, N)] = A_matrix[index_2d_to_1d(i_fortran-1, j_fortran-1,
+                                                               system_rank, system_rank)];
+        }
+    }
+
+
+    if(verbose)
+    {
+        printf("about to call LAPACKE_dgbsv\n");
+        fflush(stdout);
+    }
+
+    lapack_int INFO; // result status: 0 for success, <0 for (-INFO)th argument invalid; >0 and U(INFO, INFO)=0 for singular matrix and failed solution
+    INFO = LAPACKE_dgbsv(LAPACK_ROW_MAJOR,
+        N, // the number of linear equations
+        KL, // number of subdiagonals within the band
+        KU, // number of superdiagonals within the band
+        NRHS, // number of right hand sides (i.e. number of columns in B)
+        AB, // on input, this is matrix A *in band storage*; on exit it's the factorization
+        LDAB, // leading dimension of array AB (I think this is just N for me?)
+        IPIV, // pivot indices; just an output I don't need (size N)
+        *B, // B, on input it's B (NxNRHS); on exist if INFO=0, it's solution X
+        LDB // The documentation makes this sound like N, but it actually needs NRHS...
+        );
+
+    if( INFO > 0 )
+    {
+        printf("INFO positive. (INFO = %d)\n", INFO);
+        printf("That means it hit a singular matrix and failed.\n");
+        fflush(stdout);
+        assert(INFO==0);
+    }
+    else if( INFO < 0 )
+    {
+        printf("INFO negative. (INFO = %d)\n", INFO);
+        printf("That means %dth input was invalid.\n", -INFO);
+        fflush(stdout);
+        assert(INFO==0);
+    }
+
+
+    for( int i=0 ; i<N ; ++i)
+    {
+        e_int_new[i] = B[i][0];
+    }
+
+
+    // ======== Verify post-conditions ========= //
+    // #ifndef NDEBUG
+    for( int i=0 ; i<num_cells ; ++i)
+    {
+        if( (i==0) && (verbose) )
+        {
+            printf("------ TEST in thermal_conduction_apply_linsolve() postconditions------- \n");
+            printf("e_int_old[  i] = %e\n", e_int_old[i]);
+            printf("e_int_guess[i] = %e\n", e_int_guess[i]);
+            printf("e_int_new[  i] = %e\n", e_int_new[i]);
+
+            printf("e_int_old[  i+1] = %e\n", e_int_old[  i+1]);
+            printf("e_int_guess[i+1] = %e\n", e_int_guess[i+1]);
+            printf("e_int_new[  i+1] = %e\n", e_int_new[  i+1]);
+
+            const double mu_L = mu[i];
+            const double mu_R = mu[i+1];
+
+            const double mu_RR = mu[i+1];
+
+            const double T_L_new = (mu_L * m_proton * (GAMMA_LAW-1) / k_boltzmann) * e_int_new[i];
+            const double T_R_new = (mu_R * m_proton * (GAMMA_LAW-1) / k_boltzmann) * e_int_new[i+1];
+            const double T_RR_new = (mu_RR * m_proton * (GAMMA_LAW-1) / k_boltzmann) * e_int_new[i+2];
+
+            printf("T_L_new = %e\n", T_L_new);
+            printf("T_R_new = %e\n", T_R_new);
+            printf("T_RR_new = %e\n", T_RR_new);
+
+            printf("dt = %e [s]\n", dt);
+        }
+
+        if( e_int_new[i] < 0 )
+        {
+            printf("------ ERROR in thermal_conduction_apply_linsolve() postconditions------- \n");
+            printf("Negative specific internal energy within cell i=%d!\n", i);
+            printf("e_int_old[  i] = %e\n", e_int_old[  i]);
+            printf("e_int_guess[i] = %e\n", e_int_guess[i]);
+            printf("e_int_new[  i] = %e\n", e_int_new[  i]);
+            printf("dt = %e [s]\n", dt);
+
+            fflush(stdout);
+
+            assert(e_int_new[i] > 0);
+        }
+    }
+    // #endif
+
+    delete[] AB;
+    delete[] A_matrix;
+}
+
 void turbulent_diffusion_apply_linsolve( const double * Y_old , 
                                          const double * Y_guess , 
                                          double * Y_new , 
@@ -1798,6 +2133,10 @@ void turbulent_diffusion_apply_linsolve( const double * Y_old ,
     //
     //  Note: this applies diffusion on a conservative variable _per unit volume_.
     //  e.g. it applies to metal density, not metallicity.
+    //
+    //  Also note, this doesn't actually need to be iterated on! Since the 
+    //  matrix _never changes_ (since I don't update v), it only needs one
+    //  linear solve.
     //
     //  Linearizes and solves the turbulent diffusion equation for an implicit 
     //  _guess_ of Y_guess. Note: this part doesn't care about what `Y` is,
@@ -1885,42 +2224,10 @@ void turbulent_diffusion_apply_linsolve( const double * Y_old ,
 
     for( int i=0 ; i<(num_cells-1) ; ++i )
     {
-        // this is interface i + 1/2
-        const double r_interface = (r[i+1] + r[i]) / 2.;
-        const double dr = r[i+1] - r[i];
 
-        // // // Create diffusion coefficient, D = C |S| h^2
-
-        const double dv_dr = (v[i+1] - v[i]) / dr;
-        const double v_interface = (v[i+1] + v[i]) / 2;
-
-        if(std::abs(dv_dr - (v_interface / r_interface)) < 1. / pc_unit )
-        {
-            // | dv/dr  - (v/r)| < 1 cm/s / pc
-            // velocity term negligible; don't waste time on noise
-            continue;
-        }
-
-        const double S_mag = std::sqrt(2./3.) 
-                             * std::abs(dv_dr - (v_interface/r_interface));
-        const double D = C_turbulent_diffusion * S_mag * std::pow(dr, 2.);
-        const double b = 4. * M_PI * std::pow(r_interface, 2.) * D / dr;
-
-        if( b < 0 )
-        {
-            printf("Value Error: b = %e  but should be non-negative for interface between cells %d and %d\n", 
-                b, i, i+1);
-            fflush(stdout);
-            assert(b >= 0);
-        }
-
-        if( !std::isfinite(b) )
-        {
-            printf("Value Error: b =  %e for interface between cells %d and %d\n", 
-                b, i, i+1);
-            fflush(stdout);
-            assert(std::isfinite(b));
-        }
+        const double b = turbulent_diffusion_calculate_b(r[i], r[i+1],
+                                                         v[i], v[i+1], 
+                                                         C_turbulent_diffusion);
 
         A_matrix[index_2d_to_1d(i, i, 
                                 system_rank, system_rank)] += b
@@ -2072,6 +2379,161 @@ void turbulent_diffusion_apply_linsolve( const double * Y_old ,
     delete[] A_matrix;
 }
 
+double turbulent_diffusion_calculate_b(
+    const double r_left ,
+    const double r_right ,
+    const double v_left ,
+    const double v_right ,
+    const double C_turbulent_diffusion
+     )
+{
+    // ============================================= //
+    //
+    //  Calculates the prefactor for artificial turbulent diffusion.
+    //
+    //  This prefactor is not a commonly recognized definition; it's just a way
+    //  to make my math a little simpler, and allows the core turbulent diffusion
+    //  prescription to be reused in multiple areas without having to copy and
+    //  and paste.
+    // 
+    //  This prefactor is defined such that the mass fluxes in spherical 
+    //  symmetry are simply: 
+    //      mass flux_{i + 1/2} = - b * (density_{i+1} - density_{i})
+    //  The general ideal is described at:
+    //    https://github.com/egentry/clustered_SNe/wiki/Turbulent-diffusion-prescription
+    //  I haven't yet pushed my notebook going more into the math, but it
+    //    *might* be visible here:
+    //    https://www.dropbox.com/s/xowqsculq4t6yzf/turbulent%20diffusion%20write%20up.ipynb?dl=0
+    //
+    //
+    //  Inputs:
+    //    - r_left, r_right
+    //        - cell-centered radii for the left and right cells ("right" means
+    //          larger radius)
+    //    - v_left, v_right
+    //        - fluid velocities for the left and right cells
+    //    - C_turbulent_diffusion - scales the location-variable diffusion coeff.
+    //                              ( D = C |S| h^2 )
+    //
+    //  Returns:
+    //    - turbulent_diffusion_b
+    //      - should always be non-negative
+    //      - may be zeroed out for small values to avoid numerical noise
+    //
+    // ============================================= // 
+
+        // this is interface i + 1/2
+        const double r_interface = (r_right + r_left) / 2.;
+        const double dr = r_right - r_left;
+
+        // // // Create diffusion coefficient, D = C |S| h^2
+
+        const double dv_dr = (v_right - v_left) / dr;
+        const double v_interface = (v_right + v_left) / 2;
+
+        if(std::abs(dv_dr - (v_interface / r_interface)) < 1. / pc_unit )
+        {
+            // | dv/dr  - (v/r)| < 1 cm/s / pc
+            // velocity term negligible; don't waste time on noise
+            return 0;
+        }
+
+        const double S_mag = std::sqrt(2./3.) 
+                             * std::abs(dv_dr - (v_interface/r_interface));
+        const double D = C_turbulent_diffusion * S_mag * std::pow(dr, 2.);
+        const double turbulent_diffusion_b = 4. * M_PI * std::pow(r_interface, 2.) * D / dr;
+
+        // verify postconditions
+        #ifndef NDEBUG
+        if( turbulent_diffusion_b < 0 )
+        {
+            printf("Value Error: turbulent_diffusion_b = %e but should be non-negative\n" ,
+                turbulent_diffusion_b);
+            fflush(stdout);
+            assert(turbulent_diffusion_b >= 0);
+        }
+
+        if( !std::isfinite(turbulent_diffusion_b) )
+        {
+            printf("Value Error: turbulent_diffusion_b =  %e for interface \n", 
+                turbulent_diffusion_b);
+            fflush(stdout);
+            assert(std::isfinite(turbulent_diffusion_b));
+        }
+        #endif
+
+        return turbulent_diffusion_b;
+}
+
+
+void turbulent_diffusion_get_fluxes( const double * densities , 
+                                           double * mass_fluxes ,
+                                     const double * r ,
+                                     const double * v ,
+                                     const double C_turbulent_diffusion ,
+                                     const int num_cells ,
+                                     const int verbose )
+{
+
+    // ============================================= //
+    //
+    //  Calculates the mass fluxes between all cells using the artificial
+    //  turbulent diffusion prescription given an array of densities.
+    // 
+    //  This will look a little different from `turbulent_diffusion_apply_linsolve`
+    //  because this will look more like the explicit approach to dealing with
+    //  diffusion. The key difference from a true explicit approach is that
+    //  here we take a field of densities which _are not_ the current densities.
+    //  Instead, we should be using the densities _which will result from the
+    //  calculated fluxes_ (making this approach implicit).
+    //
+    //  The reason why we aren't simply using the already-calculated new densities
+    //  is that we to make sure those mass fluxes also carry corresponding
+    //  fluxes of the other conservatives, proportional to the mass flux. 
+    //  I.e. the energy flux should be:
+    //     energy_flux = cell_energy * (mass_flux / cell_mass)
+    //
+    //  Inputs:
+    //    - densities
+    //        - array of densities, not including ghost zones
+    //        - has length num_cells
+    //    - mass_fluxes
+    //        - array of _output_ mass fluxes
+    //        - has length of num_cells-1
+    //        - can be garbage on input
+    //        - if mass_fluxes[i] is positive, means flux from cell i to i+1
+    //          if negative, means flux from cell i+1 to i
+    //    - r   - array of cell-centered radii for each cell
+    //    - v - array of cell fluid velocities
+    //    - C_turbulent_diffusion - scales the location-variable diffusion coeff.
+    //                              ( D = C |S| h^2 )
+    //    - num_cells - the number of cells considered, not including guard cells
+    //    - verbose
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - mass_fluxes completely overwritten with result
+    //
+    // ============================================= // 
+
+
+    if(verbose)
+    {
+        printf("just entered turbulent_diffusion_get_fluxes\n");
+        fflush(stdout);
+    }
+ 
+    for( int i=0 ; i<(num_cells-1) ; ++i )
+    {
+        const double b = turbulent_diffusion_calculate_b(r[i], r[i+1],
+                                                         v[i], v[i+1],
+                                                         C_turbulent_diffusion );
+        mass_fluxes[i] = - b * (densities[i+1] - densities[i]);
+    }
+}
+
 void U_i_to_prim( const double * U , double * prim , const int i )
 {
 
@@ -2191,6 +2653,9 @@ void thermal_conduction_implicit( struct domain * theDomain , const double dt )
                                             double * values_new) {
         thermal_conduction_apply_linsolve(values_old, values_guess, values_new, 
                                   r, V, rho, mu, dt, num_cells, 0 );
+        // spitzer_thermal_conduction_apply_linsolve(values_old, values_guess, values_new, 
+        //                           r, V, rho, mu, dt, num_cells, 0 );
+
     };
 
     if(theDomain->theParList.with_anderson_acceleration)
@@ -2462,7 +2927,7 @@ void turbulent_diffusion_implicit_E_int_density( struct domain * theDomain ,
     // printf("Entered turbulent_diffusion_implicit_E_int_density\n");
     // fflush(stdout);
 
-    assert(false); // deprecated in favor of turbulent_diffusion_implicit_E_tot_density
+    assert(false); // deprecated in favor of turbulent_diffusion_implicit
 
     struct cell * theCells = theDomain->theCells;
     const int Nr = theDomain->Nr;
@@ -2637,6 +3102,8 @@ void turbulent_diffusion_implicit_E_tot_density( struct domain * theDomain ,
 
     // printf("Entered turbulent_diffusion_implicit_E_tot_density\n");
     // fflush(stdout);
+
+    assert(false); // deprecate in favor of turbulent_diffusion_implicit()
 
     struct cell * theCells = theDomain->theCells;
     const int Nr = theDomain->Nr;
@@ -2817,6 +3284,8 @@ void turbulent_diffusion_implicit_momentum_density( struct domain * theDomain ,
     // printf("Entered turbulent_diffusion_implicit_momentum_density\n");
     // fflush(stdout);
 
+    assert(false); // deprecate in favor of turbulent_diffusion_implicit()
+
     struct cell * theCells = theDomain->theCells;
     const int Nr = theDomain->Nr;
     const int Ng = theDomain->Ng;
@@ -2991,6 +3460,8 @@ void turbulent_diffusion_implicit_metal_density( struct domain * theDomain ,
     // printf("Entered turbulent_diffusion_implicit_metal_density\n");
     // fflush(stdout);
 
+    assert(false); // deprecate in favor of turbulent_diffusion_implicit()
+
     struct cell * theCells = theDomain->theCells;
     const int Nr = theDomain->Nr;
     const int Ng = theDomain->Ng;
@@ -3108,7 +3579,6 @@ void turbulent_diffusion_implicit_metal_density( struct domain * theDomain ,
 
 }
 
-
 void turbulent_diffusion_implicit_mass_density( struct domain * theDomain , 
                                                 const double dt )
 {
@@ -3145,6 +3615,7 @@ void turbulent_diffusion_implicit_mass_density( struct domain * theDomain ,
     // printf("Entered turbulent_diffusion_implicit_mass_density\n");
     // fflush(stdout);
 
+    assert(false); // deprecate in favor of turbulent_diffusion_implicit()
 
     struct cell * theCells = theDomain->theCells;
     const int Nr = theDomain->Nr;
@@ -3250,6 +3721,201 @@ void turbulent_diffusion_implicit_mass_density( struct domain * theDomain ,
         if( c->cons[ZZZ] <= 0 )
         {
             printf("------ ERROR in turbulent_diffusion_implicit_mass_density() postconditions------- \n");
+            printf("Cell i=%d has negative metal content! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[ZZZ] > 0);
+        }
+    }
+    // #endif
+
+}
+
+
+void turbulent_diffusion_implicit( struct domain * theDomain , 
+                                   const double dt )
+{
+    // ============================================= //
+    //
+    //  Calculate and apply mass-tracing fluxes due to unresolved
+    //  turbulent mixing.
+    //
+    //  This'll first calculate the mass fluxes implicitly, then will scale those
+    //  fluxes to the other conserved variables.
+    //
+    //  The general ideal is described at:
+    //    https://github.com/egentry/clustered_SNe/wiki/Turbulent-diffusion-prescription
+    //  I haven't yet pushed my notebook going more into the math, but it
+    //    *might* be visible here:
+    //    https://www.dropbox.com/s/xowqsculq4t6yzf/turbulent%20diffusion%20write%20up.ipynb?dl=0
+    //
+    //  Inputs:
+    //    - theDomain    - the standard domain struct used throughout
+    //    - dt           - timestep [s]
+    //
+    //  Returns:
+    //       void
+    //
+    //  Side effects:
+    //    - affects cons for each cell.
+    //
+    //  Notes:
+    //    - The banded matrix solver we use is LAPACKE_dgbsv
+    //      (This uses the c binding for the fortran LAPACK package)
+    //    - For a good example of using LAPACK from c, and for the 
+    //      indexing convention, check out:
+    //      http://www.netlib.org/lapack/explore-html/d8/dd5/example___d_g_e_l_s__rowmajor_8c_source.html
+    //
+    // ============================================= // 
+
+    // printf("Entered turbulent_diffusion_implicit\n");
+    // fflush(stdout);
+
+
+    struct cell * theCells = theDomain->theCells;
+    const int Nr = theDomain->Nr;
+    const int Ng = theDomain->Ng;
+
+    const int num_cells = Nr-Ng-Ng;
+
+    double mass_density_old[num_cells];
+    double mass_density_guess[num_cells];
+    double mass_density_new[num_cells];
+
+    double r[num_cells];
+    double Vol[num_cells];
+    double v[num_cells];
+
+    for( int i_old_arrays=Ng ; i_old_arrays<Nr-Ng ; ++i_old_arrays )
+    {
+        const struct cell * c = &(theCells[i_old_arrays]);
+
+        const int i_new_arrays = i_old_arrays - 1;
+
+        r[i_new_arrays] = c->riph - (c->dr/2.); // cell *centered* radius
+        Vol[i_new_arrays] = get_dV(c->riph, c->riph - c->dr); // cell volume
+
+        v[i_new_arrays] = c->prim[VRR];
+
+        mass_density_old[i_new_arrays] = c->prim[RHO];
+    }
+
+    // initialize my first mass_density_guess using the previous conditions
+    for( int i=0 ; i<num_cells ; ++i )
+    {
+        mass_density_guess[i] = mass_density_old[i];
+    }
+
+    std::function<void(const double *, 
+                       const double *, 
+                             double *)> lambda_apply_linsolve = [&] (const double * values_old,
+                                            const double * values_guess,
+                                            double * values_new) {
+        turbulent_diffusion_apply_linsolve(values_old, values_guess, values_new,
+                                           r, Vol, v, dt, 
+                                           theDomain->theParList.C_turbulent_diffusion,
+                                           num_cells, 0 );
+    };
+
+    if(theDomain->theParList.with_anderson_acceleration)
+    {
+        Anderson_acceleration(mass_density_old, mass_density_guess, 
+                              mass_density_new,
+                              num_cells, lambda_apply_linsolve,
+                              "turbulent_diffusion_implicit");
+    }
+    else
+    {
+        Picard_iteration(mass_density_old, mass_density_guess, mass_density_new,
+                         num_cells, lambda_apply_linsolve,
+                         "turbulent_diffusion_implicit");
+    }
+
+    double mass_fluxes[num_cells-1];
+    turbulent_diffusion_get_fluxes(mass_density_new, mass_fluxes,
+                                   r, v, 
+                                   theDomain->theParList.C_turbulent_diffusion,
+                                   num_cells);
+
+
+    // Update cons using mass-tracing fluxes
+    for( int i_linsolve=0 ; i_linsolve<num_cells-1 ; ++i_linsolve )
+    {
+        const int i_cells = i_linsolve + 1; 
+        struct cell * c_left = &(theCells[i_cells]);
+        struct cell * c_right = &(theCells[i_cells+1]);
+
+        struct cell * c_upwind;
+        struct cell * c_downwind;
+
+        double d_mass; // will be non-negative / unsigned!
+
+        if(mass_fluxes[i_linsolve] > 0)
+        {
+            c_upwind   = c_left;
+            c_downwind = c_right;
+            d_mass = mass_fluxes[i_linsolve] * dt;
+        }   
+        else
+        {
+            c_upwind   = c_right;
+            c_downwind = c_left;
+            d_mass = - mass_fluxes[i_linsolve] * dt;
+        }
+
+        const double d_momentum = d_mass *(c_upwind->cons[SRR] / c_upwind->cons[DDD]);
+        const double d_energy   = d_mass *(c_upwind->cons[TAU] / c_upwind->cons[DDD]);
+        const double d_metals   = d_mass *(c_upwind->cons[ZZZ] / c_upwind->cons[DDD]);
+
+        c_upwind->cons[DDD]   -= d_mass;
+        c_downwind->cons[DDD] += d_mass;
+
+        c_upwind->cons[SRR]   -= d_momentum;
+        c_downwind->cons[SRR] += d_momentum;
+
+        c_upwind->cons[TAU]   -= d_energy;
+        c_downwind->cons[TAU] += d_energy;
+
+        c_upwind->cons[ZZZ]   -= d_metals;
+        c_downwind->cons[ZZZ] += d_metals;
+    }
+
+
+    // ======== Verify post-conditions ========= //
+    // #ifndef NDEBUG
+    for( int i=Ng ; i<Nr-Ng ; ++i )
+    {
+        struct cell * c = &(theCells[i]);
+        if( c->cons[DDD] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit() postconditions------- \n");
+            printf("Cell i=%d has negative mass! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[DDD] > 0);
+        }
+
+        if( c->cons[TAU] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit() postconditions------- \n");
+            printf("Cell i=%d has negative energy! \n", i);
+            printf("c->cons[DDD] = %e \n", c->cons[DDD]);
+            printf("c->cons[SRR] = %e \n", c->cons[SRR]);
+            printf("c->cons[TAU] = %e \n", c->cons[TAU]);
+            printf("c->cons[ZZZ] = %e \n", c->cons[ZZZ]);
+
+            assert(c->cons[TAU] > 0);
+        }
+
+        if( c->cons[ZZZ] <= 0 )
+        {
+            printf("------ ERROR in turbulent_diffusion_implicit() postconditions------- \n");
             printf("Cell i=%d has negative metal content! \n", i);
             printf("c->cons[DDD] = %e \n", c->cons[DDD]);
             printf("c->cons[SRR] = %e \n", c->cons[SRR]);
@@ -3894,6 +4560,12 @@ void Picard_iteration( const double * values_old ,
         if( max_log_distance < std::abs(std::log(iteration_tolerance)) )
         {
             stop_early = true;
+            if(j > 5)
+            {
+                printf("num iterations = %d in `Picard_iteration` called from %s\n",
+                    j, calling_fn_name);
+                fflush(stdout);
+            }
         }
 
         if( j == (num_iterations_max-1) )
