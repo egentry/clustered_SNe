@@ -117,6 +117,7 @@ void possiblyOutput( struct domain * theDomain , int override )
             create_checkpoint( theDomain , filename, t );
             printf("Creating Checkpoint #%04d... (aux)\n",n0);
             create_checkpoint_keller_auxiliary( theDomain , filename, t );
+            std::cout.flush();
         }
         else
         {

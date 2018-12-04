@@ -255,7 +255,7 @@ void timestep( struct domain * theDomain , double dt,
 
     bool restart = true;
     int num_restarts = 0;
-    const int num_max_restarts = 10;
+    const int num_max_restarts = 15;
     while(restart)
     {
         for( int i=0 ; i<Nr ; ++i )
@@ -313,7 +313,7 @@ void timestep( struct domain * theDomain , double dt,
         }
         if (!restart & (num_restarts > 0))
         {
-            printf("succeeded after %d restarts\n\n", num_restarts);
+            printf("succeeded after %d restarts\n", num_restarts);
         }
     }
 

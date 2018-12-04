@@ -176,7 +176,6 @@ class ImplicitSolverFailedToConvergeError : public std::exception
 
     const char * what () const throw ()
     {
-
         return output_message.c_str();
     }
 };
