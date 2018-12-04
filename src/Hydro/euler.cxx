@@ -4562,7 +4562,7 @@ void Picard_iteration( const double * values_old ,
             stop_early = true;
             if(j > 5)
             {
-                printf("num iterations = %d in `Picard_iteration` called from %s\n",
+                printf("num iterations = %d in `Picard_iteration` called from `%s`\n",
                     j, calling_fn_name);
                 fflush(stdout);
             }
@@ -4572,9 +4572,8 @@ void Picard_iteration( const double * values_old ,
         {
             if( !stop_early )
             {
-                printf("reached num_iterations_max = %d within `Picard_iteration` called from %s\n", 
-                    num_iterations_max,
-                    calling_fn_name);
+                throw ImplicitSolverFailedToConvergeError(calling_fn_name,
+                                                          "Picard_iteration");
             } 
         }
 
@@ -4738,9 +4737,8 @@ void Anderson_acceleration( const double * values_old ,
         {
             if( j == (num_iterations_max-1) )
             {
-                printf("reached num_iterations_max = %d within `Anderson_acceleration` called from %s\n", 
-                    num_iterations_max,
-                    calling_fn_name);
+                throw ImplicitSolverFailedToConvergeError(calling_fn_name,
+                                                          "Anderson");
             }
         }
 

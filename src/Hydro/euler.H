@@ -172,4 +172,37 @@ class EnergyChecker
 
 };
 
+class ImplicitSolverFailedToConvergeError : public std::exception
+{
+    private:
+        std::string output_message;
+
+    public:
+
+    const char * implicit_solver_calling_fn_name;
+    const char * iteration_type_name; // Picard vs. Anderson
+
+    ImplicitSolverFailedToConvergeError(
+      const char * implicit_solver_calling_fn_name,
+      const char * iteration_type_name)
+    :
+      implicit_solver_calling_fn_name(implicit_solver_calling_fn_name),
+      iteration_type_name(iteration_type_name)
+    {
+        char output[200];
+        sprintf(output,
+                "Output: Implicit solver (%s) failed to converge for `%s`",
+                iteration_type_name,
+                implicit_solver_calling_fn_name
+                );
+        output_message = std::string(output);
+    }
+
+    const char * what () const throw ()
+    {
+
+        return output_message.c_str();
+    }
+};
+
 #endif

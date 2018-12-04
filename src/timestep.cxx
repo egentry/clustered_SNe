@@ -1,6 +1,8 @@
 
 #include <assert.h>
 #include <cmath>
+#include <iostream>
+#include <exception>
 
 #include "structure.H"
 
@@ -9,7 +11,7 @@
 #include "misc.H" // calc_dr, calc_prim, radial_flux, add_source, etc
 #include "timestep.H"
 #include "Initial/initial_conditions.H"
-#include "Hydro/euler.H" // E_int_from_cons
+#include "Hydro/euler.H" // E_int_from_cons, ImplicitSolverFailedToConverge
 
 
 
@@ -207,7 +209,7 @@ void substep( struct domain * theDomain , double RK ,
 }
 
 
-void timestep( struct domain * theDomain , const double dt,
+void timestep( struct domain * theDomain , double dt,
               Initial_Conditions * ICs ,
               Cooling * cooling )
 {
@@ -233,34 +235,88 @@ void timestep( struct domain * theDomain , const double dt,
     struct cell * theCells = theDomain->theCells;
     int Nr = theDomain->Nr;
 
-    int i;
+    double cons_backup[Nr][NUM_Q]; // in case we need to restart the timestep
+    double cons_backup_hot[Nr][NUM_Q]; // in case we need to restart the timestep
+    double cons_backup_cold[Nr][NUM_Q]; // in case we need to restart the timestep
 
-    for( i=0 ; i<Nr ; ++i )
+    for( int i=0 ; i<Nr ; ++i )
     {
         struct cell * c = &(theCells[i]);
-        memcpy( c->RKcons , c->cons , NUM_Q*sizeof(double) );
-        if ( c->multiphase )
+        for( int q=0; q<NUM_Q; ++q)
         {
-            memcpy( c->RKcons_hot  , c->cons_hot  , NUM_Q*sizeof(double) );
-            memcpy( c->RKcons_cold , c->cons_cold , NUM_Q*sizeof(double) );
-
+            cons_backup[i][q] = c->cons[q];
+            if ( c->multiphase )
+            {
+                cons_backup_hot[ i][q] = c->cons_hot[ q];
+                cons_backup_cold[i][q] = c->cons_cold[q];
+            }
         }
     }
 
-    // for choosing proper Runge-Kutta coefficients for higher order schemes,
-    //   see: Gottlieb & Chi-Wang Shu (1998)
-    //        "Total Variation Diminishing Runge-Kutta Schemes"
-    //        Mathematics of Computation
-    //        http://www.ams.org/journals/mcom/1998-67-221/S0025-5718-98-00913-2/S0025-5718-98-00913-2.pdf
-    if ( theDomain->theParList.RK2 )
+    bool restart = true;
+    int num_restarts = 0;
+    const int num_max_restarts = 10;
+    while(restart)
     {
-        substep( theDomain , 0.0 ,     dt , 1 , 0 , ICs , cooling );
-        substep( theDomain , 0.5 , 0.5*dt , 0 , 1 , ICs , cooling );      
+        for( int i=0 ; i<Nr ; ++i )
+        {
+            struct cell * c = &(theCells[i]);
+            memcpy( c->RKcons , c->cons , NUM_Q*sizeof(double) );
+            if ( c->multiphase )
+            {
+                memcpy( c->RKcons_hot  , c->cons_hot  , NUM_Q*sizeof(double) );
+                memcpy( c->RKcons_cold , c->cons_cold , NUM_Q*sizeof(double) );
+
+            }
+        }
+
+        restart = false;
+        try
+        {
+            if ( theDomain->theParList.RK2 )
+            {
+                substep( theDomain , 0.0 ,     dt , 1 , 0 , ICs , cooling );
+                substep( theDomain , 0.5 , 0.5*dt , 0 , 1 , ICs , cooling );
+            }
+            else
+            {
+                substep( theDomain , 0.0 ,     dt , 1 , 1 , ICs , cooling );
+            }
+        }
+        catch(ImplicitSolverFailedToConvergeError& e)
+        {
+            restart = true;
+            num_restarts += 1;
+            if (num_restarts >= num_max_restarts)
+            {
+                printf("ERROR: reached num_max_restarts = %d\n", num_restarts);
+                printf("Most recent failed implicit solve from: `%s` using a %s solver\n",
+                       e.implicit_solver_calling_fn_name, e.iteration_type_name);
+                throw std::runtime_error("Too many failed timestep restarts");
+            }
+
+            dt = dt / 2.;
+
+            for( int i=0 ; i<Nr ; ++i )
+            {
+                struct cell * c = &(theCells[i]);
+                for( int q=0; q<NUM_Q; ++q)
+                {
+                    c->cons[q] = cons_backup[i][q];
+                    if ( c->multiphase )
+                    {
+                        c->cons_hot[ q] = cons_backup_hot[ i][q];
+                        c->cons_cold[q] = cons_backup_cold[i][q];
+                    }
+                }
+            }
+        }
+        if (!restart & (num_restarts > 0))
+        {
+            printf("succeeded after %d restarts\n\n", num_restarts);
+        }
     }
-    else
-    {
-        substep( theDomain , 0.0 ,     dt , 1 , 1 , ICs , cooling );
-    }
+
 
     theDomain->t += dt;   
     theDomain->count_steps += 1;

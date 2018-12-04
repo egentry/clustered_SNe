@@ -54,61 +54,6 @@ double getmindt( const struct domain * theDomain )
 
         double dt_temp = mindt( c->prim , w , r , dr );
 
-        if(theDomain->theParList.with_turbulent_diffusion)
-        {
-            const double v = w;
-            const double dv = wp - wm;
-            const double C = theDomain->theParList.C_turbulent_diffusion;
-            const double S = std::sqrt(2./3.) * std::abs( (dv / dr) - (v/r) );
-            const double dt_artificial_diffusion = 1. / (C * S);
-            if(dt_artificial_diffusion < dt_temp)
-            {
-                printf("replacing dt_temp (%e) with dt_artificial_diffusion (%e)\n",
-                    dt_temp, dt_artificial_diffusion);
-                fflush(stdout);
-                dt_temp = dt_artificial_diffusion;
-            }
-        }
-
-        if(theDomain->theParList.with_physical_conduction)
-        {
-            const double electron_charge = 4.8032047e-10; // Fr
-            const double electron_mass = 9.109383e-28;
-
-            const double gamma = 5. / 3.;
-            const double mu = get_mean_molecular_weight(c->prim[ZZZ]);
-            const double e_int = c->prim[PPP] / c->prim[RHO] / (gamma-1);
-            const double phi_s = 1.1;
-
-            const double C_unsat = kappa_0 
-                * std::pow(mu * m_proton * (gamma - 1)/ k_boltzmann, 7./2.)
-                * std::pow(e_int, 5. / 2.);
-
-            const double C_sat = 5 * phi_s * std::pow(gamma-1, 3./2.) 
-                * std::pow(e_int, .5);
-
-
-            const double C_spitzer = std::pow(e_int, 5./2.) 
-                * std::pow( mu * m_proton * ((5./3.)-1) , 7./2.)
-                / (std::pow(electron_mass, .5) * std::pow(electron_charge, 4.)) ;
-
-
-            // const double dt_unsat = dr*dr / C_unsat;
-            const double dt_unsat = dr*dr / C_spitzer;
-
-            const double dt_sat = dr / C_sat / 5.;
-
-            // const double dt_conduction = std::max(dt_unsat, dt_sat);
-            const double dt_conduction = dt_unsat;
-            if(dt_conduction < dt_temp)
-            {
-                printf("replacing dt_temp (%e) with dt_conduction (%e)\n",
-                    dt_temp, dt_conduction);
-                fflush(stdout);
-                dt_temp = dt_conduction;
-            }
-        }
-
         if( dt > dt_temp ) dt = dt_temp;
     }
     dt *= theDomain->theParList.CFL; 
