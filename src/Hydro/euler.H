@@ -47,37 +47,12 @@ void verify_multiphase_conditions( const struct cell * c ,
                                    const double rel_tol = 1e-5 );
 
 void thermal_conduction_implicit( struct domain * theDomain , const double dt );
-void thermal_conduction_explicit( struct domain * theDomain , const double dt );
-
-void turbulent_diffusion_implicit_mass_density(  struct domain * theDomain ,
-                                                 const double dt );
-
-void turbulent_diffusion_implicit_momentum_density(  struct domain * theDomain ,
-                                                 const double dt );
-
-void turbulent_diffusion_implicit_E_int_density( struct domain * theDomain ,
-                                                 const double dt );
-
-void turbulent_diffusion_implicit_E_tot_density( struct domain * theDomain ,
-                                                 const double dt );
-
-void turbulent_diffusion_implicit_metal_density( struct domain * theDomain ,
-                                                 const double dt );
 
 void turbulent_diffusion_implicit( struct domain * theDomain ,
                                    const double dt );
 
 
 void U_i_to_prim( const double * U , double * prim , const int i );
-
-void thermal_conduction_apply_linsolve_4eq( const double * U_old ,
-                                const double * U_guess ,
-                                double * U_new ,
-                                const double * r ,
-                                const double * V ,
-                                const double dt ,
-                                const int num_cells ,
-                                const int verbose );
 
 void thermal_conduction_apply_linsolve( const double * e_int_old ,
                                 const double * e_int_guess ,
@@ -90,6 +65,7 @@ void thermal_conduction_apply_linsolve( const double * e_int_old ,
                                 const int num_cells ,
                                 const int verbose );
 
+[[deprecated]]
 void spitzer_thermal_conduction_apply_linsolve( const double * e_int_old ,
                                 const double * e_int_guess ,
                                 double * e_int_new ,
