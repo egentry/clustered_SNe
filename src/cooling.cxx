@@ -57,16 +57,8 @@ const std::string Equilibrium_Cooling::class_name = "equilibrium";
 Equilibrium_Cooling::Equilibrium_Cooling( bool with_cooling ) 
     :   Cooling(with_cooling,
         class_name),
-        grid_rank(1),
         field_size(1)
 {
-
-    for ( int i=0 ; i<3 ; ++i )
-    {
-        grid_start[i] = 0;
-        grid_end[i] = field_size - 1;
-        grid_dimension[i] = 1;
-    }
 
 }
 
@@ -80,51 +72,50 @@ double Equilibrium_Cooling::calc_cooling( const double * prim , const double * c
     }
 
     // declare fluid variable arrays (will need more for other chemistries)
-    gr_float *density, *energy, *x_velocity, *y_velocity, *z_velocity;
-    gr_float *metal_density;
+    // gr_float *density, *energy, *x_velocity, *y_velocity, *z_velocity;
+    // gr_float *metal_density;
 
-    density         = new gr_float[field_size];
-    energy          = new gr_float[field_size];
-    x_velocity      = new gr_float[field_size];
-    y_velocity      = new gr_float[field_size];
-    z_velocity      = new gr_float[field_size];
-    metal_density   = new gr_float[field_size];
+    my_fields.density         = new gr_float[field_size];
+    my_fields.internal_energy = new gr_float[field_size];
+    my_fields.x_velocity      = new gr_float[field_size];
+    my_fields.y_velocity      = new gr_float[field_size];
+    my_fields.z_velocity      = new gr_float[field_size];
+    my_fields.metal_density   = new gr_float[field_size];
 
     const double density_initial = prim[RHO];
-    const double energy_initial  = (1. / (grackle_data.Gamma - 1.)) * prim[PPP] / prim[RHO];
+    const double energy_initial  = (1. / (grackle_data->Gamma - 1.)) * prim[PPP] / prim[RHO]
+        / (cooling_units.velocity_units * cooling_units.velocity_units);     // internal energy PER UNIT MASS
 
     //copy old information into gr_float arrays
     for( int i=0 ; i<field_size ; ++i )
     {
-        density[i]          = density_initial / cooling_units.density_units;
-        energy[i]           = energy_initial;     // internal energy PER UNIT MASS
-        x_velocity[i]       = prim[VRR];          // radial velocity
-        y_velocity[i]       = 0;
-        z_velocity[i]       = 0;
-        metal_density[i]    = prim[ZZZ] * density[i];
+        my_fields.density[i]          = density_initial / cooling_units.density_units;
+        my_fields.internal_energy[i]  = energy_initial ;     // units above
+        my_fields.x_velocity[i]       = prim[VRR] / cooling_units.velocity_units; // radial velocity
+        my_fields.y_velocity[i]       = 0;
+        my_fields.z_velocity[i]       = 0;
+        my_fields.metal_density[i]    = prim[ZZZ] * my_fields.density[i];
     }
 
-    if (solve_chemistry_table(&cooling_units,
-                                a_value, dt,
-                                grid_rank, grid_dimension,
-                                grid_start, grid_end,
-                                density, energy,
-                                x_velocity, y_velocity, z_velocity,
-                                metal_density) == 0)
+
+    if (solve_chemistry(&cooling_units, &my_fields,
+                                dt / cooling_units.time_units
+                                ) == 0)
     {
-        std::runtime_error("Error in solve_chemistry_table.");
+        std::runtime_error("Error in solve_chemistry.");
     }
 
     // energy per unit volume
-    const double dE = (energy[0] - energy_initial) * density_initial;
+    const double dE = (my_fields.internal_energy[0] - energy_initial) * density_initial 
+        * cooling_units.velocity_units * cooling_units.velocity_units;
     dE_saved = dE;
 
-    delete density;
-    delete energy;
-    delete x_velocity;
-    delete y_velocity;
-    delete z_velocity;
-    delete metal_density;
+    delete my_fields.density;
+    delete my_fields.internal_energy;
+    delete my_fields.x_velocity;
+    delete my_fields.y_velocity;
+    delete my_fields.z_velocity;
+    delete my_fields.metal_density;
 
     return dE;
 
@@ -136,8 +127,8 @@ void Equilibrium_Cooling::setup_cooling( const struct domain * theDomain )
 
     printf("setting up cooling \n");
 
-
-    if (set_default_chemistry_parameters() == 0) 
+    my_grackle_data = new chemistry_data;
+    if (set_default_chemistry_parameters(my_grackle_data) == 0)
     {
         std::runtime_error("Error in set_default_chemistry_parameters");
     }
@@ -158,35 +149,45 @@ void Equilibrium_Cooling::setup_cooling( const struct domain * theDomain )
     // Many of these are the defaults. 
     // See: https://grackle.readthedocs.org/en/latest/Parameters.html#parameters
 
-    grackle_data.use_grackle            = 1;  // turn on cooling
-    grackle_data.with_radiative_cooling = 1;  // use cooling when updating chemistry
-    grackle_data.primordial_chemistry   = 0;  // no chemistry network
-    grackle_data.h2_on_dust             = 0;  // Don't use Omukai (2000)
-    grackle_data.metal_cooling          = 1;  // allow metal cooling
-    // grackle_data.cmb_temperature_floor  = 1;  // don't allow cooling below CMB temp.
-    grackle_data.UVbackground           = 1;  // include UV background from grackle_data_file
-    grackle_data.grackle_data_file      = grackle_data_file; // Haardt + Madau (2012)
-    grackle_data.Gamma                  = theDomain->theParList.Adiabatic_Index;
+    grackle_data->use_grackle            = 1;  // turn on cooling
+    grackle_data->with_radiative_cooling = 1;  // use cooling when updating chemistry
+    grackle_data->primordial_chemistry   = 0;  // no chemistry network
+    grackle_data->h2_on_dust             = 0;  // Don't use Omukai (2000)
+    grackle_data->metal_cooling          = 1;  // allow metal cooling
+    // grackle_data->cmb_temperature_floor  = 1;  // don't allow cooling below CMB temp.
+    grackle_data->UVbackground           = 1;  // include UV background from grackle_data_file
+    grackle_data->grackle_data_file      = grackle_data_file; // Haardt + Madau (2012)
+    grackle_data->Gamma                  = theDomain->theParList.Adiabatic_Index;
     // All others are defaults...
 
 
     cooling_units.comoving_coordinates = 0;
     cooling_units.density_units        = m_proton; // need to ensure density field ~ 1
-    cooling_units.length_units         = 1.0;
-    cooling_units.time_units           = 1.0;
+    cooling_units.time_units           = 1e8; // s 
+    cooling_units.length_units         = 1e6 * cooling_units.time_units; // cm -- to get vel units of 10km/s
     cooling_units.velocity_units       = cooling_units.length_units / cooling_units.time_units;
     cooling_units.a_units              = 1.0;
 
-    a_value = 1. / (1. + theDomain->theParList.Cooling_Redshift);
+    cooling_units.a_value = 1. / (1. + theDomain->theParList.Cooling_Redshift);
 
-    if (initialize_chemistry_data(&cooling_units, a_value) == 0)
+    if (initialize_chemistry_data(&cooling_units) == 0)
     {
         std::runtime_error("Error in initialize_chemistry_data");
     }
 
 
-    printf("use_grackle: %d \n", grackle_data.use_grackle);
+    printf("use_grackle: %d \n", grackle_data->use_grackle);
     grackle_verbose=1;
 
+    my_fields.grid_dimension = new int[3];
+    my_fields.grid_start = new int[3];
+    my_fields.grid_end = new int[3];
+
+    for (int i = 0 ; i < 3 ; i++)
+    {
+        my_fields.grid_dimension[i] = 1; // the active dimension not including ghost zones.
+        my_fields.grid_start[i] = 0;
+        my_fields.grid_end[i] = field_size-1;
+    }
 
 };
