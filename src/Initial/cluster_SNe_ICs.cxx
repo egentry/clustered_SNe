@@ -175,7 +175,7 @@ int Cluster_SNe_ICs::setup_parameter_study( struct domain * theDomain )
 
     // Assumes E_blast = 1e51
 
-    double R = 300 * pc 
+    double R = 300 * pc_unit
          * pow(E_blast / 1e51, 2./7) 
          * pow(theDomain->background_density / (1.33*m_proton), -.33)
          * pow(theDomain->cluster_mass / pow(10,2), .33);
