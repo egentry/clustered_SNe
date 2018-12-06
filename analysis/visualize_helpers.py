@@ -172,7 +172,7 @@ def plotter(run_summary,
         y_min, y_max = plt.ylim()
         plt.ylim( (y_min / 5, y_max * 5) )
     if y_axis_variable == "Velocity":
-        plt.ylim(ymin=1)
+        plt.ylim(bottom=1)
     
     if with_Sedov:
         plot_sedov(run_summary, time, x_axis_variable, y_axis_variable, 
@@ -525,7 +525,7 @@ def plot_zones(run_summary, distplot=True):
     if isinstance(run_summary, RunSummary):
         if run_summary.zones is not None:
             plt.plot(run_summary.zones)
-            plt.ylim(ymin=0)
+            plt.ylim(bottom=0)
             plt.ylabel("Number of Zones")
             plt.xlabel("Checkpoint")
             if distplot:
@@ -598,7 +598,7 @@ def plot_energy(run_summary, x_axis):
     SNe_distplot(run_summary, x_axis)
 
     if x_axis == "checkpoints":
-        plt.xlim(xmin=0)
+        plt.xlim(left=0)
 
 
 def plot_momentum(run_summary, x_axis="time", y_axis_scaling = "SNe", 
@@ -670,9 +670,9 @@ def plot_momentum(run_summary, x_axis="time", y_axis_scaling = "SNe",
     plt.xlabel(xlabel)   
 
     plt.ylabel(ylabel)
-    plt.ylim(ymin=0)
+    plt.ylim(bottom=0)
     if x_axis == "checkpoints":
-        plt.xlim(xmin=0)
+        plt.xlim(left=0)
 
 
 
@@ -717,7 +717,7 @@ def plot_luminosity(run_summary, x_axis):
                                                    general_string_format),
           "[yr]" )
     if x_axis == "checkpoints":
-        plt.xlim(xmin=0)
+        plt.xlim(left=0)
 
 
 def plot_momentum_scaling(masses, momenta):
@@ -730,7 +730,7 @@ def plot_momentum_scaling(masses, momenta):
 
     x_min, x_max = plt.xlim()
     plt.xlim( x_min / 5, x_max * 5)
-    plt.ylim(ymin=0)
+    plt.ylim(bottom=0)
 
 
 def rbf_interpolate_logloglog(xin, yin, zin, xout, yout, spacing_x, spacing_y):

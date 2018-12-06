@@ -210,7 +210,7 @@ class AggregatedResults(object):
                     label="simulations")
 
         plt.xlim(10**-.5 , 10**3.5)
-        plt.ylim(ymin=0)
+        plt.ylim(bottom=0)
         
         plt.xscale("log")
         plt.legend(loc="best", frameon=True, shadow=True)

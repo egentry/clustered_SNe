@@ -172,8 +172,8 @@ class ThorntonParameterStudy(object):
         plt.xlabel(r"$n$ $[\mathrm{cm}^{-3}]$")
         plt.ylabel(r"$E_{{R, \mathrm{{ {0} }} }}$ $[\mathrm{{ergs}}]$".format(energy))
 
-        xmin, xmax = plt.xlim()
-        plt.xlim(xmin/5, xmax*5)
+        left, right = plt.xlim()
+        plt.xlim(left/5, right*5)
 
         ax = plt.gca()
         ax.yaxis.set_minor_formatter(self.formatter)
@@ -209,8 +209,8 @@ class ThorntonParameterStudy(object):
         plt.xlabel(r"$Z / Z_\odot$")
         plt.ylabel(r"$E_{{R, {0} }}$ $[\mathrm{{ergs}}]$".format(energy))
 
-        xmin, xmax = plt.xlim()
-        plt.xlim(xmin/5, xmax*5)
+        left, right = plt.xlim()
+        plt.xlim(left/5, right*5)
         
         ax = plt.gca()
         ax.yaxis.set_minor_formatter(self.formatter)
