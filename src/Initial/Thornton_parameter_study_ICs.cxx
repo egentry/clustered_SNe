@@ -164,7 +164,7 @@ int Thornton_Parameter_Study_ICs::setup_parameter_study( struct domain * theDoma
     if( log10(theDomain->metallicity / metallicity_solar) > -2  )
     {
         // Equation 20
-        R_thornton = 49.3 * pc 
+        R_thornton = 49.3 * pc_unit
          * pow(E_blast / 1e51, 2./7) 
          * pow(theDomain->background_density / m_proton, -.42)
          * pow(theDomain->metallicity / metallicity_solar, -.1);
@@ -172,7 +172,7 @@ int Thornton_Parameter_Study_ICs::setup_parameter_study( struct domain * theDoma
     else
     {
         // Equation 31
-        R_thornton = 78.1 * pc 
+        R_thornton = 78.1 * pc_unit
          * pow(E_blast / 1e51, 2./7) 
          * pow(theDomain->background_density / m_proton, -.42);
     }
