@@ -19,6 +19,7 @@
 #include "geometry.H" // calc_dV
 #include "misc.H" // calc_prim
 #include "mass_loss.H" // Mass_Loss, get_ejecta_mass, etc
+#include "Hydro/euler.H" // E_int_from_cons
 
 #include "blast.H"
 
@@ -62,16 +63,143 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
     // code is not yet set for spreading SNe over multiple cells
     // would need to determine how to split the energy correctly
 
-    struct cell * c = &(theDomain->theCells[n_guard_cell]);
 
-    c->cons[DDD] += M_blast;
-    c->cons[TAU] += E_blast;
+    const double p_blast = std::sqrt(2 * E_blast * M_blast);
 
-    // for now assume that the metallicity of the ejecta is the same
-    // as the background metallicity
-    // later we'll want to actually inject metals
-    c->cons[ZZZ] += M_blast_Z;
+    // Calculate weights of cells
+    const int N_neighbors = std::round(std::pow(32, 1./3.));
 
+    const double weight = 1. / N_neighbors;
+
+    const double dM = weight * M_blast;
+    const double dp_prime = weight * p_blast;
+    const double dE = weight * E_blast;
+    const double dMZ = weight * M_blast_Z;
+
+    double cons_added[NUM_Q];
+    for (int q=0; q<NUM_Q ; ++q) cons_added[q] = 0;
+
+    for (int i=0 ; i<N_neighbors ; ++i)
+    {
+        struct cell * c = &(theDomain->theCells[n_guard_cell + i]);
+
+        const double E_int_old = E_int_from_cons(c);
+        
+        // calculate the proper momentum to add
+        const double mu = get_mean_molecular_weight(c->prim[ZZZ]);
+        const double n = c->prim[RHO] / (mu * m_proton);
+
+        const double metallicity_solar = 0.02;
+        double f_Z;
+        if ((c->prim[ZZZ]/metallicity_solar) > .01)
+        {
+            f_Z = std::pow(c->prim[ZZZ]/metallicity_solar, -.14);
+        }
+        else
+        {
+            f_Z = 2;
+        }
+
+
+        const double p_t = 4.8e5
+            * std::pow(E_blast/1e51, 13./14.)
+            * std::pow(n, -1./7.)
+            * std::pow(f_Z, 3./2.)
+            * 1e5 // km/s in terms of cm/s
+            * M_sun;
+        printf("p_t           (cell %d) = %.3e M_sun km / s\n",
+            i + n_guard_cell,
+            p_t / (1e5* M_sun)
+            );
+
+        const double dp_prime_prime = dp_prime 
+            * std::min(
+                std::sqrt(1 + (c->cons[DDD]/(M_blast*weight))),
+                p_t / p_blast
+            );
+        printf("p_prime_prime (cell %d) = %.3e M_sun km / s\n",
+            i + n_guard_cell,
+            dp_prime_prime / (1e5* M_sun)
+            );
+
+
+
+        // Apply ejected conservatives
+
+        c->cons[DDD]    += dM;
+        cons_added[DDD] += dM;
+
+        c->cons[SRR]    += dp_prime_prime;
+        cons_added[SRR] += dp_prime_prime;
+
+        c->cons[TAU]    += dE;
+        cons_added[TAU] += dE;
+
+        c->cons[ZZZ]    += dMZ;
+        cons_added[ZZZ] += dMZ;
+
+        // possible adjust for cooling beyond cooling radius
+
+        const double R_cool = 28.4 * pc_unit
+            * std::pow(n, -3./7.)
+            * std::pow(E_blast / 1e51, 2./7.)
+            * f_Z;
+        if (c->riph > R_cool)
+        {
+            printf("beyond R_cool for i=%d\n", i+n_guard_cell);
+            printf("r      = %f pc\n", c->riph / pc_unit);
+            printf("R_cool = %f pc\n", R_cool / pc_unit);
+            printf("n = %e cm^-3 \n", n);
+            printf("Z = %f\n", c->prim[ZZZ]);
+            printf("f_Z = %e\n", f_Z);
+
+            const double E_int_new_tmp = E_int_from_cons(c);
+
+            const double dE_int = E_int_new_tmp - E_int_old;
+            assert(dE_int > 0);
+
+            const double dE_int_corrected = dE_int 
+                * std::pow(c->riph / R_cool, -6.5);
+
+            c->cons[TAU] += dE_int_corrected - dE_int;
+        }
+
+
+    }
+
+    // correct for round-off error residuals
+    struct cell * c_inner = &(theDomain->theCells[n_guard_cell]);
+    c_inner->cons[DDD] += M_blast   - cons_added[DDD];
+    c_inner->cons[TAU] += E_blast   - cons_added[TAU];
+    c_inner->cons[ZZZ] += M_blast_Z - cons_added[ZZZ];
+
+    // post conditions
+    if (std::abs(1 - (cons_added[DDD] / M_blast))   > .05 )
+    {
+        printf("M_blast         = %f M_sun\n", M_blast / M_sun);
+        printf("cons_added[DDD] = %f M_sun\n", cons_added[DDD] / M_sun);
+
+        assert(std::abs(1 - (cons_added[DDD] / M_blast))   < .05 );
+    }
+
+    if (std::abs(1 - (cons_added[TAU] / E_blast))   > .05 )
+    {
+        printf("E_blast         = %e\n", E_blast);
+        printf("cons_added[TAU] = %e\n", cons_added[TAU]);
+
+        assert(std::abs(1 - (cons_added[TAU] / E_blast))   < .05 );
+    }
+
+    if (std::abs(1 - (cons_added[ZZZ] / M_blast_Z))   > .05 )
+    {
+        printf("M_blast_Z       = %f M_sun\n", M_blast_Z / M_sun);
+        printf("cons_added[ZZZ] = %f M_sun\n", cons_added[ZZZ] / M_sun);
+
+        assert(std::abs(1 - (cons_added[ZZZ] / M_blast_Z))   < .05 );
+    }
+    assert(std::abs(1 - (cons_added[TAU] / E_blast))   < .05 );
+    assert(std::abs(1 - (cons_added[ZZZ] / M_blast_Z)) < .05 );
+    std::cout.flush();
 
     // now we need to background within substep()
     // since we changed the cons, but not the prims
@@ -128,7 +256,7 @@ int add_blasts( struct domain * theDomain )
 
     if ( num_SNe > 0 )
     {
-        std::cout << num_SNe << " SN(e) just went off" << std::endl;
+        std::cout << num_SNe << " SN(e) just went off" << std::endl << std::flush;
     }
 
     if ( error > 0 )
