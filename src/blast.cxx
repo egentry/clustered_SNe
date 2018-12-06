@@ -128,7 +128,7 @@ int add_blasts( struct domain * theDomain )
 
     if ( num_SNe > 0 )
     {
-        std::cout << num_SNe << " SN(e) just went off" << std::endl;
+        std::cout << num_SNe << " SN(e) just went off" << std::endl << std::flush;
     }
 
     if ( error > 0 )
