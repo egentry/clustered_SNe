@@ -114,7 +114,7 @@ void Picard_iteration( const double * values_old ,
                        std::function<void(const double *, const double *, double*)> lambda_apply_linsolve,
                        const char * calling_fn_name , 
                        const double iteration_tolerance = 1. + 1e-3,
-                       const int num_iterations_max = 100,
+                       const int num_iterations_max = 50,
                        const double alpha_relaxation  = 0.5
                        );
 
