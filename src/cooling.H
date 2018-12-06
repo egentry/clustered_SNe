@@ -44,20 +44,22 @@ public:
 protected:
 
 private:
+    grackle_field_data my_fields;
+    chemistry_data *my_grackle_data;
     code_units cooling_units;
 
-    const int grid_rank;
     const int field_size;
 
-    double a_value;
+
+
+    // double a_value;
 
     // these can't be constantified due to grackle
-    int grid_start[3];
-    int grid_end[3];
-    int grid_dimension[3];
+    // int grid_start[3];
+    // int grid_end[3];
+    // int grid_dimension[3];
 
     double dE_saved;
-
 
 };
 
