@@ -112,6 +112,7 @@ void possiblyOutput( struct domain * theDomain , int override )
             printf("Creating Checkpoint #%04d...\n",n0);
             sprintf(filename,"checkpoint_%04d",n0);
             create_checkpoint( theDomain , filename, t );
+            std::cout.flush()
         }
         else
         {
