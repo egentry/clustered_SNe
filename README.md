@@ -33,7 +33,7 @@ That should get you a working executable. Once you have data to process, this re
     - A fork frozen to the version used in my simulations can be found at: https://bitbucket.org/egentry/slug2
     - requires the [GSL](https://www.gnu.org/software/gsl/), [Boost](http://www.boost.org/)
   - libuuid
-  - [grackle cooling](https://bitbucket.org/grackle/grackle) (v2)
+  - [grackle cooling](https://bitbucket.org/grackle/grackle) (v3)
     - requires [HDF5](https://www.hdfgroup.org/HDF5/release/obtain5.html)
   - For visualization:
     - Python (tested for v3.5, mostly backwards compatible)
