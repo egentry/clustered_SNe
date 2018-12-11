@@ -503,8 +503,9 @@ void source( struct cell * c,
 
             printf("\n");           
 
-            const double dE_cool_hot  = cooling->calc_cooling(c->prim_hot,  c->cons_hot,  dt , cached_cooling ) * c->V_hot;  
-            const double dE_cool_cold = cooling->calc_cooling(c->prim_cold, c->cons_cold, dt , cached_cooling ) * c->V_cold;  
+            const bool allow_caching = false;
+            const double dE_cool_hot  = cooling->calc_cooling(c->prim_hot,  c->cons_hot,  dt , cached_cooling , allow_caching ) * c->V_hot;
+            const double dE_cool_cold = cooling->calc_cooling(c->prim_cold, c->cons_cold, dt , cached_cooling , allow_caching ) * c->V_cold;
 
             printf("----- In source (after calculating multiphase cooling) ------- \n");
 
@@ -557,10 +558,13 @@ void source( struct cell * c,
             // never use cached cooling, so that I don't have to worry about
             // the previous cooling call being for a subgrid zone
             bool cached_cooling = false;
-            // double dr = rp - rm;
-            // if( r > (R_shock+(10*dr)) ) cached_cooling = true;
+            bool allow_caching = true;
+            double dr = rp - rm;
+            if( r > (R_shock+(10*dr)) ) cached_cooling = true;
 
-            c->dE_cool   = cooling->calc_cooling(c->prim, c->cons, dt , cached_cooling ) * dV;  
+            c->dE_cool   = cooling->calc_cooling(c->prim, c->cons, dt , 
+                                                 cached_cooling , 
+                                                 allow_caching ) * dV;
             c->cons[TAU] += c->dE_cool;
         }
 

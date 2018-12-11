@@ -63,7 +63,8 @@ Equilibrium_Cooling::Equilibrium_Cooling( bool with_cooling )
 }
 
 double Equilibrium_Cooling::calc_cooling( const double * prim , const double * cons , 
-                                          const double dt, const bool cached )
+                                          const double dt, const bool cached ,
+                                          const bool allow_caching )
 {
 
     if( cached )
@@ -108,7 +109,11 @@ double Equilibrium_Cooling::calc_cooling( const double * prim , const double * c
     // energy per unit volume
     const double dE = (my_fields.internal_energy[0] - energy_initial) * density_initial 
         * cooling_units.velocity_units * cooling_units.velocity_units;
-    dE_saved = dE;
+
+    if ( allow_caching )
+    {
+        dE_saved = dE;
+    }
 
     delete my_fields.density;
     delete my_fields.internal_energy;

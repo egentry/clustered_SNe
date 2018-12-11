@@ -15,7 +15,8 @@ class Cooling
 public:
     Cooling( const bool with_cooling , const std::string name );
     virtual double calc_cooling( const double * prim , const double * cons , 
-                                 const double dt, const bool cached ) = 0;
+                                 const double dt , const bool cached ,
+                                 const bool allow_caching ) = 0;
     virtual void setup_cooling(  const struct domain * theDomain ) = 0;  
 
     const bool with_cooling;
@@ -35,7 +36,8 @@ public:
     Equilibrium_Cooling( bool with_cooling );
 
     double calc_cooling( const double * prim , const double * cons , 
-                         const double dt, const bool cached );
+                         const double dt , const bool cached ,
+                         const bool allow_caching );
 
     void setup_cooling( const struct domain * theDomain );
 

@@ -15,6 +15,11 @@
 
 
 
+// for timestep halving: rather than always having to fail
+// n times each timestep, this'll remember the previous number of
+// restarts needed, and will start the next iteration as if we had already
+// gone through n-1 restarts
+static int num_restarts = 0;
 
 
 
@@ -254,7 +259,15 @@ void timestep( struct domain * theDomain , double dt,
     }
 
     bool restart = true;
-    int num_restarts = 0;
+    num_restarts = std::max(0, num_restarts);
+    dt = dt * std::pow(.5, num_restarts);
+
+    if ( num_restarts > 0 )
+    {
+        std::cout << "Starting with `num_restarts` = " << num_restarts
+                  << std::endl;
+    }
+
     const int num_max_restarts = 15;
     while(restart)
     {
@@ -317,6 +330,7 @@ void timestep( struct domain * theDomain , double dt,
         }
     }
 
+    num_restarts -= 1; // allow the system to relax back to standard CFL
 
     theDomain->t += dt;   
     theDomain->count_steps += 1;
