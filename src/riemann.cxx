@@ -6,7 +6,7 @@
 #include "misc.H" // prim2cons, cons2prim, 
 #include "riemann.H"
 #include "Hydro/euler.H" // flux, getUstar, E_int_from_cons
-#include "geometry.H" // get_dV
+#include "geometry.H" // get_dV"
 
 enum{_HLL_,_HLLC_};
 
@@ -41,7 +41,7 @@ void riemann( struct cell * cL , struct cell * cR,
 
     // ======== Verify pre-conditions ========= //
     #ifndef NDEBUG
-    if (primL[PPP] < PRE_FLOOR)
+    if (primL[PPP] < PRE_FLOOR * 1.01)
     {
         printf("------ERROR in riemann()------- \n");
         printf("primL[%d] = %e \n", PPP, primL[PPP]);
@@ -52,10 +52,13 @@ void riemann( struct cell * cL , struct cell * cR,
         printf("drR = %e \n", drR);
         printf("cL->grad[PPP] = %e \n", cL->grad[PPP]);
 
+        throw ImplicitSolverFailedToConvergeError("riemann (pre; L)",
+                                                  "N/A");
+
         assert(primL[PPP] > PRE_FLOOR);
     }
 
-    if (primR[PPP] < PRE_FLOOR)
+    if (primR[PPP] < PRE_FLOOR * 1.01)
     {
         printf("------ERROR in riemann() ------- \n");
         printf("primR[%d] = %e \n", PPP, primR[PPP]);
@@ -65,6 +68,9 @@ void riemann( struct cell * cL , struct cell * cR,
         printf("drL = %e \n", drL);
         printf("drR = %e \n", drR);
         printf("cR->grad[PPP] = %e \n", cR->grad[PPP]);
+
+        throw ImplicitSolverFailedToConvergeError("riemann (pre; L)",
+                                                  "N/A");
 
         assert(primR[PPP] > PRE_FLOOR);
     }
@@ -567,11 +573,13 @@ void riemann( struct cell * cL , struct cell * cR,
         const double rp_L = cL->riph;
         const double rm_L = rp_L - cL->dr;
         const double dV_L = get_dV( rp_L , rm_L );
-        cons2prim( cL->cons , primL_tmp , dV_L );  // using dV = 1 gives the cons per unit volume -- counteracts dV = 1 above
+        cons2prim( cL->cons , primL_tmp , dV_L 
+        , true, std::string("riemann post-conditions (L)"));  // using dV = 1 gives the cons per unit volume -- counteracts dV = 1 above
         const double rp_R = cR->riph;
         const double rm_R = rp_R - cR->dr;
         const double dV_R = get_dV( rp_R , rm_R );
-        cons2prim( cR->cons , primR_tmp , dV_R);
+        cons2prim( cR->cons , primR_tmp , dV_R
+            , true, std::string("riemann post-conditions (R)"));
         for( int q=0 ; q<NUM_Q ; ++q)
         {
             if( !std::isfinite(primL_tmp[q]) )
@@ -590,21 +598,31 @@ void riemann( struct cell * cL , struct cell * cR,
             }
         }
 
-        if( primL_tmp[PPP] < PRE_FLOOR )
+        if( primL_tmp[PPP] < PRE_FLOOR * 1.01 )
         {
             printf("------ERROR in riemann()------- \n");
             printf("while preparing to exit \n");
             printf("left prim[%d] = %e \n", PPP, primL_tmp[PPP]);
             printf("expected P > PRE_FLOOR \n");
-            assert(primL_tmp[PPP] < PRE_FLOOR);
+
+
+            throw ImplicitSolverFailedToConvergeError("riemann (post; L)",
+                                                      "N/A");
+
+            assert(primL_tmp[PPP] > PRE_FLOOR);
         }
-        if( primR_tmp[PPP] < PRE_FLOOR )
+        if( primR_tmp[PPP] < PRE_FLOOR * 1.01 )
         {
             printf("------ERROR in riemann()------- \n");
             printf("while preparing to exit \n");
             printf("right prim[%d] = %e \n", PPP, primR_tmp[PPP]);
             printf("expected P > PRE_FLOOR \n");
-            assert(primR_tmp[PPP] < PRE_FLOOR);
+
+
+            throw ImplicitSolverFailedToConvergeError("riemann (post; R)",
+                                                      "N/A");
+
+            assert(primR_tmp[PPP] > PRE_FLOOR);
         }
 
         if (cL->multiphase)

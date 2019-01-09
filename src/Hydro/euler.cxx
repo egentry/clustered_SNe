@@ -56,7 +56,9 @@ void prim2cons( const double * prim , double * cons , const double dV )
 }
 
 void cons2prim( const double * cons , double * prim , 
-                const double dV , const bool verbose)
+                const double dV , const bool verbose
+                , const std::string called_from
+                )
 {
     // prim2cons shouldn't overwrite the cons array of any cell,
     // besides when setting up initial conditions.
@@ -103,6 +105,7 @@ void cons2prim( const double * cons , double * prim ,
             printf("dV  = %e \n", dV);
             printf("rho = %e \n", rho);
             printf("vr  = %e \n", vr);
+            printf("called from: %s\n", called_from.c_str());
         }
         // assert(P  > 0);
 

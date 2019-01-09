@@ -208,9 +208,10 @@ void adjust_RK_cons( struct domain * theDomain , const double RK )
         const double rp = c->riph;
         const double rm = rp-c->dr;
         const double dV = get_dV( rp , rm );
-        cons2prim( c->cons , prim_tmp , dV );
+        cons2prim( c->cons , prim_tmp , dV 
+            , true, std::string("adjust_RK_cons post-conditions"));
 
-        if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor)
+        if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor * 1.01)
         {
             printf("------ ERROR in adjust_RK_cons()------- \n");
             printf("pressure should be above pressure floor! \n");
@@ -219,7 +220,7 @@ void adjust_RK_cons( struct domain * theDomain , const double RK )
             printf("rp = %e \n", rp);
             printf("rm = %e \n", rm);
             printf("dr = %e \n", c->dr);
-            assert(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor);
+            assert(prim_tmp[PPP] > theDomain->theParList.Pressure_Floor);
         }
         for( int q=0 ; q<NUM_Q ; ++q)
         {
@@ -300,8 +301,9 @@ void move_cells( struct domain * theDomain , const double dt)
          double rp = c->riph;
          double rm = rp-c->dr;
          double dV = get_dV( rp , rm );
-         cons2prim( c->cons , prim_tmp , dV );
-         if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor)
+         cons2prim( c->cons , prim_tmp , dV 
+            , true , std::string("move_cells pre-conditions"));
+         if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor * 1.01)
          {
             printf("------ ERROR in move_cells() before moving------- \n");
             printf("pressure should be above pressure floor! \n");
@@ -310,7 +312,7 @@ void move_cells( struct domain * theDomain , const double dt)
             printf("rp = %e \n", c->riph);
             printf("rm = %e \n", c->riph - c->dr);
             printf("dr = %e \n", c->dr);
-            assert( prim_tmp[PPP] < theDomain->theParList.Pressure_Floor );
+            assert( prim_tmp[PPP] > theDomain->theParList.Pressure_Floor );
          }
         #endif
 
@@ -323,8 +325,9 @@ void move_cells( struct domain * theDomain , const double dt)
         rp = c->riph;
         rm = rp-c->dr;
         dV = get_dV( rp , rm );
-        cons2prim( c->cons , prim_tmp , dV );
-        if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor)
+        cons2prim( c->cons , prim_tmp , dV 
+            , true , std::string("move_cells post-conditions"));
+        if(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor * 1.01)
         {
             printf("------ ERROR in move_cells() after moving------- \n");
             printf("pressure should be above pressure floor! \n");
@@ -333,7 +336,7 @@ void move_cells( struct domain * theDomain , const double dt)
             printf("rp = %e \n", rp);
             printf("rm = %e \n", rm);
             printf("dr = %e \n", c->dr);
-            assert(prim_tmp[PPP] < theDomain->theParList.Pressure_Floor);
+            assert(prim_tmp[PPP] > theDomain->theParList.Pressure_Floor);
         }
         for( int q=0 ; q<NUM_Q ; ++q)
         {
@@ -473,7 +476,8 @@ void calc_prim( struct domain * theDomain )
         const double rp = c->riph;
         const double rm = rp-c->dr;
         const double dV = get_dV( rp , rm );
-        cons2prim( c->cons , c->prim , dV );
+        cons2prim( c->cons , c->prim , dV 
+            , true, std::string("calc_prim"));
         if (c->multiphase)
         {
             calc_multiphase_prim( c, c->prim_hot , c->prim_cold ,
@@ -483,7 +487,7 @@ void calc_prim( struct domain * theDomain )
 
         // ======== Verify post-conditions ========= //
         #ifndef NDEBUG
-        if(c->prim[PPP] < theDomain->theParList.Pressure_Floor)
+        if(c->prim[PPP] < theDomain->theParList.Pressure_Floor * 1.01)
         {
             printf("------ ERROR in calc_prim()------- \n");
             printf("pressure should be above pressure floor! \n");
@@ -492,7 +496,7 @@ void calc_prim( struct domain * theDomain )
             printf("rp = %e \n", rp);
             printf("rm = %e \n", rm);
             printf("dr = %e \n", c->dr);
-            assert(c->prim[PPP] < theDomain->theParList.Pressure_Floor);
+            assert(c->prim[PPP] > theDomain->theParList.Pressure_Floor);
         }
         for( int q=0 ; q<NUM_Q ; ++q)
         {
@@ -610,7 +614,23 @@ void add_source( struct domain * theDomain , const double dt ,
 
         // ======== Verify post-conditions ========= //
         #ifndef NDEBUG
-        if(c->prim[PPP] < theDomain->theParList.Pressure_Floor)
+        if(E_int_from_cons(c->cons) <= 0)
+        {
+            printf("------ ERROR in add_source()------- \n");
+            printf("Internal energy should be positive! \n");
+            printf("E_int  = %e erg in cell %i \n", E_int_from_cons(c->cons), i);
+            printf("E_kin  = %e erg in cell %i \n", E_kin_from_cons(c->cons), i);
+            printf("E_tot  = %e erg in cell %i \n", c->cons[TAU], i);
+            printf("Mass  = %e g in cell %i \n", c->cons[DDD], i);
+            printf("Momentum  = %e g cm s**-1 in cell %i \n", c->cons[SRR], i);
+            fflush(stdout);
+
+            // assert(E_int_from_cons(c->cons) > 0);
+            throw ImplicitSolverFailedToConvergeError("add_source",
+                                                      "N/A");
+        }
+
+        if(c->prim[PPP] < theDomain->theParList.Pressure_Floor * 1.01)
         {
             printf("------ ERROR in add_source()------- \n");
             printf("pressure should be above pressure floor! \n");
@@ -619,7 +639,7 @@ void add_source( struct domain * theDomain , const double dt ,
             printf("rp = %e \n", rp);
             printf("rm = %e \n", rm);
             printf("dr = %e \n", c->dr);
-            assert(c->prim[PPP] < theDomain->theParList.Pressure_Floor);
+            assert(c->prim[PPP] > theDomain->theParList.Pressure_Floor);
         }
         for( int q=0 ; q<NUM_Q ; ++q)
         {
@@ -926,7 +946,8 @@ void AMR( struct domain * theDomain )
         const double rp = c->riph;
         const double rm = rp - c->dr;
         const double dV = get_dV( rp , rm );
-        cons2prim( c->cons , c->prim , dV );
+        cons2prim( c->cons , c->prim , dV ,
+            true, std::string("AMR merge"));
         if (c->multiphase)
         {
             const double x_hot_before  = M_before_hot_L  / M_before_L;
@@ -1081,7 +1102,8 @@ void AMR( struct domain * theDomain )
 
         double dV_orig = get_dV(rp, rm);
         double prim_tmp[NUM_Q];
-        cons2prim ( c->cons , prim_tmp , dV_orig, true);
+        cons2prim ( c->cons , prim_tmp , dV_orig, true
+            , std::string("ARM split"));
 
         c->riph  = r0;
         c->dr    = r0-rm;
@@ -1108,7 +1130,8 @@ void AMR( struct domain * theDomain )
 
         const double gamma = theDomain->theParList.Adiabatic_Index;
         double dV = get_dV( r0 , rm );
-        cons2prim( c->cons , c->prim , dV , true);
+        cons2prim( c->cons , c->prim , dV , true
+            , std::string("AMR at end"));
         if (c->multiphase)
         {
             calc_multiphase_prim( c, c->prim_hot , c->prim_cold ,
@@ -1118,7 +1141,8 @@ void AMR( struct domain * theDomain )
         c->dV_old     = dV;
 
         dV = get_dV( rp , r0 );
-        cons2prim( cp->cons , cp->prim , dV , true);
+        cons2prim( cp->cons , cp->prim , dV , true
+            , std::string("AMR at end"));
         if (cp->multiphase)
         {
             calc_multiphase_prim( cp, cp->prim_hot , cp->prim_cold ,
