@@ -268,7 +268,9 @@ void timestep( struct domain * theDomain , double dt,
                   << std::endl;
     }
 
-    const int num_max_restarts = 15;
+    // const int num_max_restarts = 15;
+    const int num_max_restarts = 30;
+
     while(restart)
     {
         for( int i=0 ; i<Nr ; ++i )
@@ -307,7 +309,7 @@ void timestep( struct domain * theDomain , double dt,
                        e.implicit_solver_calling_fn_name, e.iteration_type_name);
                 throw std::runtime_error("Too many failed timestep restarts");
             }
-
+            printf("up to num_restarts=%d; dt=%e\n", num_restarts, dt);
             dt = dt / 2.;
 
             for( int i=0 ; i<Nr ; ++i )
