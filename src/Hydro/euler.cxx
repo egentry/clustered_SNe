@@ -2941,14 +2941,16 @@ void Picard_iteration( const double * values_old ,
                 fflush(stdout);
             }
         }
-
+                // printf("max_distance = %e in %s\n", std::exp(max_log_distance),
+                    // calling_fn_name);
         if( j == (num_iterations_max-1) )
         {
             if( !stop_early )
             {
+
                 throw ImplicitSolverFailedToConvergeError(calling_fn_name,
                                                           "Picard_iteration");
-            } 
+            }
         }
 
         for( int i=0 ; i<num_values ; ++i )

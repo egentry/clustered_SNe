@@ -625,9 +625,9 @@ void add_source( struct domain * theDomain , const double dt ,
             printf("Momentum  = %e g cm s**-1 in cell %i \n", c->cons[SRR], i);
             fflush(stdout);
 
-            // assert(E_int_from_cons(c->cons) > 0);
-            throw ImplicitSolverFailedToConvergeError("add_source",
-                                                      "N/A");
+            assert(E_int_from_cons(c->cons) > 0);
+            // throw ImplicitSolverFailedToConvergeError("add_source",
+                                                      // "N/A");
         }
 
         if(c->prim[PPP] < theDomain->theParList.Pressure_Floor * 1.01)

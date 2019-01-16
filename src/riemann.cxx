@@ -52,8 +52,8 @@ void riemann( struct cell * cL , struct cell * cR,
         printf("drR = %e \n", drR);
         printf("cL->grad[PPP] = %e \n", cL->grad[PPP]);
 
-        throw ImplicitSolverFailedToConvergeError("riemann (pre; L)",
-                                                  "N/A");
+        // throw ImplicitSolverFailedToConvergeError("riemann (pre; L)",
+                                                  // "N/A");
 
         assert(primL[PPP] > PRE_FLOOR);
     }
@@ -69,8 +69,8 @@ void riemann( struct cell * cL , struct cell * cR,
         printf("drR = %e \n", drR);
         printf("cR->grad[PPP] = %e \n", cR->grad[PPP]);
 
-        throw ImplicitSolverFailedToConvergeError("riemann (pre; L)",
-                                                  "N/A");
+        // throw ImplicitSolverFailedToConvergeError("riemann (pre; L)",
+                                                  // "N/A");
 
         assert(primR[PPP] > PRE_FLOOR);
     }
