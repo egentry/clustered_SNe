@@ -269,7 +269,8 @@ void timestep( struct domain * theDomain , double dt,
     }
 
     // const int num_max_restarts = 15;
-    const int num_max_restarts = 30;
+    // const int num_max_restarts = 30;
+    const int num_max_restarts = 45;
 
     while(restart)
     {
