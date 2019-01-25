@@ -100,13 +100,20 @@ ifeq ($(shell uname),Darwin)
 # Mac options
 CXX = /usr/bin/clang++
 
-CXX_FLAGS = -Wall -std=c++14 -fPIC
+CXX_FLAGS = -Wall -std=c++14 -fPIC 
 CXX_FLAGS_DEBUG = -g -O1
 CXX_FLAGS_OPT = -O3 -DNDEBUG 
 
-
 INC += 
 LIB += 
+
+GRACKLE_DIR = $(HOME)/local/grackle
+
+CXX_FLAGS += -Xpreprocessor -fopenmp
+INC += -I/usr/local/opt/libomp/include
+LIB += -L/usr/local/opt/libomp/lib   -lomp
+GRACKLE_DIR = $(HOME)/local/grackle_omp
+
 
 INC_UUID = 
 LIB_UUID = 
@@ -127,7 +134,7 @@ INC_LAPACKE = -I$(LAPACKE_DIR)/include
 LIB_LAPACKE = -L$(LAPACKE_DIR)/lib -llapacke
 
 #GRACKLE_DIR is needed for a define statement within cooling
-GRACKLE_DIR = $(HOME)/local/grackle
+# GRACKLE_DIR = $(HOME)/local/grackle
 INC_GRACKLE = -I$(GRACKLE_DIR)/include -DCONFIG_BFLOAT_8
 LIB_GRACKLE = -L$(GRACKLE_DIR)/lib -lgrackle -Wl,-rpath,$(GRACKLE_DIR)/lib
 

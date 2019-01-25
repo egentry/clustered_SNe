@@ -36,7 +36,7 @@ void setHydroParams( const struct domain * theDomain )
 void prim2cons( const double * prim , double * cons , const double dV )
 {
     // prim2cons shouldn't overwrite the cons array of any cell,
-    // besides when setting up initial conditions.
+    // besides when setting up initial conditions, or to enforce the outer boundary.
 
     const double rho  = prim[RHO];
     const double P    = prim[PPP];

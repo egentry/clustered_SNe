@@ -1,6 +1,8 @@
 
 #include "structure.H"
 #include "boundary.H"
+#include "Hydro/euler.H"
+#include "geometry.H"
 
 void boundary( struct domain * theDomain ){
 
@@ -23,6 +25,9 @@ void boundary( struct domain * theDomain ){
     cB->prim[ZZZ] = cP->prim[ZZZ];
     cB->prim[VRR] = 0;
     cB->wiph = 0;
+
+
+    prim2cons(cB->prim, cB->cons, get_dV(cB->riph, cP->riph));
 
 /*
 

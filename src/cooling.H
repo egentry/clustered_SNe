@@ -46,7 +46,7 @@ public:
 protected:
 
 private:
-    grackle_field_data my_fields;
+    // grackle_field_data my_fields;
     chemistry_data *my_grackle_data;
     code_units cooling_units;
 

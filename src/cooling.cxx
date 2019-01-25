@@ -1,4 +1,5 @@
 
+
 #include <string>
 #include <iostream>
 #include <stdexcept>
@@ -20,6 +21,10 @@ extern "C" {
 #include <boost/algorithm/string.hpp> 
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;   
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 
 
@@ -69,7 +74,20 @@ double Equilibrium_Cooling::calc_cooling( const double * prim , const double * c
 
     if( cached )
     {
-        return dE_saved;
+        // return dE_saved;
+        return 0;
+    }
+
+    grackle_field_data my_fields;
+    my_fields.grid_dimension = new int[3];
+    my_fields.grid_start = new int[3];
+    my_fields.grid_end = new int[3];
+
+    for (int i = 0 ; i < 3 ; i++) 
+    {
+        my_fields.grid_dimension[i] = 1; // the active dimension not including ghost zones.
+        my_fields.grid_start[i] = 0;
+        my_fields.grid_end[i] = field_size-1;
     }
 
     // declare fluid variable arrays (will need more for other chemistries)
@@ -112,8 +130,12 @@ double Equilibrium_Cooling::calc_cooling( const double * prim , const double * c
 
     if ( allow_caching )
     {
-        dE_saved = dE;
+        // dE_saved = dE;
     }
+
+    delete my_fields.grid_dimension;
+    delete my_fields.grid_start;
+    delete my_fields.grid_end;
 
     delete my_fields.density;
     delete my_fields.internal_energy;
@@ -163,6 +185,14 @@ void Equilibrium_Cooling::setup_cooling( const struct domain * theDomain )
     grackle_data->UVbackground           = 1;  // include UV background from grackle_data_file
     grackle_data->grackle_data_file      = grackle_data_file; // Haardt + Madau (2012)
     grackle_data->Gamma                  = theDomain->theParList.Adiabatic_Index;
+    # ifdef _OPENMP
+        // Note: If I'm using OpenMP, I'm still making individual Grackle calls
+        //       for each cell. Therefore, I think it's probably better to keep
+        //       Grackle single-threaded, and just multiplex it.
+        //       But I don't explicitly set this to 1, it'll use the max
+        //       number of threads that it thinks it can use, clogging things up.
+        grackle_data->omp_nthreads           = 1;    // number of OpenMP threads
+    # endif
     // All others are defaults...
 
 
@@ -184,15 +214,15 @@ void Equilibrium_Cooling::setup_cooling( const struct domain * theDomain )
     printf("use_grackle: %d \n", grackle_data->use_grackle);
     grackle_verbose=1;
 
-    my_fields.grid_dimension = new int[3];
-    my_fields.grid_start = new int[3];
-    my_fields.grid_end = new int[3];
+    // my_fields.grid_dimension = new int[3];
+    // my_fields.grid_start = new int[3];
+    // my_fields.grid_end = new int[3];
 
-    for (int i = 0 ; i < 3 ; i++) 
-    {
-        my_fields.grid_dimension[i] = 1; // the active dimension not including ghost zones.
-        my_fields.grid_start[i] = 0;
-        my_fields.grid_end[i] = field_size-1;
-    }
+    // for (int i = 0 ; i < 3 ; i++) 
+    // {
+    //     my_fields.grid_dimension[i] = 1; // the active dimension not including ghost zones.
+    //     my_fields.grid_start[i] = 0;
+    //     my_fields.grid_end[i] = field_size-1;
+    // }
 
 };

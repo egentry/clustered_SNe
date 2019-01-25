@@ -17,6 +17,10 @@
 int main( int argc , char * argv[] )
 {
 
+    #ifdef _OPENMP
+        printf("Using OpenMP\n");
+    #endif
+
     int error;
 
     struct domain theDomain = {0};

@@ -21,6 +21,9 @@ extern "C" {
 #define NUM_Q 4 // number of evolved variables
 #define NUM_G 1 // number of guard cells per end
 
+
+#define NThread 6
+
 struct param_list{
 
     double  t_min, t_max;

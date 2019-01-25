@@ -476,10 +476,14 @@ void riemann( struct cell * cL , struct cell * cR,
 
     // const double E_int_L_before = E_int_from_cons(cL->cons);
     // const double E_int_R_before = E_int_from_cons(cR->cons);
+    
+    #pragma omp critical 
+    {
     for( int q=0 ; q<NUM_Q ; ++q )
     {
         cL->cons[q] -= Flux[q] * dA * dt;
         cR->cons[q] += Flux[q] * dA * dt;
+    }
     }
     // const double E_int_L_after = E_int_from_cons(cL->cons);
     // const double E_int_R_after = E_int_from_cons(cR->cons);
@@ -606,10 +610,10 @@ void riemann( struct cell * cL , struct cell * cR,
             printf("expected P > PRE_FLOOR \n");
 
 
-            throw ImplicitSolverFailedToConvergeError("riemann (post; L)",
-                                                      "N/A");
+            // throw ImplicitSolverFailedToConvergeError("riemann (post; L)",
+            //                                           "N/A");
 
-            assert(primL_tmp[PPP] > PRE_FLOOR);
+            // assert(primL_tmp[PPP] > PRE_FLOOR);
         }
         if( primR_tmp[PPP] < PRE_FLOOR * 1.01 )
         {
@@ -618,11 +622,10 @@ void riemann( struct cell * cL , struct cell * cR,
             printf("right prim[%d] = %e \n", PPP, primR_tmp[PPP]);
             printf("expected P > PRE_FLOOR \n");
 
+            // throw ImplicitSolverFailedToConvergeError("riemann (post; R)",
+                                                      // "N/A");
 
-            throw ImplicitSolverFailedToConvergeError("riemann (post; R)",
-                                                      "N/A");
-
-            assert(primR_tmp[PPP] > PRE_FLOOR);
+            // assert(primR_tmp[PPP] > PRE_FLOOR);
         }
 
         if (cL->multiphase)

@@ -336,6 +336,7 @@ void move_cells( struct domain * theDomain , const double dt)
             printf("rp = %e \n", rp);
             printf("rm = %e \n", rm);
             printf("dr = %e \n", c->dr);
+            printf("Nr = %d\n", Nr);
             assert(prim_tmp[PPP] > theDomain->theParList.Pressure_Floor);
         }
         for( int q=0 ; q<NUM_Q ; ++q)
@@ -523,6 +524,12 @@ void radial_flux( struct domain * theDomain , const double dt )
     const int Ng = theDomain->Ng;
 
     plm( theDomain );
+
+    bool failed=false;
+    std::string failed_fn_name;
+    std::string failed_iter_type;
+
+    // #pragma omp parallel for num_threads(NThread)
     for( int i=Ng ; i<Nr-Ng ; ++i )
     {
         struct cell * cL = &(theCells[i]);
@@ -533,9 +540,57 @@ void radial_flux( struct domain * theDomain , const double dt )
         {
             printf("i = %d (radial_flux() -- multiphase))\n", i);
         }
-        riemann( cL , cR , r , dA , dt );
+        try
+        {
+            riemann( cL , cR , r , dA , dt );
+        }
+        catch(ImplicitSolverFailedToConvergeError& e)
+        {
+            failed=true;
+            failed_fn_name = std::string(e.implicit_solver_calling_fn_name);
+            failed_iter_type = std::string(e.iteration_type_name);
+            printf("inside catcher within radial_flux\n");
+        }
+
         // artificial_conduction( cL , cR , dA , dt ); // Noh's artificial conduction
         // subgrid_thermal_conduction(cL, dt); // Keller's inter-cell conduction
+    }
+
+    for( int i=Ng ; i<Nr ; ++i )
+    {
+        double prim_tmp[NUM_Q];
+        struct cell * c = &(theCells[i]); 
+
+        const double rp = c->riph;
+        const double rm = rp - c->dr;
+        const double dV = get_dV( rp , rm );
+        cons2prim( c->cons , prim_tmp , dV 
+        , true, std::string("after-riemann"));
+
+        if( prim_tmp[PPP] < theDomain->theParList.Pressure_Floor * 1.01 )
+        {
+            printf("------ERROR after-riemann()------- \n");
+            printf("cell i=%d\n", i);
+            printf("Nr = %d\n", Nr);
+            printf("prim[PPP] = %e \n", prim_tmp[PPP]);
+            printf("prim[VRR] = %e \n", prim_tmp[VRR]);
+            printf("cons[DDD] = %e\n", c->cons[DDD]);
+            printf("cons[SRR] = %e\n", c->cons[SRR]);
+            printf("cons[TAU] = %e\n", c->cons[TAU]);
+            printf("cons[ZZZ] = %e\n", c->cons[ZZZ]);
+            printf("expected P > PRE_FLOOR \n");
+
+
+
+            // throw ImplicitSolverFailedToConvergeError("after-riemann",
+                                                      // "N/A");
+        }
+
+    }
+    if(failed)
+    {
+        throw ImplicitSolverFailedToConvergeError(failed_fn_name.c_str(),
+                                                  failed_iter_type.c_str()); 
     }
 
     if(theDomain->theParList.with_physical_conduction)
@@ -567,8 +622,39 @@ void add_source( struct domain * theDomain , const double dt ,
     const int Nr = theDomain->Nr;
     const int Ng = theDomain->Ng;
 
+    // ======== Verify pre-conditions ========= //
+        #ifndef NDEBUG
+        for( int i=Ng ; i<Nr ; ++i )
+        {
+            struct cell * c = &(theCells[i]);
+            if(E_int_from_cons(c->cons) <= 0)
+            {
+                printf("------ ERROR in add_source() pre-conditions------- \n");
+                printf("Internal energy should be positive! \n");
+                printf("E_int  = %e erg in cell %i \n", E_int_from_cons(c->cons), i);
+                printf("E_kin  = %e erg in cell %i \n", E_kin_from_cons(c->cons), i);
+                printf("E_tot  = %e erg in cell %i \n", c->cons[TAU], i);
+                printf("Mass  = %e g in cell %i \n", c->cons[DDD], i);
+                printf("Momentum  = %e g cm s**-1 in cell %i \n", c->cons[SRR], i);
+                printf("Velocity = %e cm s**-1\n", c->prim[VRR]);
+                printf("Nr = %d\n", Nr);
+                printf("right w = %e\n", c->wiph);
+                printf("left  w = %e\n", (&(theCells[i-1]))->wiph);
+                fflush(stdout);
+
+                throw ImplicitSolverFailedToConvergeError("add_source",
+                                                          "N/A");
+                assert(E_int_from_cons(c->cons) > 0);
+            }
+        }
+        #endif
+
+    // ======== End pre-conditions ========= //
+
+
     double net_energy_from_cooling = 0;
 
+    #pragma omp parallel for num_threads(NThread) schedule(static, 16)
     for( int i=Ng ; i<Nr ; ++i )
     {
         struct cell * c = &(theCells[i]);
@@ -584,23 +670,26 @@ void add_source( struct domain * theDomain , const double dt ,
             printf("i = %d (in source() -- only for multiphase)\n", i);
         }
         source( c , rp , rm , dV , dt , theDomain->R_shock , cooling );
-        net_energy_from_cooling += c->dE_cool;
-        if((net_energy_from_cooling>0) & (c->dE_cool > 0))
-        {
-            printf("net heating about threshold -- cell %d; time %e [Myr]; dt = %e \n", 
-                i, theDomain->t / (1e6 * yr), dt);
-            printf("dE_cool/dt = %e [erg / Myr]\n", c->dE_cool / dt * (1e6 * yr));
-            printf("total energy added by heating = %e \n", theDomain->energy_added_by_cooling);
-            printf("net so far = %e \n", net_energy_from_cooling);
-            printf("dE_cool = %e \n", c->dE_cool);
-            printf("E(before cool) = %e \n", c->cons[TAU] - c->dE_cool);
-            printf("Z = %e \n", c->prim[ZZZ]);
-            printf("density = %e \n", c->prim[RHO]);
-            printf("velocity = %e \n", c->prim[VRR]);
-            printf("pressure = %e  \n", c->prim[VRR]);
+        // #pragma omp critical 
+        // {
+        // net_energy_from_cooling += c->dE_cool;
+        // if((net_energy_from_cooling>0) & (c->dE_cool > 0))
+        // {
+        //     printf("net heating about threshold -- cell %d; time %e [Myr]; dt = %e \n", 
+        //         i, theDomain->t / (1e6 * yr), dt);
+        //     printf("dE_cool/dt = %e [erg / Myr]\n", c->dE_cool / dt * (1e6 * yr));
+        //     printf("total energy added by heating = %e \n", theDomain->energy_added_by_cooling);
+        //     printf("net so far = %e \n", net_energy_from_cooling);
+        //     printf("dE_cool = %e \n", c->dE_cool);
+        //     printf("E(before cool) = %e \n", c->cons[TAU] - c->dE_cool);
+        //     printf("Z = %e \n", c->prim[ZZZ]);
+        //     printf("density = %e \n", c->prim[RHO]);
+        //     printf("velocity = %e \n", c->prim[VRR]);
+        //     printf("pressure = %e  \n", c->prim[VRR]);
 
-            fflush(stdout);
-        }
+        //     fflush(stdout);
+        // }
+        // }
 
         if((c->dE_cool>0) & ((c->dE_cool / (c->cons[TAU] - c->dE_cool)) > .01))
         {
@@ -612,11 +701,28 @@ void add_source( struct domain * theDomain , const double dt ,
         }
 
 
+
+    }
+
+    // #pragma omp critical 
+    // {
+    if(net_energy_from_cooling > 0)   
+    {
+        theDomain->energy_added_by_cooling += net_energy_from_cooling;
+    }
+    // }
+
+
         // ======== Verify post-conditions ========= //
-        #ifndef NDEBUG
+    #ifndef NDEBUG
+    for( int i=Ng ; i<Nr-Ng ; ++i )
+    {
+        struct cell * c = &(theCells[i]);
+        const double rp = c->riph;
+        double rm = rp-c->dr;
         if(E_int_from_cons(c->cons) <= 0)
         {
-            printf("------ ERROR in add_source()------- \n");
+            printf("------ ERROR in add_source() post-conditions------- \n");
             printf("Internal energy should be positive! \n");
             printf("E_int  = %e erg in cell %i \n", E_int_from_cons(c->cons), i);
             printf("E_kin  = %e erg in cell %i \n", E_kin_from_cons(c->cons), i);
@@ -625,14 +731,15 @@ void add_source( struct domain * theDomain , const double dt ,
             printf("Momentum  = %e g cm s**-1 in cell %i \n", c->cons[SRR], i);
             fflush(stdout);
 
-            assert(E_int_from_cons(c->cons) > 0);
-            // throw ImplicitSolverFailedToConvergeError("add_source",
-                                                      // "N/A");
+            throw ImplicitSolverFailedToConvergeError("add_source",
+                                                      "N/A");
+            // assert(E_int_from_cons(c->cons) > 0);
+
         }
 
         if(c->prim[PPP] < theDomain->theParList.Pressure_Floor * 1.01)
         {
-            printf("------ ERROR in add_source()------- \n");
+            printf("------ ERROR in add_source() post-conditions------- \n");
             printf("pressure should be above pressure floor! \n");
             printf("pressure       = %e in cell %i \n", c->prim[PPP], i);
             printf("pressure floor = %e \n", theDomain->theParList.Pressure_Floor);
@@ -645,7 +752,7 @@ void add_source( struct domain * theDomain , const double dt ,
         {
             if( !std::isfinite(c->prim[q]) )
             {
-                printf("------ ERROR in add_source()------- \n");
+                printf("------ ERROR in add_source() post-conditions------- \n");
                 printf("prim[%d] = %e in cell %d \n", q, c->prim[q], i);
                 printf("rp = %e \n", rp);
                 printf("rm = %e \n", rm);
@@ -653,12 +760,8 @@ void add_source( struct domain * theDomain , const double dt ,
                 assert( std::isfinite(c->prim[q]) );
             }
         }
-        #endif
     }
-    if(net_energy_from_cooling > 0)   
-    {
-        theDomain->energy_added_by_cooling += net_energy_from_cooling;
-    }
+    #endif
 
 }
 
