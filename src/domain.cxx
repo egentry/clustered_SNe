@@ -98,6 +98,10 @@ void possiblyOutput( struct domain * theDomain , int override )
     {
         theDomain->nrpt = n0;
         printf("t = %.3e\n",t);
+        // std::cout << "Timer -- Riemann: " << theDomain->timer_riemann.get_total() << std::endl;
+        // std::cout << "Timer -- Cooling: " << theDomain->timer_cooling.get_total() << std::endl;
+        // std::cout << "Timer -- Conduction: " << theDomain->timer_conduction.get_total() << std::endl;
+        // std::cout << "Timer -- Diffusion: " << theDomain->timer_diffusion.get_total() << std::endl;
         fflush(stdout);
 
     }

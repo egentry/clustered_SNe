@@ -112,8 +112,6 @@ GRACKLE_DIR = $(HOME)/local/grackle
 CXX_FLAGS += -Xpreprocessor -fopenmp
 INC += -I/usr/local/opt/libomp/include
 LIB += -L/usr/local/opt/libomp/lib   -lomp
-GRACKLE_DIR = $(HOME)/local/grackle_omp
-
 
 INC_UUID = 
 LIB_UUID = 
@@ -129,12 +127,16 @@ LIB_BOOST = -L/usr/local/lib -lboost_system -lboost_filesystem
 INC_GSL =
 LIB_GSL =
 
-LAPACKE_DIR = /usr/local/opt/lapack
+# LAPACKE_DIR = /usr/local/opt/lapack
+# INC_LAPACKE = -I$(LAPACKE_DIR)/include
+# LIB_LAPACKE = -L$(LAPACKE_DIR)/lib -llapacke
+
+LAPACKE_DIR = /Users/egentry/local/openblas-lapack/OpenBLAS
 INC_LAPACKE = -I$(LAPACKE_DIR)/include
-LIB_LAPACKE = -L$(LAPACKE_DIR)/lib -llapacke
+LIB_LAPACKE = -L$(LAPACKE_DIR)/lib -lopenblas -Wl,-rpath,$(LAPACKE_DIR)/lib
 
 #GRACKLE_DIR is needed for a define statement within cooling
-# GRACKLE_DIR = $(HOME)/local/grackle
+GRACKLE_DIR = $(HOME)/local/grackle
 INC_GRACKLE = -I$(GRACKLE_DIR)/include -DCONFIG_BFLOAT_8
 LIB_GRACKLE = -L$(GRACKLE_DIR)/lib -lgrackle -Wl,-rpath,$(GRACKLE_DIR)/lib
 

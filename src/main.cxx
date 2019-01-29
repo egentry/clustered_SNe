@@ -13,6 +13,7 @@
 #include "timestep.H"
 #include "Output/ascii.H" // overview
 #include "Initial/initial_conditions.H" // select_initial_conditions
+#include <cblas.h>
 
 int main( int argc , char * argv[] )
 {
@@ -22,6 +23,9 @@ int main( int argc , char * argv[] )
     #endif
 
     int error;
+
+    goto_set_num_threads( NThread );
+    openblas_set_num_threads( NThread );
 
     struct domain theDomain = {0};
 

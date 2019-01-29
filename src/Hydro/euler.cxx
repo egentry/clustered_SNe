@@ -36,7 +36,7 @@ void setHydroParams( const struct domain * theDomain )
 void prim2cons( const double * prim , double * cons , const double dV )
 {
     // prim2cons shouldn't overwrite the cons array of any cell,
-    // besides when setting up initial conditions, or to enforce the outer boundary.
+    // besides when setting up initial conditions.
 
     const double rho  = prim[RHO];
     const double P    = prim[PPP];
@@ -750,6 +750,7 @@ void thermal_conduction_apply_linsolve( const double * e_int_old ,
     double *A_matrix = new double[system_rank*system_rank];
 
     // initialize linear algebra containers
+    #pragma omp parallel for num_threads(NThread)
     for( int i=0 ; i<system_rank ; ++i )
     {
         for( int j=0 ; j<system_rank ; ++j )
@@ -765,11 +766,13 @@ void thermal_conduction_apply_linsolve( const double * e_int_old ,
     }
 
     // add identity along diagonal
+    #pragma omp parallel for num_threads(NThread)
     for( int i=0 ; i<system_rank ; ++i )
     {
         A_matrix[index_2d_to_1d(i, i, system_rank, system_rank)] = 1.;
     }
 
+    #pragma omp parallel for num_threads(NThread)
     for( int i=0 ; i<(num_cells-1) ; ++i )
     {
         // this is interface i + 1/2
@@ -894,7 +897,17 @@ void thermal_conduction_apply_linsolve( const double * e_int_old ,
             assert(std::isfinite(Q_unsat));
         }
 
+        const double C_unsat = kappa_0 
+            * std::pow( mu_average * m_proton * (GAMMA_LAW-1) / k_boltzmann , 7./2.)
+            * std::pow(e_int_average, 5./2.) ;
 
+        const double C_sat = 5 * phi_s
+                               * std::pow(GAMMA_LAW-1, 3./2.)
+                               * rho_upwind
+                               * std::pow(e_int_upwind, 1./2.) ;
+
+        #pragma omp critical
+        {
         if( std::abs(Q_sat) > std::abs(Q_unsat))
         {
             // UNSATURATED REGIME
@@ -910,14 +923,6 @@ void thermal_conduction_apply_linsolve( const double * e_int_old ,
                     printf("T_R = %e\n", T_R);
                 }
             }
-
-
-            const double C_unsat = kappa_0 
-                * std::pow( mu_average * m_proton * (GAMMA_LAW-1) / k_boltzmann , 7./2.)
-                * std::pow(e_int_average, 5./2.) ;
-
-
-
 
 
             A_matrix[index_2d_to_1d(i, i, 
@@ -949,6 +954,7 @@ void thermal_conduction_apply_linsolve( const double * e_int_old ,
                 * dt
                 / (V[i+1] * rho[i+1])
                 / dr;
+
 
         }
         else
@@ -985,11 +991,6 @@ void thermal_conduction_apply_linsolve( const double * e_int_old ,
                 }
             }
 
-            const double C_sat = 5 * phi_s
-                                   * std::pow(GAMMA_LAW-1, 3./2.)
-                                   * rho_upwind
-                                   * std::pow(e_int_upwind, 1./2.) ;
-
             A_matrix[index_2d_to_1d(i, i_upwind, 
                                     system_rank, system_rank)] -= C_sat
                 * sgn
@@ -1003,6 +1004,7 @@ void thermal_conduction_apply_linsolve( const double * e_int_old ,
                 * dA 
                 * dt
                 / (V[i+1] * rho[i+1]);
+        }
         }
     }
 
@@ -1037,6 +1039,7 @@ void thermal_conduction_apply_linsolve( const double * e_int_old ,
     // it'll be less bug-prone if I just use their conventions,
     // and switch it back to 0 indexing at the end
     // And yes, I really do mean <= for the stopping conditions
+    #pragma omp parallel for num_threads(NThread)
     for( int j_fortran=1 ; j_fortran<=N ; ++j_fortran )
     {
         for( int i_fortran=std::max(1, j_fortran-KU) ; 
@@ -1084,7 +1087,7 @@ void thermal_conduction_apply_linsolve( const double * e_int_old ,
         assert(INFO==0);
     }
 
-
+    #pragma omp parallel for num_threads(NThread)
     for( int i=0 ; i<N ; ++i)
     {
         e_int_new[i] = B[i][0];
@@ -1555,6 +1558,7 @@ void turbulent_diffusion_apply_linsolve( const double * Y_old ,
     double *A_matrix = new double[system_rank*system_rank];
 
     // initialize linear algebra containers
+    #pragma omp parallel for num_threads(NThread)
     for( int i=0 ; i<system_rank ; ++i )
     {
         for( int j=0 ; j<system_rank ; ++j )
@@ -1570,39 +1574,43 @@ void turbulent_diffusion_apply_linsolve( const double * Y_old ,
     }
 
     // add identity along diagonal
+    #pragma omp parallel for num_threads(NThread)
     for( int i=0 ; i<system_rank ; ++i )
     {
         A_matrix[index_2d_to_1d(i, i, system_rank, system_rank)] = 1.;
     }
 
-
-
+    double b[num_cells-1];
+    #pragma omp parallel for num_threads(NThread)
     for( int i=0 ; i<(num_cells-1) ; ++i )
     {
 
-        const double b = turbulent_diffusion_calculate_b(r[i], r[i+1],
-                                                         v[i], v[i+1], 
-                                                         C_turbulent_diffusion);
+        b[i] = turbulent_diffusion_calculate_b(r[i], r[i+1],
+                                               v[i], v[i+1], 
+                                               C_turbulent_diffusion);
+    }
 
+    for( int i=0 ; i<(num_cells-1) ; ++i )
+    {
         A_matrix[index_2d_to_1d(i, i, 
-                                system_rank, system_rank)] += b
+                                system_rank, system_rank)] += b[i]
             * dt
             / Vol[i];
 
         A_matrix[index_2d_to_1d(i, i+1, 
-                                system_rank, system_rank)] -= b
+                                system_rank, system_rank)] -= b[i]
             * dt
             / Vol[i];
 
 
         A_matrix[index_2d_to_1d(i+1, i, 
-                                system_rank, system_rank)] -= b
+                                system_rank, system_rank)] -= b[i]
             * dt
             / Vol[i+1];
 
 
         A_matrix[index_2d_to_1d(i+1, i+1, 
-                                system_rank, system_rank)] += b
+                                system_rank, system_rank)] += b[i]
             * dt
             / Vol[i+1];
 
@@ -1631,6 +1639,7 @@ void turbulent_diffusion_apply_linsolve( const double * Y_old ,
     lapack_int LDB = NRHS; // The documentation makes this sound like N, but it actually needs NRHS...
 
     double B[system_rank][1];
+    #pragma omp parallel for num_threads(NThread)
     for( int i=0; i<system_rank; ++i)
     {
         B[i][0] = Y_old[i];
@@ -1639,6 +1648,7 @@ void turbulent_diffusion_apply_linsolve( const double * Y_old ,
     // it'll be less bug-prone if I just use their conventions,
     // and switch it back to 0 indexing at the end
     // And yes, I really do mean <= for the stopping conditions
+    #pragma omp parallel for num_threads(NThread)
     for( int j_fortran=1 ; j_fortran<=N ; ++j_fortran )
     {
         for( int i_fortran=std::max(1, j_fortran-KU) ; 
@@ -1685,7 +1695,7 @@ void turbulent_diffusion_apply_linsolve( const double * Y_old ,
         assert(INFO==0);
     }
 
-
+    #pragma omp parallel for num_threads(NThread)
     for( int i=0 ; i<N ; ++i)
     {
         Y_new[i] = B[i][0];
@@ -3315,6 +3325,5 @@ void EnergyChecker::check(const struct domain * theDomain)
     }
     #endif
 }
-
 
 

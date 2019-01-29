@@ -18,11 +18,16 @@ extern "C" {
 
 #include <vector>
 
+#include "timer.H"
+
+
 #define NUM_Q 4 // number of evolved variables
 #define NUM_G 1 // number of guard cells per end
 
 
-#define NThread 6
+#define NThread 2
+
+
 
 struct param_list{
 
@@ -111,6 +116,11 @@ struct domain{
     double energy_added_by_turbulent_diffusion;
     double energy_added_by_thermal_conduction;
 
+    // MyTimer timer_riemann;
+    // MyTimer timer_cooling;
+    // MyTimer timer_conduction;
+    // MyTimer timer_diffusion;
+
 
 };
 
@@ -172,6 +182,5 @@ struct supernova
     double mass_winds;     // [g]
     double lifetime;       // [s]
 };
-
 
 #endif
