@@ -116,10 +116,10 @@ struct domain{
     double energy_added_by_turbulent_diffusion;
     double energy_added_by_thermal_conduction;
 
-    // MyTimer timer_riemann;
-    // MyTimer timer_cooling;
-    // MyTimer timer_conduction;
-    // MyTimer timer_diffusion;
+    MyTimer timer_riemann;
+    MyTimer timer_cooling;
+    MyTimer timer_conduction;
+    MyTimer timer_diffusion;
 
 
 };

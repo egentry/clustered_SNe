@@ -529,7 +529,7 @@ void radial_flux( struct domain * theDomain , const double dt )
     std::string failed_fn_name;
     std::string failed_iter_type;
 
-    // theDomain->timer_riemann.start();
+    theDomain->timer_riemann.start();
     #pragma omp parallel for num_threads(NThread)
     for( int i=Ng ; i<Nr-Ng ; ++i )
     {
@@ -556,7 +556,7 @@ void radial_flux( struct domain * theDomain , const double dt )
         // artificial_conduction( cL , cR , dA , dt ); // Noh's artificial conduction
         // subgrid_thermal_conduction(cL, dt); // Keller's inter-cell conduction
     }
-    // theDomain->timer_riemann.end();
+    theDomain->timer_riemann.end();
 
     for( int i=Ng ; i<Nr ; ++i )
     {
@@ -599,20 +599,20 @@ void radial_flux( struct domain * theDomain , const double dt )
 
     if(theDomain->theParList.with_physical_conduction)
     {
-        // theDomain->timer_conduction.start();
+        theDomain->timer_conduction.start();
         thermal_conduction_implicit( theDomain , dt );
         // thermal_conduction_explicit( theDomain , dt );
-        // theDomain->timer_conduction.end();
+        theDomain->timer_conduction.end();
     }
 
     if(theDomain->theParList.with_turbulent_diffusion)
     {
-        // theDomain->timer_diffusion.start();
+        theDomain->timer_diffusion.start();
 
         EnergyChecker energy_checker_turb(theDomain, "turbulent_diffusion_implicit");
         turbulent_diffusion_implicit( theDomain , dt );
         energy_checker_turb.check( theDomain );
-        // theDomain->timer_diffusion.end();
+        theDomain->timer_diffusion.end();
     }
 
 }
@@ -658,7 +658,7 @@ void add_source( struct domain * theDomain , const double dt ,
 
     double net_energy_from_cooling = 0;
 
-    // theDomain->timer_cooling.start();
+    theDomain->timer_cooling.start();
     #pragma omp parallel for num_threads(NThread) schedule(static, 16)
     for( int i=Ng ; i<Nr ; ++i )
     {
@@ -705,7 +705,7 @@ void add_source( struct domain * theDomain , const double dt ,
             fflush(stdout);
         }
     }
-    // theDomain->timer_cooling.end();
+    theDomain->timer_cooling.end();
 
 
     if(net_energy_from_cooling > 0)   

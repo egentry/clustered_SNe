@@ -338,10 +338,10 @@ void timestep( struct domain * theDomain , double dt,
     theDomain->t += dt;   
     theDomain->count_steps += 1;
 
-    // theDomain->timer_riemann.add();
-    // theDomain->timer_cooling.add();
-    // theDomain->timer_conduction.add();
-    // theDomain->timer_diffusion.add();
+    theDomain->timer_riemann.add();
+    theDomain->timer_cooling.add();
+    theDomain->timer_conduction.add();
+    theDomain->timer_diffusion.add();
 
 
 }
