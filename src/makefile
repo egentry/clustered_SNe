@@ -30,7 +30,7 @@ INC_SLUG  = -I$(SLUG_DIR)/src
 LIB_SLUG  = -L$(SLUG_DIR)/src -lslug
 LIB_SLUG += -Wl,-rpath,$(SLUG_DIR)/src
 
-BOOST_DIR  = $(HOME)/local/boost_1_59_0
+BOOST_DIR  = $(HOME)/local/boost_1_69_0
 INC_BOOST  = -I$(BOOST_DIR)/include
 LIB_BOOST  = -L$(BOOST_DIR)/lib -lboost_system -lboost_filesystem
 LIB_BOOST += -Wl,-rpath,$(BOOST_DIR)/lib
@@ -50,7 +50,7 @@ DYNLIB = -shared
 DYNLIB_EXT = .so
 endif
 
-ifneq ( ,$(filter $(HOSTNAME), hyades.ucsc.edu eudora.ucsc.edu))
+ifneq ( ,$(filter $(HOSTNAME), hyades.ucsc.edu eudora.ucsc.edu astro-5-29.local astro-5-23.local))
 # Campus cluster options
 # 	(Overwrite general linux options)
 CXX = g++
@@ -62,7 +62,7 @@ CXX_FLAGS_OPT = -O3 -DNDEBUG
 INC += 
 LIB += -lstdc++
 
-UUID_DIR = $(HOME)/local/anaconda3/envs/SNe
+UUID_DIR = $(HOME)/anaconda3/envs/SNe
 INC_UUID = -I$(UUID_DIR)/include 
 LIB_UUID = -L$(UUID_DIR)/lib -luuid
 

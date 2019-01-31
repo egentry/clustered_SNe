@@ -24,8 +24,8 @@ int main( int argc , char * argv[] )
 
     int error;
 
-    goto_set_num_threads( NThread );
-    openblas_set_num_threads( NThread );
+    goto_set_num_threads( NBLASThread );
+    openblas_set_num_threads( NBLASThread );
 
     struct domain theDomain = {0};
 

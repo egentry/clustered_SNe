@@ -25,8 +25,8 @@ extern "C" {
 #define NUM_G 1 // number of guard cells per end
 
 
-#define NThread 2
-
+#define NThread 1
+#define NBLASThread 1
 
 
 struct param_list{
