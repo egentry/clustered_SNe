@@ -220,6 +220,18 @@ int read_par_file( struct domain * theDomain , int argc , char * argv [] )
     error += read_var( par_filename , 
                     "mass_loss"        , &(theList->mass_loss) , std::string("uniform") );
 
+    // error += read_var( par_filename , 
+    //                 "stochastic_seed"        , &(theList->stochastic_seed) , 0 );
+
+    error += read_var( par_filename , 
+                    "dT_blast"        , &(theList->dT_blast) , std::pow(10, 7.5) );
+
+    error += read_var( par_filename , 
+                    "add_energy_cell_1"        , &(theList->add_energy_cell_1) , false );
+    error += read_var( par_filename , 
+                    "add_energy_cell_2"        , &(theList->add_energy_cell_2) , false );
+    error += read_var( par_filename , 
+                    "add_energy_cell_3"        , &(theList->add_energy_cell_3) , false );
 
     if( error > 0 )
     {

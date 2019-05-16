@@ -27,14 +27,16 @@ using namespace boost::filesystem;
 
 
 int add_single_blast( struct domain * theDomain , const double M_blast ,
-                                                  const double M_blast_Z,
-                                                  const double E_blast )
+                                                  const double M_blast_Z ,
+                                                  const double E_blast ,
+                                                  const int N_ngb )
 {
 
     // ============================================= //
     //
-    //  Adds a blast wave of a given energy
-    //  to the innermost valid cell
+    //  Adds a blast wave of a given mass, metals and energy
+    //  to the innermost N_ngb cells (split evenly regardless
+    //  of existing mass or volume).
     // 
     //  Inputs:
     //     - theDomain    - the standard domain struct used throughout
@@ -49,7 +51,7 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
     //
     //  Side effects:
     //     - overwrites the cons AND prims
-    //       of the innermost non-guard cell
+    //       of the innermost N_ngb non-guard cells
     //     - enforces boundary condition
     //
     //  Notes:
@@ -57,20 +59,24 @@ int add_single_blast( struct domain * theDomain , const double M_blast ,
     //
     // ============================================= //
 
-    const int n_guard_cell = 1;
+    const int n_guard_cell = theDomain->Ng;
 
     // code is not yet set for spreading SNe over multiple cells
     // would need to determine how to split the energy correctly
 
-    struct cell * c = &(theDomain->theCells[n_guard_cell]);
+    for(int i = n_guard_cell ; i < n_guard_cell + N_ngb ; ++i )
+    {
+        struct cell * c = &(theDomain->theCells[i]);
 
-    c->cons[DDD] += M_blast;
-    c->cons[TAU] += E_blast;
+        c->cons[DDD] += M_blast / N_ngb;
+        c->cons[TAU] += E_blast / N_ngb;
 
-    // for now assume that the metallicity of the ejecta is the same
-    // as the background metallicity
-    // later we'll want to actually inject metals
-    c->cons[ZZZ] += M_blast_Z;
+        // for now assume that the metallicity of the ejecta is the same
+        // as the background metallicity
+        // later we'll want to actually inject metals
+        c->cons[ZZZ] += M_blast_Z / N_ngb;
+    }
+
 
 
     // now we need to background within substep()
@@ -114,22 +120,158 @@ int add_blasts( struct domain * theDomain )
                             sort_by_lifetime) );
 
     unsigned int num_SNe = 0;
+    const double E_SN = 1e51;
+    const double N_ngb = 3;
+    assert(N_ngb==3); // I'm hard coding the RNG results via input file
+    double E_blasts = 0;
     int error = 0;
     while ( (theDomain->SNe.size() > 0) && 
             (theDomain->SNe.back().lifetime < theDomain->t) )
     {
         supernova tmp = theDomain->SNe.back();
+        E_blasts += E_SN; // add later
+        // just add mass and metals for now
         error += add_single_blast( theDomain, 
-                                   tmp.mass_ejecta, tmp.mass_ejecta_Z);
+                                   tmp.mass_ejecta, tmp.mass_ejecta_Z,
+                                   0 , N_ngb );
 
         theDomain->SNe.pop_back();
         ++num_SNe;
     }
 
+    if( num_SNe == 0 )
+    {
+        return 0;
+    }
+
+    // now deal with stochastic injection
+    const double dT_blast = theDomain->theParList.dT_blast;
+    const double gamma = theDomain->theParList.Adiabatic_Index;
+    const double mu = 2; // assume fully ionized, purely metals
+    const double de = k_boltzmann * dT_blast / ((gamma-1) * mu * m_proton);
+
+    double m_kernel = 0;
+    for(int i = theDomain->Ng; i < theDomain->Ng + N_ngb ; ++i)
+    {
+        const struct cell * c = &(theDomain->theCells[i]);
+        std::cout << "mass[i=" << i << "] = " << c->cons[DDD] << std::endl;
+        m_kernel += c->cons[DDD];
+    }
+
+    const double p = E_blasts / de / m_kernel;
+    std::cout << "p = " << p << std::endl;
+
+    double dE_expected = 0;
+    for(int i = theDomain->Ng; i < theDomain->Ng + N_ngb ; ++i)
+    {
+        const struct cell * c = &(theDomain->theCells[i]);
+        std::cout << "p*dE[i=" << i << "] = " << de*p*c->cons[DDD] << std::endl;
+        dE_expected += de*p*c->cons[DDD];
+    }
+    std::cout << "dE_expected = " << dE_expected << std::endl;
+
+    // now stochastically add energy
+    double dE_actually_added = 0;
+    // std::mt19937 gen(theDomain->theParList.stochastic_seed);
+    // std::uniform_real_distribution<> unif(0.0, 1.0);
+
+    std::cout << "Add energy to respective cells: ";
+    std::cout << theDomain->theParList.add_energy_cell_1 << " ";
+    std::cout << theDomain->theParList.add_energy_cell_2 << " ";
+    std::cout << theDomain->theParList.add_energy_cell_3 << std::endl;
+
+    std::cout << "Likelihood: " << std::pow(p, 
+        theDomain->theParList.add_energy_cell_1  
+        + theDomain->theParList.add_energy_cell_2 
+        + theDomain->theParList.add_energy_cell_3) 
+    * std::pow(1-p, 
+        N_ngb - (theDomain->theParList.add_energy_cell_1  
+        + theDomain->theParList.add_energy_cell_2 
+        + theDomain->theParList.add_energy_cell_3))
+         << std::endl;
+
+    if(theDomain->theParList.add_energy_cell_1)
+    {
+        const int i = theDomain->Ng + 0;
+        struct cell * c = &(theDomain->theCells[i]);
+
+        std::cout << "adding energy to cell i=" << i << std::endl;
+        std::cout << "Energy before: " << c->cons[TAU] << std::endl;
+        c->cons[TAU] += de * c->cons[DDD];
+        dE_actually_added += de * c->cons[DDD];
+        std::cout << "Energy after : " << c->cons[TAU] << std::endl;
+    }
+    if(theDomain->theParList.add_energy_cell_2)
+    {
+        const int i = theDomain->Ng + 1;
+        struct cell * c = &(theDomain->theCells[i]);
+
+        std::cout << "adding energy to cell i=" << i << std::endl;
+        std::cout << "Energy before: " << c->cons[TAU] << std::endl;
+        c->cons[TAU] += de * c->cons[DDD];
+        dE_actually_added += de * c->cons[DDD];
+        std::cout << "Energy after : " << c->cons[TAU] << std::endl;
+    }
+    if(theDomain->theParList.add_energy_cell_3)
+    {
+        const int i = theDomain->Ng + 2;
+        struct cell * c = &(theDomain->theCells[i]);
+
+        std::cout << "adding energy to cell i=" << i << std::endl;
+        std::cout << "Energy before: " << c->cons[TAU] << std::endl;
+        c->cons[TAU] += de * c->cons[DDD];
+        dE_actually_added += de * c->cons[DDD];
+        std::cout << "Energy after : " << c->cons[TAU] << std::endl;
+    }
+
+    // for(int i = theDomain->Ng; i < theDomain->Ng + N_ngb ; ++i)
+    // {
+    //     // const double r = unif(gen);
+    //     std::cout << "cell i=" << i << " r = " << r << " p = " << p << std::endl;
+    //     struct cell * c = &(theDomain->theCells[i]);
+
+    //     if(r <= p)
+    //     {
+    //         std::cout << "adding energy to cell i=" << i << std::endl;
+    //         std::cout << "Energy before: " << c->cons[TAU] << std::endl;
+    //         c->cons[TAU] += de * c->cons[DDD];
+    //         dE_actually_added += de * c->cons[DDD];
+    //         std::cout << "Energy after : " << c->cons[TAU] << std::endl;
+    //     }
+    // }
+
+
+    // now we need to background within substep()
+    // since we changed the cons, but not the prims
+    calc_prim( theDomain );
+    boundary( theDomain );
+
+
+
+    double fractional_E_var = 0;
+    for(int i = theDomain->Ng; i < theDomain->Ng + N_ngb ; ++i)
+    {
+        const struct cell * c = &(theDomain->theCells[i]);
+        fractional_E_var += std::pow(c->cons[DDD], 2);
+    }
+    fractional_E_var *= ((m_kernel * de/E_blasts) - 1) / std::pow(m_kernel, 2);
+
     if ( num_SNe > 0 )
     {
         std::cout << num_SNe << " SN(e) just went off" << std::endl;
+        std::cout << "Using dT_blast = " << dT_blast << " K" << std::endl;
+        std::cout << "Using de = " << de << " erg g^-1" << std::endl;
+        std::cout << "m_kernel = " << m_kernel / M_sun << " M_sun" << std::endl;
+        std::cout << "m_kernel * de = " << m_kernel * de << " erg" << std::endl;
+
+        std::cout << "dE goal   : " << E_blasts << " erg" << std::endl;
+        std::cout << "dE actual : " << dE_actually_added << " erg" << std::endl;
+        std::cout << "fractional energy variance: " << fractional_E_var << std::endl;
+        std::cout << "probability that at least 1 cell gets energy: " << 1 - std::pow(1-p, N_ngb) << std::endl;
+        std::cout << std::flush;
     }
+
+    return 1;
 
     if ( error > 0 )
     {

@@ -65,15 +65,18 @@ int main( int argc , char * argv[] )
 
     start_clock( &theDomain ); 
 
+    bool first_step = true;
     while( !(theDomain.final_step) )
     {
         add_blasts( &theDomain );
         set_wcell( &theDomain );
         double dt = getmindt( &theDomain );
+        if( first_step ){dt = std::min(dt, 2e11);} // don't jump too far before adding SNe
         check_dt( &theDomain , &dt );
         possiblyOutput( &theDomain , 0 );
         timestep( &theDomain , dt , ICs , cooling );
         mass_loss->add_mass_loss( &theDomain , dt );
+        first_step = false;
 
     }
 

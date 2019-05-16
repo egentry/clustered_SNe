@@ -54,6 +54,13 @@ struct param_list{
     
     std::string mass_loss;
 
+    // int stochastic_seed;
+    double dT_blast;
+    bool add_energy_cell_1;
+    bool add_energy_cell_2;
+    bool add_energy_cell_3;
+
+
 };
 
 struct domain{

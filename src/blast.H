@@ -11,7 +11,8 @@
 
 int add_single_blast( struct domain * theDomain , const double M_blast,
                                                   const double M_blast_Z,
-                                                  const double E_blast = 1e51);
+                                                  const double E_blast = 1e51,
+                                                  const int N_ngb = 4 );
 
 int add_blasts( struct domain * theDomain );
 

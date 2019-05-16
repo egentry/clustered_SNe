@@ -97,6 +97,7 @@ void possiblyOutput( struct domain * theDomain , int override )
     {
         theDomain->nrpt = n0;
         printf("t = %.3e\n",t);
+        std::cout << std::flush;
     }
 
     n0 = static_cast<int> ( (t-t_min)*Nchk / (t_fin-t_min) );
@@ -111,6 +112,7 @@ void possiblyOutput( struct domain * theDomain , int override )
         {
             printf("Creating Checkpoint #%04d...\n",n0);
             sprintf(filename,"checkpoint_%04d",n0);
+            std::cout << std::flush;
             create_checkpoint( theDomain , filename, t );
         }
         else
